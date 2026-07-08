@@ -9,7 +9,7 @@ COPY vite.config.js tailwind.config.js postcss.config.js ./
 RUN npm run build
 
 # Stage 2: PHP runtime
-FROM php:8.3-fpm-alpine
+FROM php:8.4-fpm-alpine
 
 # Install system dependencies (need sqlite-dev for php ext compilation)
 RUN apk add --no-cache \
