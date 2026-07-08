@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\TranscriptController;
 use App\Http\Controllers\Api\SummaryController;
 use App\Http\Controllers\Api\ChatController;
 use App\Http\Controllers\Api\AdminController;
+use App\Http\Controllers\Api\MediaController;
 
 // Health check
 Route::get('/health', function () {
@@ -19,6 +20,8 @@ Route::get('/health', function () {
 Route::post('/videos', [VideoController::class, 'store'])->middleware('throttle:10,1');
 Route::get('/videos', [VideoController::class, 'index'])->middleware('throttle:60,1');
 Route::get('/videos/{id}', [VideoController::class, 'show'])->middleware('throttle:60,1');
+Route::get('/videos/{id}/formats', [MediaController::class, 'formats'])->middleware('throttle:30,1');
+Route::get('/videos/{id}/download', [MediaController::class, 'download'])->middleware('throttle:10,1');
 
 // Transcript
 Route::get('/videos/{id}/transcript', [TranscriptController::class, 'show'])->middleware('throttle:60,1');

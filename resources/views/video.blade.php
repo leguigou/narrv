@@ -41,6 +41,7 @@
                     <button @click="tab = 'summary'" :class="tab === 'summary' ? 'border-b-2 border-narrv-500 text-narrv-500' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'" class="px-4 py-3 text-sm font-medium">Résumé</button>
                     <button @click="tab = 'chat'" :class="tab === 'chat' ? 'border-b-2 border-narrv-500 text-narrv-500' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'" class="px-4 py-3 text-sm font-medium">Chat IA</button>
                     <button @click="tab = 'translate'" :class="tab === 'translate' ? 'border-b-2 border-narrv-500 text-narrv-500' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'" class="px-4 py-3 text-sm font-medium">Traduire</button>
+                    <button @click="tab = 'download'" :class="tab === 'download' ? 'border-b-2 border-narrv-500 text-narrv-500' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'" class="px-4 py-3 text-sm font-medium">Telecharger</button>
                 </div>
 
                 <!-- Transcript tab -->
@@ -138,6 +139,44 @@
                          class="mb-4 px-4 py-2 rounded-xl bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-sm">
                     </div>
                     <div x-show="translation" class="p-5 rounded-2xl bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 text-sm whitespace-pre-wrap" x-text="translation"></div>
+                </div>
+
+                <!-- Download tab -->
+                <div x-show="tab === 'download'" x-data="mediaDownloader()" x-init="loadFormats()">
+                    <div x-show="loading" class="py-8 text-sm text-gray-500 dark:text-gray-400">Chargement des formats...</div>
+                    <div x-show="error" x-text="error"
+                         class="mb-4 px-4 py-2 rounded-xl bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-sm">
+                    </div>
+
+                    <div x-show="formats" class="grid gap-4 md:grid-cols-2">
+                        <div class="rounded-2xl border border-gray-200 bg-gray-50 p-5 dark:border-gray-800 dark:bg-gray-900">
+                            <h2 class="text-lg font-semibold">Video complete</h2>
+                            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Telecharge la video avec audio. Les pistes video seules sont fusionnees avec la meilleure piste audio disponible.</p>
+
+                            <select x-model="selectedVideo" class="mt-4 w-full rounded-xl border-0 bg-white px-4 py-3 text-sm dark:bg-gray-800">
+                                <option value="best">Meilleure qualite disponible</option>
+                                <template x-for="format in formats?.video || []" :key="format.format_id">
+                                    <option :value="format.format_id" x-text="`${format.label}${format.filesize ? ' - ' + sizeLabel(format.filesize) : ''}`"></option>
+                                </template>
+                            </select>
+
+                            <button @click="download('video')" class="mt-4 w-full rounded-xl bg-narrv-500 px-5 py-3 text-sm font-medium text-white transition hover:bg-narrv-600">Telecharger la video</button>
+                        </div>
+
+                        <div class="rounded-2xl border border-gray-200 bg-gray-50 p-5 dark:border-gray-800 dark:bg-gray-900">
+                            <h2 class="text-lg font-semibold">Audio seul</h2>
+                            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Extrait la piste audio et la convertit en MP3 avec ffmpeg.</p>
+
+                            <select x-model="selectedAudio" class="mt-4 w-full rounded-xl border-0 bg-white px-4 py-3 text-sm dark:bg-gray-800">
+                                <option value="bestaudio">Meilleure qualite audio</option>
+                                <template x-for="format in formats?.audio || []" :key="format.format_id">
+                                    <option :value="format.format_id" x-text="`${format.label}${format.filesize ? ' - ' + sizeLabel(format.filesize) : ''}`"></option>
+                                </template>
+                            </select>
+
+                            <button @click="download('audio')" class="mt-4 w-full rounded-xl bg-gray-950 px-5 py-3 text-sm font-medium text-white transition hover:bg-gray-800 dark:bg-white dark:text-gray-950 dark:hover:bg-gray-200">Telecharger l'audio MP3</button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>

@@ -28,7 +28,7 @@ class YoutubeService
         $this->retries = max(0, (int) config('services.youtube.retries', 5));
         $retrySleep = config('services.youtube.retry_sleep', 'http:exp=1:20');
         $this->retrySleep = is_string($retrySleep) ? trim($retrySleep) : '';
-        $jsRuntimes = config('services.youtube.js_runtimes', 'deno');
+        $jsRuntimes = config('services.youtube.js_runtimes', 'node');
         $this->jsRuntimes = is_string($jsRuntimes) ? trim($jsRuntimes) : '';
 
         if (!is_dir($this->storagePath)) {
@@ -71,6 +71,245 @@ class YoutubeService
             'segments_json' => $segments,
             'word_count' => str_word_count($fullText),
         ];
+    }
+
+    public function downloadFormats(Video $video): array
+    {
+        $metadata = $this->fetchMetadata($video->url);
+        $formats = is_array($metadata['formats'] ?? null) ? $metadata['formats'] : [];
+
+        $videoFormats = collect($formats)
+            ->filter(fn ($format) => $this->isVideoFormat($format))
+            ->map(fn ($format) => $this->formatSummary($format, 'video'))
+            ->sortByDesc(fn ($format) => [$format['height'] ?? 0, $format['filesize'] ?? 0])
+            ->values()
+            ->all();
+
+        $audioFormats = collect($formats)
+            ->filter(fn ($format) => $this->isAudioFormat($format))
+            ->map(fn ($format) => $this->formatSummary($format, 'audio'))
+            ->sortByDesc(fn ($format) => [$format['abr'] ?? 0, $format['filesize'] ?? 0])
+            ->values()
+            ->all();
+
+        return [
+            'title' => $metadata['title'] ?? $video->title,
+            'video' => array_values(array_filter($videoFormats, fn ($format) => $format['format_id'] !== null)),
+            'audio' => array_values(array_filter($audioFormats, fn ($format) => $format['format_id'] !== null)),
+            'defaults' => [
+                'video' => 'best',
+                'audio' => 'bestaudio',
+            ],
+        ];
+    }
+
+    public function downloadMedia(Video $video, string $type, string $formatId): array
+    {
+        $metadata = $this->fetchMetadata($video->url);
+        $this->assertDownloadFormatAllowed($metadata, $type, $formatId);
+
+        $directory = storage_path('app/downloads/' . uniqid('media-', true));
+        if (!is_dir($directory)) {
+            mkdir($directory, 0755, true);
+        }
+
+        $outputTemplate = $directory . DIRECTORY_SEPARATOR . $video->youtube_id . '.%(ext)s';
+        $arguments = $type === 'audio'
+            ? $this->audioDownloadArguments($formatId, $outputTemplate, $video->url)
+            : $this->videoDownloadArguments($formatId, $metadata, $outputTemplate, $video->url);
+
+        $process = $this->runYtDlp($arguments, 1200);
+
+        if (!$process->isSuccessful()) {
+            $this->deleteDirectory($directory);
+            throw new RuntimeException($this->ytDlpErrorMessage('Unable to download YouTube media', $process));
+        }
+
+        $file = $this->downloadedMediaFile($directory, $video->youtube_id);
+
+        if ($file === null) {
+            $this->deleteDirectory($directory);
+            throw new RuntimeException('The media file could not be found after download.');
+        }
+
+        return [
+            'path' => $file,
+            'filename' => $this->downloadFilename($metadata, $video, $type, $file),
+        ];
+    }
+
+    private function isVideoFormat(array $format): bool
+    {
+        $formatId = $format['format_id'] ?? null;
+        $vcodec = $format['vcodec'] ?? 'none';
+        $height = $format['height'] ?? null;
+
+        return is_string($formatId)
+            && $vcodec !== 'none'
+            && is_numeric($height)
+            && (int) $height > 0;
+    }
+
+    private function isAudioFormat(array $format): bool
+    {
+        $formatId = $format['format_id'] ?? null;
+        $vcodec = $format['vcodec'] ?? 'none';
+        $acodec = $format['acodec'] ?? 'none';
+
+        return is_string($formatId)
+            && $vcodec === 'none'
+            && $acodec !== 'none';
+    }
+
+    private function formatSummary(array $format, string $type): array
+    {
+        $filesize = $format['filesize'] ?? $format['filesize_approx'] ?? null;
+
+        return [
+            'format_id' => $format['format_id'] ?? null,
+            'type' => $type,
+            'label' => $this->formatLabel($format, $type),
+            'ext' => $format['ext'] ?? null,
+            'resolution' => $format['resolution'] ?? null,
+            'height' => isset($format['height']) ? (int) $format['height'] : null,
+            'fps' => isset($format['fps']) ? (float) $format['fps'] : null,
+            'abr' => isset($format['abr']) ? (float) $format['abr'] : null,
+            'vcodec' => $format['vcodec'] ?? null,
+            'acodec' => $format['acodec'] ?? null,
+            'filesize' => is_numeric($filesize) ? (int) $filesize : null,
+        ];
+    }
+
+    private function formatLabel(array $format, string $type): string
+    {
+        if ($type === 'audio') {
+            $abr = isset($format['abr']) ? round((float) $format['abr']) . ' kbps' : 'audio';
+            $ext = $format['ext'] ?? 'audio';
+
+            return trim("{$abr} · {$ext}");
+        }
+
+        $height = isset($format['height']) ? (int) $format['height'] . 'p' : ($format['resolution'] ?? 'video');
+        $fps = isset($format['fps']) && (float) $format['fps'] > 30 ? ' ' . round((float) $format['fps']) . 'fps' : '';
+        $ext = $format['ext'] ?? 'video';
+        $audio = ($format['acodec'] ?? 'none') === 'none' ? ' + audio' : '';
+
+        return trim("{$height}{$fps} · {$ext}{$audio}");
+    }
+
+    private function assertDownloadFormatAllowed(array $metadata, string $type, string $formatId): void
+    {
+        if ($type === 'video' && $formatId === 'best') {
+            return;
+        }
+
+        if ($type === 'audio' && $formatId === 'bestaudio') {
+            return;
+        }
+
+        $formats = is_array($metadata['formats'] ?? null) ? $metadata['formats'] : [];
+        $allowed = collect($formats)->contains(function ($format) use ($type, $formatId) {
+            if (($format['format_id'] ?? null) !== $formatId) {
+                return false;
+            }
+
+            return $type === 'audio'
+                ? $this->isAudioFormat($format)
+                : $this->isVideoFormat($format);
+        });
+
+        if (!$allowed) {
+            throw new RuntimeException('Requested media format is not available.');
+        }
+    }
+
+    private function audioDownloadArguments(string $formatId, string $outputTemplate, string $url): array
+    {
+        $selector = $formatId === 'bestaudio' ? 'bestaudio/best' : "{$formatId}/bestaudio/best";
+
+        return [
+            '--no-playlist',
+            '-f',
+            $selector,
+            '--extract-audio',
+            '--audio-format',
+            'mp3',
+            '--audio-quality',
+            '0',
+            '-o',
+            $outputTemplate,
+            $url,
+        ];
+    }
+
+    private function videoDownloadArguments(string $formatId, array $metadata, string $outputTemplate, string $url): array
+    {
+        $selector = $formatId === 'best'
+            ? 'bestvideo+bestaudio/best'
+            : $this->videoFormatNeedsAudio($metadata, $formatId);
+
+        return [
+            '--no-playlist',
+            '-f',
+            $selector,
+            '--merge-output-format',
+            'mp4',
+            '-o',
+            $outputTemplate,
+            $url,
+        ];
+    }
+
+    private function videoFormatNeedsAudio(array $metadata, string $formatId): string
+    {
+        $formats = is_array($metadata['formats'] ?? null) ? $metadata['formats'] : [];
+
+        foreach ($formats as $format) {
+            if (($format['format_id'] ?? null) === $formatId) {
+                return ($format['acodec'] ?? 'none') === 'none'
+                    ? "{$formatId}+bestaudio/{$formatId}"
+                    : $formatId;
+            }
+        }
+
+        return $formatId;
+    }
+
+    private function downloadedMediaFile(string $directory, string $youtubeId): ?string
+    {
+        $files = glob($directory . DIRECTORY_SEPARATOR . $youtubeId . '.*') ?: [];
+        sort($files);
+
+        foreach ($files as $file) {
+            if (is_file($file) && filesize($file) > 0) {
+                return $file;
+            }
+        }
+
+        return null;
+    }
+
+    private function downloadFilename(array $metadata, Video $video, string $type, string $file): string
+    {
+        $title = $metadata['title'] ?? $video->title ?? $video->youtube_id;
+        $safeTitle = preg_replace('/[^A-Za-z0-9._-]+/', '-', $title) ?: $video->youtube_id;
+        $safeTitle = trim($safeTitle, '-_.') ?: $video->youtube_id;
+        $extension = pathinfo($file, PATHINFO_EXTENSION) ?: ($type === 'audio' ? 'mp3' : 'mp4');
+
+        return "{$safeTitle}-{$video->youtube_id}.{$extension}";
+    }
+
+    private function deleteDirectory(string $directory): void
+    {
+        foreach (glob($directory . DIRECTORY_SEPARATOR . '*') ?: [] as $file) {
+            if (is_file($file)) {
+                unlink($file);
+            }
+        }
+
+        if (is_dir($directory)) {
+            rmdir($directory);
+        }
     }
 
     public function diagnoseMetadata(string $url): array
