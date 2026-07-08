@@ -48,7 +48,7 @@ class DeepseekService
         return $this->callApi($messages);
     }
 
-    public function summarize(string $text, float $temperature, string $tone, string $length): string
+    public function summarize(string $text, float $temperature, string $tone, string $length, string $language = 'fr'): string
     {
         $toneDesc = match ($tone) {
             'formal' => 'formal and professional',
@@ -63,12 +63,17 @@ class DeepseekService
             default => 'moderate, about 200 words',
         };
 
+        $languageName = $this->languageName($language) ?? $language;
+
+        $prompt = $this->prompts->render('summary_system', [
+            'tone' => $toneDesc,
+            'length' => $lengthDesc,
+            'language' => $languageName,
+            'transcript' => $this->trimToBudget($text),
+        ]);
+
         $messages = [
-            ['role' => 'system', 'content' => $this->prompts->render('summary_system', [
-                'tone' => $toneDesc,
-                'length' => $lengthDesc,
-                'transcript' => $this->trimToBudget($text),
-            ])],
+            ['role' => 'system', 'content' => "{$prompt}\n\nWrite the summary in {$languageName}."],
         ];
 
         return $this->callApi($messages, $temperature);

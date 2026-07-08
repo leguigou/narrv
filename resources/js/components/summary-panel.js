@@ -5,6 +5,14 @@ export default function summaryPanel() {
         temperature: 0.3,
         tone: 'neutral',
         length: 'medium',
+        language: 'fr',
+        languages: [
+            { code: 'fr', label: 'Francais' },
+            { code: 'en', label: 'Anglais' },
+            { code: 'es', label: 'Espagnol' },
+            { code: 'it', label: 'Italien' },
+            { code: 'de', label: 'Allemand' }
+        ],
         error: null,
 
         async generate() {
@@ -20,7 +28,8 @@ export default function summaryPanel() {
                     body: JSON.stringify({
                         temperature: this.temperature,
                         tone: this.tone,
-                        length: this.length
+                        length: this.length,
+                        language: this.language
                     })
                 });
                 if (!res.ok) {
@@ -44,6 +53,10 @@ export default function summaryPanel() {
             const res = await fetch(`/api/videos/${videoId}/summaries`);
             const data = await res.json();
             this.summaries = data.data || data;
+        },
+
+        languageLabel(code) {
+            return this.languages.find((language) => language.code === code)?.label || code || 'Inconnue';
         }
     };
 }

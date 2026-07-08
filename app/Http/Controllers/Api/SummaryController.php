@@ -17,6 +17,7 @@ class SummaryController extends Controller
             'temperature' => 'nullable|numeric|min:0|max:1.5',
             'tone' => 'nullable|in:neutral,formal,casual,bullet_points',
             'length' => 'nullable|in:short,medium,long',
+            'language' => 'nullable|string|in:en,fr,es,it,de',
         ]);
 
         $video = Video::with('transcript')->findOrFail($id);
@@ -29,10 +30,11 @@ class SummaryController extends Controller
         $temperature = (float) ($validated['temperature'] ?? 0.3);
         $tone = $validated['tone'] ?? 'neutral';
         $length = $validated['length'] ?? 'medium';
+        $language = $validated['language'] ?? 'fr';
 
         try {
             $service = new SummaryService();
-            $content = $service->generate($transcript->full_text, $temperature, $tone, $length);
+            $content = $service->generate($transcript->full_text, $temperature, $tone, $length, $language);
         } catch (RuntimeException $e) {
             return response()->json(['error' => $e->getMessage()], 502);
         }
@@ -44,6 +46,7 @@ class SummaryController extends Controller
             'temperature' => $temperature,
             'tone' => $tone,
             'length' => $length,
+            'language' => $language,
         ]);
 
         return response()->json($summary);

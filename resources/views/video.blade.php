@@ -94,6 +94,11 @@
                             <option value="medium">Moyen</option>
                             <option value="long">Long</option>
                         </select>
+                        <select x-model="language" class="px-4 py-2 rounded-full bg-gray-100 dark:bg-gray-800 text-sm border-0">
+                            <template x-for="option in languages" :key="option.code">
+                                <option :value="option.code" x-text="option.label"></option>
+                            </template>
+                        </select>
                         <div class="flex items-center gap-2 text-sm">
                             <span class="text-gray-500">Temp:</span>
                             <input type="range" x-model="temperature" min="0" max="1.5" step="0.1" class="w-24">
@@ -112,7 +117,7 @@
                         <template x-for="summary in summaries" :key="summary.id">
                             <div class="p-5 rounded-2xl bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800">
                                 <div class="text-xs text-gray-400 mb-2">
-                                    <span x-text="summary.tone"></span> · <span x-text="summary.length"></span> · temp <span x-text="summary.temperature"></span>
+                                    <span x-text="summary.tone"></span> · <span x-text="summary.length"></span> · <span x-text="languageLabel(summary.language || 'fr')"></span> · temp <span x-text="summary.temperature"></span>
                                 </div>
                                 <div class="prose dark:prose-invert max-w-none text-sm whitespace-pre-wrap" x-text="summary.content"></div>
                             </div>

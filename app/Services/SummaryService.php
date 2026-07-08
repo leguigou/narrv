@@ -11,8 +11,8 @@ class SummaryService
         $this->deepseek = new DeepseekService();
     }
 
-    public function generate(string $transcriptText, float $temperature, string $tone, string $length): string
+    public function generate(string $transcriptText, float $temperature, string $tone, string $length, string $language): string
     {
-        return $this->deepseek->summarize($transcriptText, $temperature, $tone, $length);
+        return $this->deepseek->summarize($transcriptText, $temperature, $tone, $length, $language);
     }
 }

@@ -18,7 +18,7 @@ class PromptService
         ],
         'summary_system' => [
             'label' => 'Resume',
-            'content' => "You are a helpful assistant. Summarize the following YouTube transcript.\n\nTone: {tone}\nLength: {length}\n\nTranscript:\n{transcript}",
+            'content' => "You are a helpful assistant. Summarize the following YouTube transcript.\n\nTone: {tone}\nLength: {length}\nOutput language: {language}\n\nTranscript:\n{transcript}",
         ],
         'translate_system' => [
             'label' => 'Traduction',
