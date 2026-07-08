@@ -112,7 +112,11 @@ Ne supprimez pas ces volumes dans Dokploy si vous voulez conserver les videos, t
 
 ### Cookies YouTube pour yt-dlp
 
-Si YouTube retourne `Sign in to confirm you're not a bot`, exportez les cookies YouTube depuis un navigateur connecte au format Netscape `cookies.txt`, puis encodez le fichier en base64 et ajoutez le resultat dans Dokploy:
+Si YouTube retourne `Sign in to confirm you're not a bot`, exportez les cookies YouTube depuis un navigateur connecte au format Netscape `cookies.txt`.
+
+La methode la plus simple est d'aller dans `/admin`, section `Cookies YouTube`, puis d'importer directement le fichier `cookies.txt`.
+
+Vous pouvez aussi passer par une variable Dokploy si vous preferez:
 
 ```bash
 base64 -w 0 cookies.txt

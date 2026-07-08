@@ -17,7 +17,9 @@ class YoutubeService
         $this->ytDlpPath = (string) config('services.youtube.yt_dlp_path', 'yt-dlp');
         $this->storagePath = storage_path('app/transcripts');
         $cookiesPath = config('services.youtube.cookies_path');
-        $this->cookiesPath = is_string($cookiesPath) && trim($cookiesPath) !== '' ? $cookiesPath : null;
+        $this->cookiesPath = is_string($cookiesPath) && trim($cookiesPath) !== ''
+            ? $this->resolvePath($cookiesPath)
+            : null;
 
         if (!is_dir($this->storagePath)) {
             mkdir($this->storagePath, 0755, true);
@@ -139,6 +141,15 @@ class YoutubeService
         }
 
         return $message;
+    }
+
+    private function resolvePath(string $path): string
+    {
+        if (str_starts_with($path, '/') || preg_match('/^[A-Za-z]:[\\\\\\/]/', $path) === 1) {
+            return $path;
+        }
+
+        return base_path($path);
     }
 
     private function findSubtitleFile(string $youtubeId, string $language): ?string

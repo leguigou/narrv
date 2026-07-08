@@ -53,6 +53,45 @@ class AdminController extends Controller
             'processing_videos' => Video::where('status', 'processing')->count(),
             'error_videos' => Video::where('status', 'error')->count(),
             'ready_videos' => Video::where('status', 'ready')->count(),
+            'youtube_cookies' => $this->youtubeCookiesStatus(),
+        ]);
+    }
+
+    public function uploadYoutubeCookies(Request $request)
+    {
+        $validated = $request->validate([
+            'cookies' => 'required|file|max:2048',
+        ]);
+
+        $uploadedFile = $validated['cookies'];
+        $contents = file_get_contents($uploadedFile->getRealPath());
+
+        if (!is_string($contents) || trim($contents) === '') {
+            return response()->json(['error' => 'Le fichier cookies est vide.'], 422);
+        }
+
+        $path = $this->youtubeCookiesPath();
+        File::ensureDirectoryExists(dirname($path));
+        File::put($path, $contents);
+        @chmod($path, 0600);
+
+        return response()->json([
+            'message' => 'Cookies YouTube importes.',
+            'youtube_cookies' => $this->youtubeCookiesStatus(),
+        ]);
+    }
+
+    public function deleteYoutubeCookies()
+    {
+        $path = $this->youtubeCookiesPath();
+
+        if (is_file($path)) {
+            File::delete($path);
+        }
+
+        return response()->json([
+            'message' => 'Cookies YouTube supprimes.',
+            'youtube_cookies' => $this->youtubeCookiesStatus(),
         ]);
     }
 
@@ -96,5 +135,41 @@ class AdminController extends Controller
         if (is_file($path)) {
             File::delete($path);
         }
+    }
+
+    private function youtubeCookiesStatus(): array
+    {
+        $path = $this->youtubeCookiesPath();
+
+        if (!is_file($path)) {
+            return [
+                'configured' => false,
+                'size' => 0,
+                'updated_at' => null,
+            ];
+        }
+
+        return [
+            'configured' => true,
+            'size' => filesize($path) ?: 0,
+            'updated_at' => date(DATE_ATOM, filemtime($path) ?: time()),
+        ];
+    }
+
+    private function youtubeCookiesPath(): string
+    {
+        $path = (string) config('services.youtube.cookies_path', storage_path('app/youtube-cookies.txt'));
+
+        if ($this->isAbsolutePath($path)) {
+            return $path;
+        }
+
+        return base_path($path);
+    }
+
+    private function isAbsolutePath(string $path): bool
+    {
+        return str_starts_with($path, '/')
+            || preg_match('/^[A-Za-z]:[\\\\\\/]/', $path) === 1;
     }
 }
