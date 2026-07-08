@@ -15,11 +15,6 @@ services:
       - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
       - DEEPSEEK_BASE_URL=${DEEPSEEK_BASE_URL:-https://api.deepseek.com}
       - ADMIN_PASSWORD=${ADMIN_PASSWORD:-admin123}
-    labels:
-      - "traefik.enable=true"
-      - traefik.http.routers.narrv.rule=Host(`narrv.deloffre.fr`)
-      - "traefik.http.routers.narrv.entrypoints=websecure"
-      - "traefik.http.services.narrv.loadbalancer.server.port=80"
     volumes:
       - narrv_storage:/var/www/storage
       - narrv_database:/var/www/database
