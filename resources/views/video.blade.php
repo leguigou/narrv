@@ -17,10 +17,26 @@
         <div>
             <!-- Video info -->
             <div class="mb-8">
-                <img :src="video.thumbnail_url" :alt="video.title"
-                     class="w-full aspect-video rounded-2xl object-cover bg-gray-200 dark:bg-gray-800 mb-4">
-                <h1 class="text-2xl font-bold" x-text="video.title"></h1>
-                <p class="text-gray-500 dark:text-gray-400 mt-1" x-text="video.channel_name"></p>
+                <div class="mb-4 flex aspect-video w-full items-center justify-center overflow-hidden rounded-2xl bg-gray-100 dark:bg-gray-800">
+                    <template x-if="hasThumbnail">
+                        <img :src="video.thumbnail_url"
+                             :alt="video.title || 'Miniature video'"
+                             @error="thumbnailFailed = true"
+                             class="h-full w-full object-cover">
+                    </template>
+                    <div x-show="!hasThumbnail" class="flex h-full w-full flex-col items-center justify-center px-6 text-center">
+                        <div class="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl border border-cyan-400/40 bg-cyan-400/10 text-cyan-300">
+                            <svg viewBox="0 0 24 24" aria-hidden="true" class="h-7 w-7 fill-none stroke-current stroke-2">
+                                <rect x="4" y="5" width="16" height="14" rx="3"></rect>
+                                <path d="M10 9.5v5l4.5-2.5-4.5-2.5Z"></path>
+                            </svg>
+                        </div>
+                        <div class="text-sm font-medium text-gray-700 dark:text-gray-200" x-text="thumbnailPlaceholderTitle"></div>
+                        <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">La miniature apparaitra des que les metadonnees seront disponibles.</div>
+                    </div>
+                </div>
+                <h1 class="text-2xl font-bold" x-text="video.title || 'Video en analyse'"></h1>
+                <p class="text-gray-500 dark:text-gray-400 mt-1" x-show="video.channel_name" x-text="video.channel_name"></p>
 
                 <!-- Status badge -->
                 <div x-show="video.status === 'processing' || video.status === 'pending'"
@@ -187,16 +203,30 @@
     document.addEventListener('alpine:init', () => {
         Alpine.data('videoDetail', () => ({
             video: null,
+            thumbnailFailed: false,
             tab: 'transcript',
             init() {
                 const id = window.location.pathname.split('/').pop();
                 this.loadVideo(id);
+            },
+            get hasThumbnail() {
+                return Boolean(this.video?.thumbnail_url && !this.thumbnailFailed);
+            },
+            get thumbnailPlaceholderTitle() {
+                if (this.video?.status === 'pending' || this.video?.status === 'processing') {
+                    return 'Recuperation de la video en cours';
+                }
+
+                return 'Miniature indisponible';
             },
             async loadVideo(id) {
                 try {
                     const res = await fetch(`/api/videos/${id}`);
                     if (!res.ok) throw new Error('Impossible de charger la video');
                     const video = await res.json();
+                    if (this.video?.thumbnail_url !== video.thumbnail_url) {
+                        this.thumbnailFailed = false;
+                    }
                     Alpine.store('app').currentVideo = video;
                     this.video = video;
                     if (this.video.status === 'pending' || this.video.status === 'processing') {
