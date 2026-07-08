@@ -48,7 +48,7 @@ return [
         'sleep_requests' => env('YT_DLP_SLEEP_REQUESTS', 1),
         'retries' => env('YT_DLP_RETRIES', 5),
         'retry_sleep' => env('YT_DLP_RETRY_SLEEP', 'http:exp=1:20'),
-        'js_runtimes' => env('YT_DLP_JS_RUNTIMES', 'deno'),
+        'js_runtimes' => env('YT_DLP_JS_RUNTIMES', 'node'),
     ],
 
     'admin' => [

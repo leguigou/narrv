@@ -92,7 +92,7 @@ docker compose up -d
 | `YT_DLP_SLEEP_REQUESTS` | `1` | Delai entre les requetes yt-dlp pour limiter les erreurs 429 |
 | `YT_DLP_RETRIES` | `5` | Nombre de tentatives yt-dlp sur les erreurs reseau |
 | `YT_DLP_RETRY_SLEEP` | `http:exp=1:20` | Backoff yt-dlp entre les tentatives HTTP |
-| `YT_DLP_JS_RUNTIMES` | `deno` | Runtime JavaScript utilise par yt-dlp pour resoudre les challenges YouTube |
+| `YT_DLP_JS_RUNTIMES` | `node` | Runtime JavaScript utilise par yt-dlp pour resoudre les challenges YouTube |
 | `YOUTUBE_COOKIES_BASE64` | - | Cookies YouTube exportes puis encodes en base64, utiles si YouTube demande une connexion |
 | `YOUTUBE_COOKIES_PATH` | `/var/www/storage/app/youtube-cookies.txt` | Chemin du fichier cookies utilise par `yt-dlp` |
 | `ADMIN_PASSWORD` | - | **Requis** - mot de passe zone admin |

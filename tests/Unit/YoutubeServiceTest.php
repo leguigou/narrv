@@ -32,7 +32,7 @@ class YoutubeServiceTest extends TestCase
             'services.youtube.sleep_requests' => 2,
             'services.youtube.retries' => 7,
             'services.youtube.retry_sleep' => 'http:exp=2:30',
-            'services.youtube.js_runtimes' => 'deno',
+            'services.youtube.js_runtimes' => 'node',
         ]);
 
         $service = new YoutubeService();
@@ -50,7 +50,7 @@ class YoutubeServiceTest extends TestCase
         $this->assertContains('--retry-sleep', $command);
         $this->assertContains('http:exp=2:30', $command);
         $this->assertContains('--js-runtimes', $command);
-        $this->assertContains('deno', $command);
+        $this->assertContains('node', $command);
     }
 
     public function test_it_parses_vtt_timestamps_with_and_without_hours(): void

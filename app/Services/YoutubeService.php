@@ -273,7 +273,7 @@ class YoutubeService
         }
 
         if (str_contains($error, 'n challenge solving failed')) {
-            $message .= ' YouTube requires JavaScript challenge solving. The Docker image must include Deno and yt-dlp EJS components; rebuild the app image after deploying this fix.';
+            $message .= ' YouTube requires JavaScript challenge solving. The Docker image must include Node.js and yt-dlp EJS components; rebuild the app image after deploying this fix.';
         }
 
         return $message;
