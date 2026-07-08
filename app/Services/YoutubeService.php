@@ -14,6 +14,7 @@ class YoutubeService
     private float $sleepRequests;
     private int $retries;
     private string $retrySleep;
+    private string $jsRuntimes;
 
     public function __construct()
     {
@@ -27,6 +28,8 @@ class YoutubeService
         $this->retries = max(0, (int) config('services.youtube.retries', 5));
         $retrySleep = config('services.youtube.retry_sleep', 'http:exp=1:20');
         $this->retrySleep = is_string($retrySleep) ? trim($retrySleep) : '';
+        $jsRuntimes = config('services.youtube.js_runtimes', 'deno');
+        $this->jsRuntimes = is_string($jsRuntimes) ? trim($jsRuntimes) : '';
 
         if (!is_dir($this->storagePath)) {
             mkdir($this->storagePath, 0755, true);
@@ -179,6 +182,11 @@ class YoutubeService
             $arguments[] = $this->retrySleep;
         }
 
+        if ($this->jsRuntimes !== '') {
+            $arguments[] = '--js-runtimes';
+            $arguments[] = $this->jsRuntimes;
+        }
+
         return $arguments;
     }
 
@@ -215,6 +223,10 @@ class YoutubeService
 
         if (str_contains($error, 'HTTP Error 429') || str_contains($error, 'Too Many Requests')) {
             $message .= ' YouTube is rate-limiting this server right now. Wait a few minutes, keep cookies configured, then retry from the admin. If it persists, refresh the YouTube cookies from a logged-in browser.';
+        }
+
+        if (str_contains($error, 'n challenge solving failed')) {
+            $message .= ' YouTube requires JavaScript challenge solving. The Docker image must include Deno and yt-dlp EJS components; rebuild the app image after deploying this fix.';
         }
 
         return $message;

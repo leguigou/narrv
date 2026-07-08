@@ -19,10 +19,14 @@ RUN apk add --no-cache \
     py3-pip \
     py3-virtualenv \
     ca-certificates \
+    curl \
+    unzip \
     sqlite \
     sqlite-dev \
     oniguruma-dev \
     libzip-dev \
+    && curl -fsSL https://deno.land/install.sh | DENO_INSTALL=/usr/local sh \
+    && deno --version \
     && python3 -m virtualenv /opt/yt-dlp \
     && /opt/yt-dlp/bin/pip install --no-cache-dir --upgrade pip \
     && /opt/yt-dlp/bin/pip install --no-cache-dir "yt-dlp[default]" "curl_cffi" \
