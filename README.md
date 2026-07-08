@@ -89,6 +89,9 @@ docker compose up -d
 | `DEEPSEEK_API_KEY` | — | **Requis** — clé API DeepSeek |
 | `DEEPSEEK_BASE_URL` | `https://api.deepseek.com` | URL de l'API DeepSeek, sans `/v1` |
 | `DEEPSEEK_MODEL` | `deepseek-chat` | Modele DeepSeek utilise |
+| `YT_DLP_SLEEP_REQUESTS` | `1` | Delai entre les requetes yt-dlp pour limiter les erreurs 429 |
+| `YT_DLP_RETRIES` | `5` | Nombre de tentatives yt-dlp sur les erreurs reseau |
+| `YT_DLP_RETRY_SLEEP` | `http:exp=1:20` | Backoff yt-dlp entre les tentatives HTTP |
 | `YOUTUBE_COOKIES_BASE64` | - | Cookies YouTube exportes puis encodes en base64, utiles si YouTube demande une connexion |
 | `YOUTUBE_COOKIES_PATH` | `/var/www/storage/app/youtube-cookies.txt` | Chemin du fichier cookies utilise par `yt-dlp` |
 | `ADMIN_PASSWORD` | - | **Requis** - mot de passe zone admin |

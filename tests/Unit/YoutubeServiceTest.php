@@ -27,7 +27,12 @@ class YoutubeServiceTest extends TestCase
         }
 
         file_put_contents($this->cookiesFile, "# Netscape HTTP Cookie File\n");
-        config(['services.youtube.cookies_path' => $this->cookiesFile]);
+        config([
+            'services.youtube.cookies_path' => $this->cookiesFile,
+            'services.youtube.sleep_requests' => 2,
+            'services.youtube.retries' => 7,
+            'services.youtube.retry_sleep' => 'http:exp=2:30',
+        ]);
 
         $service = new YoutubeService();
         $method = (new ReflectionClass($service))->getMethod('ytDlpCommand');
@@ -37,6 +42,12 @@ class YoutubeServiceTest extends TestCase
 
         $this->assertContains('--cookies', $command);
         $this->assertContains($this->cookiesFile, $command);
+        $this->assertContains('--sleep-requests', $command);
+        $this->assertContains('2', $command);
+        $this->assertContains('--retries', $command);
+        $this->assertContains('7', $command);
+        $this->assertContains('--retry-sleep', $command);
+        $this->assertContains('http:exp=2:30', $command);
     }
 
     public function test_it_parses_vtt_timestamps_with_and_without_hours(): void

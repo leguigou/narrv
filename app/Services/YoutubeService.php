@@ -11,6 +11,9 @@ class YoutubeService
     private string $ytDlpPath;
     private string $storagePath;
     private ?string $cookiesPath;
+    private float $sleepRequests;
+    private int $retries;
+    private string $retrySleep;
 
     public function __construct()
     {
@@ -20,6 +23,10 @@ class YoutubeService
         $this->cookiesPath = is_string($cookiesPath) && trim($cookiesPath) !== ''
             ? $this->resolvePath($cookiesPath)
             : null;
+        $this->sleepRequests = max(0, (float) config('services.youtube.sleep_requests', 1));
+        $this->retries = max(0, (int) config('services.youtube.retries', 5));
+        $retrySleep = config('services.youtube.retry_sleep', 'http:exp=1:20');
+        $this->retrySleep = is_string($retrySleep) ? trim($retrySleep) : '';
 
         if (!is_dir($this->storagePath)) {
             mkdir($this->storagePath, 0755, true);
@@ -30,10 +37,10 @@ class YoutubeService
     {
         $metadata = $this->fetchMetadata($video->url);
         $language = $metadata['language'] ?? 'en';
-        // Normalise la langue (ex: fr-FR → fr)
+        // Normalize regional language codes such as fr-FR to fr.
         $langBase = explode('-', $language)[0];
 
-        $this->downloadSubtitles($video->url, $langBase);
+        $this->downloadSubtitles($video->url, $video->youtube_id, $langBase);
 
         $vttFile = $this->findSubtitleFile($video->youtube_id, $langBase);
 
@@ -112,34 +119,67 @@ class YoutubeService
         }
     }
 
-    private function downloadSubtitles(string $url, string $language): void
+    private function downloadSubtitles(string $url, string $youtubeId, string $language): void
     {
         $outputTemplate = $this->storagePath . DIRECTORY_SEPARATOR . '%(id)s.%(ext)s';
-        $languages = implode(',', array_values(array_unique(array_filter([$language, 'en', 'fr']))));
+        $languages = array_values(array_unique(array_filter([$language, 'en', 'fr'])));
+        $errors = [];
 
-        $process = new Process($this->ytDlpCommand([
-            '--write-subs',
-            '--write-auto-subs',
-            '--sub-lang',
-            $languages,
-            '--skip-download',
-            '--sub-format',
-            'vtt',
-            '-o',
-            $outputTemplate,
-            $url,
-        ]));
-        $process->setTimeout(180);
-        $process->run();
+        foreach ($languages as $subtitleLanguage) {
+            $process = new Process($this->ytDlpCommand([
+                '--write-subs',
+                '--write-auto-subs',
+                '--sub-lang',
+                $subtitleLanguage,
+                '--skip-download',
+                '--sub-format',
+                'vtt',
+                '-o',
+                $outputTemplate,
+                $url,
+            ]));
+            $process->setTimeout(240);
+            $process->run();
 
-        if (!$process->isSuccessful()) {
-            throw new RuntimeException($this->ytDlpErrorMessage('Unable to download YouTube subtitles', $process));
+            if ($this->findSubtitleFile($youtubeId, $subtitleLanguage) !== null) {
+                return;
+            }
+
+            $errors[] = $process->isSuccessful()
+                ? "No subtitles found for '{$subtitleLanguage}'."
+                : $this->ytDlpErrorMessage("Unable to download YouTube subtitles for '{$subtitleLanguage}'", $process);
         }
+
+        throw new RuntimeException(implode(' ', $errors));
     }
 
     private function ytDlpCommand(array $arguments): array
     {
-        return array_merge([$this->ytDlpPath], $this->cookiesArguments(), $arguments);
+        return array_merge([$this->ytDlpPath], $this->networkArguments(), $this->cookiesArguments(), $arguments);
+    }
+
+    private function networkArguments(): array
+    {
+        $arguments = [
+            '--retries',
+            (string) $this->retries,
+            '--fragment-retries',
+            (string) $this->retries,
+            '--extractor-retries',
+            (string) $this->retries,
+        ];
+
+        if ($this->sleepRequests > 0) {
+            $arguments[] = '--sleep-requests';
+            $arguments[] = (string) $this->sleepRequests;
+        }
+
+        if ($this->retrySleep !== '') {
+            $arguments[] = '--retry-sleep';
+            $arguments[] = $this->retrySleep;
+        }
+
+        return $arguments;
     }
 
     private function cookiesArguments(): array
@@ -171,6 +211,10 @@ class YoutubeService
             } else {
                 $message .= ' No readable cookies file was found. Import cookies.txt in the admin or configure YOUTUBE_COOKIES_BASE64/YOUTUBE_COOKIES_PATH.';
             }
+        }
+
+        if (str_contains($error, 'HTTP Error 429') || str_contains($error, 'Too Many Requests')) {
+            $message .= ' YouTube is rate-limiting this server right now. Wait a few minutes, keep cookies configured, then retry from the admin. If it persists, refresh the YouTube cookies from a logged-in browser.';
         }
 
         return $message;

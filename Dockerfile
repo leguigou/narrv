@@ -15,13 +15,18 @@ FROM php:8.4-fpm-alpine
 RUN apk add --no-cache \
     nginx \
     supervisor \
-    yt-dlp \
     python3 \
     py3-pip \
+    py3-virtualenv \
+    ca-certificates \
     sqlite \
     sqlite-dev \
     oniguruma-dev \
     libzip-dev \
+    && python3 -m virtualenv /opt/yt-dlp \
+    && /opt/yt-dlp/bin/pip install --no-cache-dir --upgrade pip \
+    && /opt/yt-dlp/bin/pip install --no-cache-dir "yt-dlp[default]" "curl_cffi" \
+    && ln -s /opt/yt-dlp/bin/yt-dlp /usr/local/bin/yt-dlp \
     && docker-php-ext-install -j$(nproc) zip pdo_sqlite mbstring
 
 # Copy PHP config
