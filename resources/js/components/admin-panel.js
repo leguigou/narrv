@@ -47,7 +47,7 @@ export default function adminPanel() {
         },
 
         async loadDashboard() {
-            await Promise.all([
+            await Promise.allSettled([
                 this.loadStats(),
                 this.loadVideos(),
                 this.loadPrompts()
@@ -78,12 +78,16 @@ export default function adminPanel() {
 
         async loadPrompts() {
             this.promptsLoading = true;
+            this.promptError = null;
 
             try {
                 const res = await fetch('/api/admin/prompts', {
                     headers: this.authHeaders()
                 });
                 this.prompts = await this.readApiResponse(res, 'Chargement des prompts impossible.');
+            } catch (e) {
+                this.prompts = [];
+                this.promptError = e.message;
             } finally {
                 this.promptsLoading = false;
             }

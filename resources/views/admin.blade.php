@@ -138,6 +138,10 @@
                     <div class="rounded-xl border border-gray-200 bg-gray-50 p-5 text-sm text-gray-500 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-400">Chargement...</div>
                 </template>
 
+                <template x-if="!promptsLoading && !promptError && prompts.length === 0">
+                    <div class="rounded-xl border border-gray-200 bg-gray-50 p-5 text-sm text-gray-500 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-400">Aucun prompt disponible.</div>
+                </template>
+
                 <div class="grid gap-4" x-show="!promptsLoading">
                     <template x-for="prompt in prompts" :key="prompt.key">
                         <div class="rounded-xl border border-gray-200 bg-gray-50 p-5 dark:border-gray-800 dark:bg-gray-900">
