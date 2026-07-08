@@ -21,7 +21,7 @@
                     <template x-if="hasThumbnail">
                         <img :src="video.thumbnail_url"
                              :alt="video.title || 'Miniature video'"
-                             @error="thumbnailFailed = true"
+                             x-on:error="thumbnailFailed = true"
                              class="h-full w-full object-cover">
                     </template>
                     <div x-show="!hasThumbnail" class="flex h-full w-full flex-col items-center justify-center px-6 text-center">
