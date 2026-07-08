@@ -38,7 +38,7 @@ class ChatController extends Controller
             ->values();
 
         try {
-            $deepseek = new DeepseekService();
+            $deepseek = app(DeepseekService::class);
             $response = $deepseek->chat($transcript->full_text, $history);
         } catch (RuntimeException $e) {
             return response()->json(['error' => $e->getMessage()], 502);
