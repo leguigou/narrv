@@ -63,6 +63,25 @@ class YoutubeServiceTest extends TestCase
         $this->assertEqualsWithDelta(62.345, $method->invoke($service, '00:01:02.345'), 0.001);
     }
 
+    public function test_it_prioritizes_browser_language_then_video_language_then_english(): void
+    {
+        $service = new YoutubeService();
+        $method = (new ReflectionClass($service))->getMethod('subtitleLanguageCandidates');
+        $method->setAccessible(true);
+
+        $candidates = $method->invoke($service, [
+            'subtitles' => [
+                'de' => [],
+            ],
+            'automatic_captions' => [
+                'fr' => [],
+                'en' => [],
+            ],
+        ], 'fr', 'es');
+
+        $this->assertSame(['fr', 'es', 'de', 'en'], $candidates);
+    }
+
     public function test_it_cleans_vtt_cues_into_segments(): void
     {
         $service = new YoutubeService();

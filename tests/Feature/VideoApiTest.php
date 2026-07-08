@@ -23,13 +23,18 @@ class VideoApiTest extends TestCase
     {
         Queue::fake();
 
-        $this->postJson('/api/videos', ['url' => 'https://www.youtube.com/watch?v=dQw4w9WgXcQ'])
+        $this->postJson('/api/videos', [
+            'url' => 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+            'preferred_language' => 'fr-FR',
+        ])
             ->assertCreated()
             ->assertJsonPath('youtube_id', 'dQw4w9WgXcQ')
-            ->assertJsonPath('status', 'pending');
+            ->assertJsonPath('status', 'pending')
+            ->assertJsonPath('language', 'fr');
 
         $this->assertDatabaseHas('videos', [
             'youtube_id' => 'dQw4w9WgXcQ',
+            'language' => 'fr',
             'status' => 'pending',
         ]);
 

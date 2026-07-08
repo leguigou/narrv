@@ -13,10 +13,12 @@ class VideoController extends Controller
     {
         $validated = $request->validate([
             'url' => 'required|string|max:2048',
+            'preferred_language' => 'nullable|string|max:32',
         ]);
 
         $url = $this->normalizeUrl($validated['url']);
         $youtubeId = $this->extractYoutubeId($url);
+        $preferredLanguage = $this->normalizeLanguage($validated['preferred_language'] ?? null) ?? 'en';
 
         if ($youtubeId === null) {
             return response()->json(['error' => 'URL YouTube invalide'], 422);
@@ -24,8 +26,12 @@ class VideoController extends Controller
 
         $video = Video::firstOrCreate(
             ['youtube_id' => $youtubeId],
-            ['url' => $url, 'status' => 'pending']
+            ['url' => $url, 'language' => $preferredLanguage, 'status' => 'pending']
         );
+
+        if (!$video->wasRecentlyCreated && $video->status !== 'ready') {
+            $video->update(['language' => $preferredLanguage]);
+        }
 
         if ($video->wasRecentlyCreated) {
             ProcessYoutubeVideo::dispatch($video);
@@ -90,5 +96,21 @@ class VideoController extends Controller
     private function validYoutubeId(?string $value): ?string
     {
         return is_string($value) && preg_match('/^[a-zA-Z0-9_-]{11}$/', $value) ? $value : null;
+    }
+
+    private function normalizeLanguage(?string $language): ?string
+    {
+        if (!is_string($language) || trim($language) === '') {
+            return null;
+        }
+
+        $language = strtolower(str_replace('_', '-', trim($language)));
+        $language = explode(',', $language)[0];
+
+        if (!preg_match('/^[a-z]{2,3}(?:-[a-z0-9]{2,8})?$/', $language)) {
+            return null;
+        }
+
+        return explode('-', $language)[0];
     }
 }

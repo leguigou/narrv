@@ -70,7 +70,10 @@ export default function youtubeInput() {
                 const res = await fetch('/api/videos', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ url: this.url })
+                    body: JSON.stringify({
+                        url: this.url,
+                        preferred_language: this.preferredLanguage()
+                    })
                 });
 
                 const data = await res.json().catch(() => ({}));
@@ -88,6 +91,14 @@ export default function youtubeInput() {
             } finally {
                 this.loading = false;
             }
+        },
+
+        preferredLanguage() {
+            const languages = navigator.languages?.length
+                ? navigator.languages
+                : [navigator.language].filter(Boolean);
+
+            return languages[0] || 'en';
         }
     };
 }

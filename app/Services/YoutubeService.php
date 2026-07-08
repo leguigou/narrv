@@ -39,13 +39,13 @@ class YoutubeService
     public function fetchTranscript(Video $video): array
     {
         $metadata = $this->fetchMetadata($video->url);
-        $language = $metadata['language'] ?? 'en';
-        // Normalize regional language codes such as fr-FR to fr.
-        $langBase = explode('-', $language)[0];
+        $videoLanguage = $this->normalizeLanguageCode($metadata['language'] ?? null) ?? 'en';
+        $preferredLanguage = $this->normalizeLanguageCode($video->language ?? null);
+        $languageCandidates = $this->subtitleLanguageCandidates($metadata, $preferredLanguage, $videoLanguage);
 
-        $this->downloadSubtitles($video->url, $video->youtube_id, $langBase);
+        $transcriptLanguage = $this->downloadSubtitles($video->url, $video->youtube_id, $languageCandidates);
 
-        $vttFile = $this->findSubtitleFile($video->youtube_id, $langBase);
+        $vttFile = $this->findSubtitleFile($video->youtube_id, $transcriptLanguage);
 
         if ($vttFile === null) {
             throw new RuntimeException('No usable subtitles found for this YouTube video.');
@@ -65,7 +65,7 @@ class YoutubeService
             'channel_url' => $metadata['channel_url'] ?? null,
             'duration' => $metadata['duration'] ?? null,
             'thumbnail_url' => $metadata['thumbnail'] ?? null,
-            'language' => $language,
+            'language' => $transcriptLanguage,
             'raw_file_path' => 'transcripts/' . basename($vttFile),
             'full_text' => $fullText,
             'segments_json' => $segments,
@@ -122,10 +122,9 @@ class YoutubeService
         }
     }
 
-    private function downloadSubtitles(string $url, string $youtubeId, string $language): void
+    private function downloadSubtitles(string $url, string $youtubeId, array $languages): string
     {
         $outputTemplate = $this->storagePath . DIRECTORY_SEPARATOR . '%(id)s.%(ext)s';
-        $languages = array_values(array_unique(array_filter([$language, 'en', 'fr'])));
         $errors = [];
 
         foreach ($languages as $subtitleLanguage) {
@@ -145,7 +144,7 @@ class YoutubeService
             $process->run();
 
             if ($this->findSubtitleFile($youtubeId, $subtitleLanguage) !== null) {
-                return;
+                return $subtitleLanguage;
             }
 
             $errors[] = $process->isSuccessful()
@@ -154,6 +153,54 @@ class YoutubeService
         }
 
         throw new RuntimeException(implode(' ', $errors));
+    }
+
+    private function subtitleLanguageCandidates(array $metadata, ?string $preferredLanguage, string $videoLanguage): array
+    {
+        $availableLanguages = $this->availableSubtitleLanguages($metadata);
+        $candidates = [];
+
+        foreach (array_filter([$preferredLanguage, $videoLanguage]) as $language) {
+            array_push($candidates, ...$this->matchingSubtitleLanguages($availableLanguages, $language));
+            $candidates[] = $language;
+        }
+
+        array_push($candidates, ...$this->manualSubtitleLanguages($metadata));
+        $candidates[] = 'en';
+
+        return array_values(array_unique(array_filter($candidates)));
+    }
+
+    private function availableSubtitleLanguages(array $metadata): array
+    {
+        return array_values(array_unique(array_filter(array_merge(
+            $this->manualSubtitleLanguages($metadata),
+            $this->subtitleKeys($metadata['automatic_captions'] ?? [])
+        ))));
+    }
+
+    private function manualSubtitleLanguages(array $metadata): array
+    {
+        return $this->subtitleKeys($metadata['subtitles'] ?? []);
+    }
+
+    private function subtitleKeys(mixed $subtitles): array
+    {
+        if (!is_array($subtitles)) {
+            return [];
+        }
+
+        return array_values(array_filter(
+            array_map(fn ($language) => $this->normalizeLanguageCode((string) $language), array_keys($subtitles))
+        ));
+    }
+
+    private function matchingSubtitleLanguages(array $availableLanguages, string $wantedLanguage): array
+    {
+        return array_values(array_filter(
+            $availableLanguages,
+            fn ($language) => $language === $wantedLanguage || str_starts_with($language, $wantedLanguage . '-')
+        ));
     }
 
     private function ytDlpCommand(array $arguments): array
@@ -261,6 +308,22 @@ class YoutubeService
         }
 
         return base_path($path);
+    }
+
+    private function normalizeLanguageCode(mixed $language): ?string
+    {
+        if (!is_string($language) || trim($language) === '') {
+            return null;
+        }
+
+        $language = strtolower(str_replace('_', '-', trim($language)));
+        $language = explode(',', $language)[0];
+
+        if (!preg_match('/^[a-z]{2,3}(?:-[a-z0-9]{2,8})*$/', $language)) {
+            return null;
+        }
+
+        return explode('-', $language)[0];
     }
 
     private function findSubtitleFile(string $youtubeId, string $language): ?string
