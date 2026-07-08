@@ -75,13 +75,11 @@ class YoutubeService
 
     public function diagnoseMetadata(string $url): array
     {
-        $process = new Process($this->ytDlpCommand([
+        $process = $this->runYtDlp([
             '--dump-json',
             '--no-download',
             $url,
-        ]));
-        $process->setTimeout(120);
-        $process->run();
+        ], 120);
 
         $metadata = null;
         if ($process->isSuccessful()) {
@@ -92,24 +90,36 @@ class YoutubeService
             }
         }
 
+        $videoId = is_array($metadata) ? ($metadata['id'] ?? null) : null;
+        $videoLanguage = is_array($metadata) ? ($this->normalizeLanguageCode($metadata['language'] ?? null) ?? 'en') : 'en';
+        $subtitleDiagnostic = null;
+
+        if (is_string($videoId) && preg_match('/^[a-zA-Z0-9_-]{11}$/', $videoId)) {
+            $subtitleDiagnostic = $this->diagnoseSubtitles($url, $videoId, $this->subtitleLanguageCandidates($metadata ?? [], null, $videoLanguage));
+        }
+
         return [
-            'ok' => $process->isSuccessful(),
+            'ok' => $process->isSuccessful() && ($subtitleDiagnostic['ok'] ?? true),
             'exit_code' => $process->getExitCode(),
             'cookies' => $this->cookiesDiagnostics(),
             'title' => is_array($metadata) ? ($metadata['title'] ?? null) : null,
             'error' => $this->trimDiagnosticOutput($process->getErrorOutput()),
+            'metadata' => [
+                'ok' => $process->isSuccessful(),
+                'exit_code' => $process->getExitCode(),
+                'error' => $this->trimDiagnosticOutput($process->getErrorOutput()),
+            ],
+            'subtitles' => $subtitleDiagnostic,
         ];
     }
 
     private function fetchMetadata(string $url): array
     {
-        $process = new Process($this->ytDlpCommand([
+        $process = $this->runYtDlp([
             '--dump-json',
             '--no-download',
             $url,
-        ]));
-        $process->setTimeout(120);
-        $process->run();
+        ], 120);
 
         if (!$process->isSuccessful()) {
             throw new RuntimeException($this->ytDlpErrorMessage('Unable to fetch YouTube metadata', $process));
@@ -128,7 +138,7 @@ class YoutubeService
         $errors = [];
 
         foreach ($languages as $subtitleLanguage) {
-            $process = new Process($this->ytDlpCommand([
+            $process = $this->runYtDlp([
                 '--write-subs',
                 '--write-auto-subs',
                 '--sub-lang',
@@ -139,9 +149,7 @@ class YoutubeService
                 '-o',
                 $outputTemplate,
                 $url,
-            ]));
-            $process->setTimeout(240);
-            $process->run();
+            ], 240);
 
             if ($this->findSubtitleFile($youtubeId, $subtitleLanguage) !== null) {
                 return $subtitleLanguage;
@@ -153,6 +161,63 @@ class YoutubeService
         }
 
         throw new RuntimeException(implode(' ', $errors));
+    }
+
+    private function diagnoseSubtitles(string $url, string $youtubeId, array $languages): array
+    {
+        $diagnosticPath = storage_path('app/yt-dlp-diagnostics/' . uniqid('subtitles-', true));
+        if (!is_dir($diagnosticPath)) {
+            mkdir($diagnosticPath, 0755, true);
+        }
+
+        $errors = [];
+
+        try {
+            foreach (array_slice($languages, 0, 3) as $subtitleLanguage) {
+                $process = $this->runYtDlp([
+                    '--write-subs',
+                    '--write-auto-subs',
+                    '--sub-lang',
+                    $subtitleLanguage,
+                    '--skip-download',
+                    '--sub-format',
+                    'vtt',
+                    '-o',
+                    $diagnosticPath . DIRECTORY_SEPARATOR . '%(id)s.%(ext)s',
+                    $url,
+                ], 180);
+
+                if ($this->findSubtitleFileInPath($diagnosticPath, $youtubeId, $subtitleLanguage) !== null) {
+                    return [
+                        'ok' => true,
+                        'language' => $subtitleLanguage,
+                        'exit_code' => $process->getExitCode(),
+                        'error' => $this->trimDiagnosticOutput($process->getErrorOutput()),
+                    ];
+                }
+
+                $errors[] = $process->isSuccessful()
+                    ? "No subtitles found for '{$subtitleLanguage}'."
+                    : $this->ytDlpErrorMessage("Unable to download YouTube subtitles for '{$subtitleLanguage}'", $process);
+            }
+
+            return [
+                'ok' => false,
+                'language' => null,
+                'exit_code' => null,
+                'error' => $this->trimDiagnosticOutput(implode(' ', $errors)),
+            ];
+        } finally {
+            foreach (glob($diagnosticPath . DIRECTORY_SEPARATOR . '*') ?: [] as $file) {
+                if (is_file($file)) {
+                    unlink($file);
+                }
+            }
+
+            if (is_dir($diagnosticPath)) {
+                rmdir($diagnosticPath);
+            }
+        }
     }
 
     private function subtitleLanguageCandidates(array $metadata, ?string $preferredLanguage, string $videoLanguage): array
@@ -203,9 +268,26 @@ class YoutubeService
         ));
     }
 
-    private function ytDlpCommand(array $arguments): array
+    private function runYtDlp(array $arguments, int $timeout): Process
     {
-        return array_merge([$this->ytDlpPath], $this->networkArguments(), $this->cookiesArguments(), $arguments);
+        $temporaryCookiesPath = $this->temporaryCookiesPath();
+
+        try {
+            $process = new Process($this->ytDlpCommand($arguments, $temporaryCookiesPath));
+            $process->setTimeout($timeout);
+            $process->run();
+
+            return $process;
+        } finally {
+            if ($temporaryCookiesPath !== null && is_file($temporaryCookiesPath)) {
+                unlink($temporaryCookiesPath);
+            }
+        }
+    }
+
+    private function ytDlpCommand(array $arguments, ?string $cookiesPath = null): array
+    {
+        return array_merge([$this->ytDlpPath], $this->networkArguments(), $this->cookiesArguments($cookiesPath), $arguments);
     }
 
     private function networkArguments(): array
@@ -237,20 +319,46 @@ class YoutubeService
         return $arguments;
     }
 
-    private function cookiesArguments(): array
+    private function cookiesArguments(?string $cookiesPath = null): array
     {
-        if (!$this->hasReadableCookiesFile()) {
+        $cookiesPath ??= $this->cookiesPath;
+
+        if (!$this->hasReadableCookiesFile($cookiesPath)) {
             return [];
         }
 
-        return ['--cookies', $this->cookiesPath];
+        return ['--cookies', $cookiesPath];
     }
 
-    private function hasReadableCookiesFile(): bool
+    private function hasReadableCookiesFile(?string $path = null): bool
     {
-        return $this->cookiesPath !== null
-            && is_file($this->cookiesPath)
-            && is_readable($this->cookiesPath);
+        $path ??= $this->cookiesPath;
+
+        return $path !== null
+            && is_file($path)
+            && is_readable($path);
+    }
+
+    private function temporaryCookiesPath(): ?string
+    {
+        if (!$this->hasReadableCookiesFile()) {
+            return null;
+        }
+
+        $directory = storage_path('app/yt-dlp-cookies');
+        if (!is_dir($directory)) {
+            mkdir($directory, 0700, true);
+        }
+
+        $temporaryPath = tempnam($directory, 'cookies-');
+
+        if ($temporaryPath === false || !copy($this->cookiesPath, $temporaryPath)) {
+            return null;
+        }
+
+        chmod($temporaryPath, 0600);
+
+        return $temporaryPath;
     }
 
     private function ytDlpErrorMessage(string $prefix, Process $process): string
@@ -328,10 +436,15 @@ class YoutubeService
 
     private function findSubtitleFile(string $youtubeId, string $language): ?string
     {
+        return $this->findSubtitleFileInPath($this->storagePath, $youtubeId, $language);
+    }
+
+    private function findSubtitleFileInPath(string $path, string $youtubeId, string $language): ?string
+    {
         $candidates = [
-            $this->storagePath . DIRECTORY_SEPARATOR . "{$youtubeId}.{$language}.vtt",
-            $this->storagePath . DIRECTORY_SEPARATOR . "{$youtubeId}.en.vtt",
-            $this->storagePath . DIRECTORY_SEPARATOR . "{$youtubeId}.fr.vtt",
+            $path . DIRECTORY_SEPARATOR . "{$youtubeId}.{$language}.vtt",
+            $path . DIRECTORY_SEPARATOR . "{$youtubeId}.en.vtt",
+            $path . DIRECTORY_SEPARATOR . "{$youtubeId}.fr.vtt",
         ];
 
         foreach ($candidates as $candidate) {
@@ -340,7 +453,7 @@ class YoutubeService
             }
         }
 
-        $files = glob($this->storagePath . DIRECTORY_SEPARATOR . $youtubeId . '*.vtt') ?: [];
+        $files = glob($path . DIRECTORY_SEPARATOR . $youtubeId . '*.vtt') ?: [];
         sort($files);
 
         return $files[0] ?? null;

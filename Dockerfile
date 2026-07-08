@@ -20,6 +20,7 @@ RUN apk add --no-cache \
     py3-virtualenv \
     ca-certificates \
     nodejs \
+    ffmpeg \
     sqlite \
     sqlite-dev \
     oniguruma-dev \

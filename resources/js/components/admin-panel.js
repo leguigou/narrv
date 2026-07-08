@@ -152,7 +152,7 @@ export default function adminPanel() {
 
                 this.cookiesDiagnostic = data;
                 this.cookiesMessage = data.diagnostic?.ok
-                    ? 'Diagnostic OK : yt-dlp peut lire cette video.'
+                    ? 'Diagnostic OK : yt-dlp peut lire la video et recuperer un sous-titre.'
                     : 'Diagnostic en erreur : consultez le detail ci-dessous.';
             } catch (e) {
                 this.cookiesError = e.message;

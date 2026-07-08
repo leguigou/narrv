@@ -136,6 +136,17 @@ class AdminYoutubeCookiesTest extends TestCase
                     ],
                     'title' => null,
                     'error' => 'Sign in to confirm you are not a bot.',
+                    'metadata' => [
+                        'ok' => true,
+                        'exit_code' => 0,
+                        'error' => '',
+                    ],
+                    'subtitles' => [
+                        'ok' => false,
+                        'language' => null,
+                        'exit_code' => 1,
+                        'error' => 'Sign in to confirm you are not a bot.',
+                    ],
                 ]);
         });
 
@@ -144,6 +155,7 @@ class AdminYoutubeCookiesTest extends TestCase
             ->assertOk()
             ->assertJsonPath('url', 'https://www.youtube.com/watch?v=XVA5q2H3KKA')
             ->assertJsonPath('diagnostic.cookies.using_cookies', true)
-            ->assertJsonPath('diagnostic.ok', false);
+            ->assertJsonPath('diagnostic.ok', false)
+            ->assertJsonPath('diagnostic.subtitles.ok', false);
     }
 }

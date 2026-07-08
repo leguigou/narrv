@@ -107,10 +107,21 @@
                             <div class="text-gray-500 dark:text-gray-400">Code sortie</div>
                             <div class="font-medium text-gray-950 dark:text-white" x-text="cookiesDiagnostic?.diagnostic?.exit_code ?? '-'"></div>
                         </div>
+                        <div>
+                            <div class="text-gray-500 dark:text-gray-400">Metadonnees</div>
+                            <div class="font-medium" :class="cookiesDiagnostic?.diagnostic?.metadata?.ok ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-300'" x-text="cookiesDiagnostic?.diagnostic?.metadata?.ok ? 'OK' : 'Erreur'"></div>
+                        </div>
+                        <div>
+                            <div class="text-gray-500 dark:text-gray-400">Sous-titres</div>
+                            <div class="font-medium" :class="cookiesDiagnostic?.diagnostic?.subtitles?.ok ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-300'" x-text="cookiesDiagnostic?.diagnostic?.subtitles?.ok ? `OK (${cookiesDiagnostic?.diagnostic?.subtitles?.language})` : 'Erreur'"></div>
+                        </div>
                     </div>
                     <p x-show="cookiesDiagnostic?.diagnostic?.error"
                        class="mt-3 whitespace-pre-wrap text-xs leading-5 text-red-600 dark:text-red-300"
                        x-text="cookiesDiagnostic?.diagnostic?.error"></p>
+                    <p x-show="cookiesDiagnostic?.diagnostic?.subtitles?.error"
+                       class="mt-3 whitespace-pre-wrap text-xs leading-5 text-red-600 dark:text-red-300"
+                       x-text="cookiesDiagnostic?.diagnostic?.subtitles?.error"></p>
                 </div>
             </div>
 
