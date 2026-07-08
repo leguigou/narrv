@@ -11,7 +11,7 @@ RUN npm run build
 # Stage 2: PHP runtime
 FROM php:8.3-fpm-alpine
 
-# Install system dependencies
+# Install system dependencies (need sqlite-dev for php ext compilation)
 RUN apk add --no-cache \
     nginx \
     supervisor \
@@ -19,8 +19,9 @@ RUN apk add --no-cache \
     python3 \
     py3-pip \
     sqlite \
+    sqlite-dev \
     libzip-dev \
-    && docker-php-ext-install zip pdo_sqlite
+    && docker-php-ext-install -j$(nproc) zip pdo_sqlite
 
 # Copy PHP config
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
