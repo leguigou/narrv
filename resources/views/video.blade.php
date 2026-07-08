@@ -121,15 +121,15 @@
 
                 <!-- Translate tab -->
                 <div x-show="tab === 'translate'" x-data="transcriptViewer(video.transcript)">
-                    <div class="flex gap-2 mb-4">
+                    <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center">
+                        <div class="rounded-full bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700 dark:bg-gray-800 dark:text-gray-200"
+                             x-text="translationPairLabel"></div>
                         <select x-model="targetLang" class="px-4 py-2 rounded-full bg-gray-100 dark:bg-gray-800 text-sm border-0">
-                            <option value="en">Anglais</option>
-                            <option value="fr">Français</option>
-                            <option value="es">Espagnol</option>
-                            <option value="it">Italien</option>
-                            <option value="de">Allemand</option>
+                            <template x-for="language in availableTargetLanguages" :key="language.code">
+                                <option :value="language.code" x-text="language.label"></option>
+                            </template>
                         </select>
-                        <button @click="translate()" :disabled="translating"
+                        <button @click="translate()" :disabled="translating || isSameLanguage"
                                 class="px-6 py-2 rounded-full bg-narrv-500 text-white text-sm disabled:opacity-50">
                             <span x-show="!translating">Traduire</span>
                             <span x-show="translating">Traduction...</span>

@@ -14,6 +14,11 @@ export default function adminPanel() {
         videosLoading: false,
         videoActionMessage: null,
         videoActionError: null,
+        prompts: [],
+        promptsLoading: false,
+        promptMessage: null,
+        promptError: null,
+        savingPromptKey: null,
         loginError: null,
 
         init() {
@@ -44,7 +49,8 @@ export default function adminPanel() {
         async loadDashboard() {
             await Promise.all([
                 this.loadStats(),
-                this.loadVideos()
+                this.loadVideos(),
+                this.loadPrompts()
             ]);
         },
 
@@ -68,6 +74,70 @@ export default function adminPanel() {
             } finally {
                 this.videosLoading = false;
             }
+        },
+
+        async loadPrompts() {
+            this.promptsLoading = true;
+
+            try {
+                const res = await fetch('/api/admin/prompts', {
+                    headers: this.authHeaders()
+                });
+                this.prompts = await this.readApiResponse(res, 'Chargement des prompts impossible.');
+            } finally {
+                this.promptsLoading = false;
+            }
+        },
+
+        async savePrompt(prompt) {
+            this.promptMessage = null;
+            this.promptError = null;
+            this.savingPromptKey = prompt.key;
+
+            try {
+                const res = await fetch(`/api/admin/prompts/${prompt.key}`, {
+                    method: 'PUT',
+                    headers: this.authJsonHeaders(),
+                    body: JSON.stringify({ content: prompt.content })
+                });
+                const data = await this.readApiResponse(res, 'Enregistrement du prompt impossible.');
+
+                this.replacePrompt(data.prompt);
+                this.promptMessage = data.message || 'Prompt enregistre.';
+            } catch (e) {
+                this.promptError = e.message;
+            } finally {
+                this.savingPromptKey = null;
+            }
+        },
+
+        async resetPrompt(prompt) {
+            if (!confirm('Remettre ce prompt par defaut ?')) return;
+
+            this.promptMessage = null;
+            this.promptError = null;
+            this.savingPromptKey = prompt.key;
+
+            try {
+                const res = await fetch(`/api/admin/prompts/${prompt.key}/reset`, {
+                    method: 'POST',
+                    headers: this.authHeaders()
+                });
+                const data = await this.readApiResponse(res, 'Reinitialisation du prompt impossible.');
+
+                this.replacePrompt(data.prompt);
+                this.promptMessage = data.message || 'Prompt remis par defaut.';
+            } catch (e) {
+                this.promptError = e.message;
+            } finally {
+                this.savingPromptKey = null;
+            }
+        },
+
+        replacePrompt(updatedPrompt) {
+            this.prompts = this.prompts.map((prompt) => (
+                prompt.key === updatedPrompt.key ? updatedPrompt : prompt
+            ));
         },
 
         selectCookiesFile(event) {
@@ -238,6 +308,13 @@ export default function adminPanel() {
             return {
                 'Accept': 'application/json',
                 'Authorization': `Bearer ${this.token}`
+            };
+        },
+
+        authJsonHeaders() {
+            return {
+                ...this.authHeaders(),
+                'Content-Type': 'application/json'
             };
         },
 

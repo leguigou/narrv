@@ -3,7 +3,7 @@
 @section('title', 'Admin - Narrv')
 
 @section('content')
-<div x-data="adminPanel()" class="mx-auto max-w-3xl px-4 py-12">
+<div x-data="adminPanel()" class="mx-auto max-w-5xl px-4 py-12">
     <template x-if="!token">
         <div class="mx-auto max-w-sm">
             <h1 class="mb-6 text-center text-2xl font-bold">Zone Admin</h1>
@@ -122,6 +122,46 @@
                     <p x-show="cookiesDiagnostic?.diagnostic?.subtitles?.error"
                        class="mt-3 whitespace-pre-wrap text-xs leading-5 text-red-600 dark:text-red-300"
                        x-text="cookiesDiagnostic?.diagnostic?.subtitles?.error"></p>
+                </div>
+            </div>
+
+            <div class="mb-8">
+                <div class="mb-4 flex items-center justify-between gap-3">
+                    <h2 class="text-lg font-semibold text-gray-950 dark:text-white">Prompts IA</h2>
+                    <button @click="loadPrompts" class="rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-700 transition hover:bg-white dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800">Rafraichir</button>
+                </div>
+
+                <div x-show="promptMessage" x-text="promptMessage" class="mb-3 text-sm text-green-600 dark:text-green-400"></div>
+                <div x-show="promptError" x-text="promptError" class="mb-3 text-sm text-red-500"></div>
+
+                <template x-if="promptsLoading">
+                    <div class="rounded-xl border border-gray-200 bg-gray-50 p-5 text-sm text-gray-500 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-400">Chargement...</div>
+                </template>
+
+                <div class="grid gap-4" x-show="!promptsLoading">
+                    <template x-for="prompt in prompts" :key="prompt.key">
+                        <div class="rounded-xl border border-gray-200 bg-gray-50 p-5 dark:border-gray-800 dark:bg-gray-900">
+                            <div class="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                                <div>
+                                    <h3 class="font-semibold text-gray-950 dark:text-white" x-text="prompt.label"></h3>
+                                    <div class="mt-1 font-mono text-xs text-gray-500 dark:text-gray-400" x-text="prompt.key"></div>
+                                </div>
+                                <div class="flex gap-2">
+                                    <button @click="savePrompt(prompt)"
+                                            :disabled="savingPromptKey === prompt.key"
+                                            class="rounded-lg bg-narrv-500 px-4 py-2 text-sm font-medium text-white transition hover:bg-narrv-600 disabled:cursor-not-allowed disabled:opacity-60"
+                                            x-text="savingPromptKey === prompt.key ? '...' : 'Enregistrer'"></button>
+                                    <button @click="resetPrompt(prompt)"
+                                            :disabled="savingPromptKey === prompt.key"
+                                            class="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800">Defaut</button>
+                                </div>
+                            </div>
+                            <textarea x-model="prompt.content"
+                                      rows="8"
+                                      spellcheck="false"
+                                      class="w-full rounded-lg border border-gray-200 bg-white px-4 py-3 font-mono text-xs leading-5 text-gray-900 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100"></textarea>
+                        </div>
+                    </template>
                 </div>
             </div>
 

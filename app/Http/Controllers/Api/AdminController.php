@@ -9,6 +9,7 @@ use App\Models\ChatMessage;
 use App\Models\Summary;
 use App\Models\Translation;
 use App\Models\Video;
+use App\Services\PromptService;
 use App\Services\YoutubeService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\File;
@@ -134,6 +135,39 @@ class AdminController extends Controller
         return response()->json([
             'url' => $url,
             'diagnostic' => $youtube->diagnoseMetadata($url),
+        ]);
+    }
+
+    public function prompts(PromptService $prompts)
+    {
+        return response()->json($prompts->all());
+    }
+
+    public function updatePrompt(Request $request, PromptService $prompts, string $key)
+    {
+        if (!array_key_exists($key, PromptService::DEFAULTS)) {
+            return response()->json(['error' => 'Prompt inconnu.'], 404);
+        }
+
+        $validated = $request->validate([
+            'content' => 'required|string|max:30000',
+        ]);
+
+        return response()->json([
+            'message' => 'Prompt enregistre.',
+            'prompt' => $prompts->update($key, $validated['content']),
+        ]);
+    }
+
+    public function resetPrompt(PromptService $prompts, string $key)
+    {
+        if (!array_key_exists($key, PromptService::DEFAULTS)) {
+            return response()->json(['error' => 'Prompt inconnu.'], 404);
+        }
+
+        return response()->json([
+            'message' => 'Prompt remis par defaut.',
+            'prompt' => $prompts->reset($key),
         ]);
     }
 

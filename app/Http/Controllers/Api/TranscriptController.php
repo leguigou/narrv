@@ -68,9 +68,20 @@ class TranscriptController extends Controller
             return response()->json(['error' => 'Transcript pas encore pret'], 404);
         }
 
+        $sourceLanguage = $this->normalizeLanguage($transcript->language);
+        $targetLanguage = $this->normalizeLanguage($validated['language']);
+
+        if ($sourceLanguage !== null && $sourceLanguage === $targetLanguage) {
+            return response()->json([
+                'error' => 'La langue cible est identique a la langue source.',
+                'source_language' => $sourceLanguage,
+                'target_language' => $targetLanguage,
+            ], 422);
+        }
+
         try {
-            $deepseek = new DeepseekService();
-            $translated = $deepseek->translate($transcript->full_text, $validated['language']);
+            $deepseek = app(DeepseekService::class);
+            $translated = $deepseek->translate($transcript->full_text, $targetLanguage, $sourceLanguage);
         } catch (RuntimeException $e) {
             return response()->json(['error' => $e->getMessage()], 502);
         }
@@ -78,7 +89,7 @@ class TranscriptController extends Controller
         $translation = Translation::updateOrCreate(
             [
                 'transcript_id' => $transcript->id,
-                'target_language' => $validated['language'],
+                'target_language' => $targetLanguage,
             ],
             [
                 'content' => $translated,
@@ -87,6 +98,17 @@ class TranscriptController extends Controller
         );
 
         return response()->json($translation);
+    }
+
+    private function normalizeLanguage(?string $language): ?string
+    {
+        if (!is_string($language) || trim($language) === '') {
+            return null;
+        }
+
+        $language = strtolower(str_replace('_', '-', trim($language)));
+
+        return explode('-', $language)[0] ?: null;
     }
 
     private function downloadableVtt(?string $rawFilePath, ?string $text, array $segments): string

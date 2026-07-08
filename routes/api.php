@@ -44,6 +44,9 @@ Route::middleware(['admin.auth', 'throttle:30,1'])->group(function () {
     Route::post('/admin/youtube-cookies', [AdminController::class, 'uploadYoutubeCookies']);
     Route::post('/admin/youtube-cookies/test', [AdminController::class, 'testYoutubeCookies']);
     Route::delete('/admin/youtube-cookies', [AdminController::class, 'deleteYoutubeCookies']);
+    Route::get('/admin/prompts', [AdminController::class, 'prompts']);
+    Route::put('/admin/prompts/{key}', [AdminController::class, 'updatePrompt']);
+    Route::post('/admin/prompts/{key}/reset', [AdminController::class, 'resetPrompt']);
     Route::delete('/admin/videos', [AdminController::class, 'purgeAll']);
     Route::delete('/admin/videos/{id}', [AdminController::class, 'deleteVideo']);
     Route::post('/admin/videos/{id}/retry', [AdminController::class, 'retryVideo']);

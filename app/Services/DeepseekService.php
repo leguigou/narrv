@@ -10,19 +10,22 @@ class DeepseekService
     public string $model;
     private string $apiKey;
     private string $baseUrl;
+    private PromptService $prompts;
 
-    public function __construct()
+    public function __construct(?PromptService $prompts = null)
     {
         $this->apiKey = (string) config('services.deepseek.api_key', '');
         $this->baseUrl = rtrim((string) config('services.deepseek.base_url', 'https://api.deepseek.com'), '/');
         $this->model = (string) config('services.deepseek.model', 'deepseek-chat');
+        $this->prompts = $prompts ?? app(PromptService::class);
     }
 
     public function chat(string $transcript, $history): string
     {
         $messages = [
-            ['role' => 'system', 'content' => "You are an AI assistant specialized in analyzing YouTube video transcripts. Answer based only on the transcript content. Be concise and accurate."],
-            ['role' => 'system', 'content' => "Transcript:\n{$this->trimToBudget($transcript)}"],
+            ['role' => 'system', 'content' => $this->prompts->render('chat_system', [
+                'transcript' => $this->trimToBudget($transcript),
+            ])],
         ];
 
         foreach ($history as $msg) {
@@ -32,11 +35,14 @@ class DeepseekService
         return $this->callApi($messages);
     }
 
-    public function translate(string $text, string $targetLanguage): string
+    public function translate(string $text, string $targetLanguage, ?string $sourceLanguage = null): string
     {
         $messages = [
-            ['role' => 'system', 'content' => "Translate the following transcript to {$targetLanguage}. Preserve the original meaning and structure. Return only the translated text."],
-            ['role' => 'user', 'content' => $this->trimToBudget($text)],
+            ['role' => 'system', 'content' => $this->prompts->render('translate_system', [
+                'source_language' => $this->languageName($sourceLanguage) ?? 'the detected source language',
+                'target_language' => $this->languageName($targetLanguage) ?? $targetLanguage,
+                'transcript' => $this->trimToBudget($text),
+            ])],
         ];
 
         return $this->callApi($messages);
@@ -58,7 +64,11 @@ class DeepseekService
         };
 
         $messages = [
-            ['role' => 'system', 'content' => "You are a helpful assistant. Summarize the following YouTube transcript.\n\nTone: {$toneDesc}\nLength: {$lengthDesc}\n\nTranscript:\n{$this->trimToBudget($text)}"],
+            ['role' => 'system', 'content' => $this->prompts->render('summary_system', [
+                'tone' => $toneDesc,
+                'length' => $lengthDesc,
+                'transcript' => $this->trimToBudget($text),
+            ])],
         ];
 
         return $this->callApi($messages, $temperature);
@@ -130,5 +140,23 @@ class DeepseekService
         }
 
         return mb_substr($text, 0, $maxCharacters) . "\n\n[Transcript truncated for model context length.]";
+    }
+
+    private function languageName(?string $language): ?string
+    {
+        if (!$language) {
+            return null;
+        }
+
+        $code = strtolower(str_replace('_', '-', $language));
+        $base = explode('-', $code)[0] ?? $code;
+
+        return [
+            'en' => 'English',
+            'fr' => 'French',
+            'es' => 'Spanish',
+            'it' => 'Italian',
+            'de' => 'German',
+        ][$base] ?? $language;
     }
 }
