@@ -3,40 +3,47 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\Video;
 use App\Models\ChatMessage;
+use App\Models\Video;
 use App\Services\DeepseekService;
 use Illuminate\Http\Request;
+use RuntimeException;
 
 class ChatController extends Controller
 {
     public function store(Request $request, $id)
     {
-        $request->validate(['message' => 'required|string']);
+        $validated = $request->validate([
+            'message' => 'required|string|max:2000',
+        ]);
 
         $video = Video::with('transcript')->findOrFail($id);
         $transcript = $video->transcript;
 
-        if (!$transcript) {
-            return response()->json(['error' => 'Transcript pas encore prêt'], 404);
+        if (!$transcript || trim((string) $transcript->full_text) === '') {
+            return response()->json(['error' => 'Transcript pas encore pret'], 404);
         }
 
-        // Sauvegarde le message user
         ChatMessage::create([
             'transcript_id' => $transcript->id,
             'role' => 'user',
-            'content' => $request->message,
+            'content' => $validated['message'],
         ]);
 
-        // Récupère historique
         $history = ChatMessage::where('transcript_id', $transcript->id)
-            ->latest()->take(20)->get()->reverse();
+            ->latest()
+            ->take(20)
+            ->get()
+            ->reverse()
+            ->values();
 
-        // Appelle DeepSeek
-        $deepseek = new DeepseekService();
-        $response = $deepseek->chat($transcript->full_text, $history, $request->message);
+        try {
+            $deepseek = new DeepseekService();
+            $response = $deepseek->chat($transcript->full_text, $history);
+        } catch (RuntimeException $e) {
+            return response()->json(['error' => $e->getMessage()], 502);
+        }
 
-        // Sauvegarde la réponse
         $assistantMsg = ChatMessage::create([
             'transcript_id' => $transcript->id,
             'role' => 'assistant',
@@ -55,7 +62,9 @@ class ChatController extends Controller
         }
 
         $messages = ChatMessage::where('transcript_id', $video->transcript->id)
-            ->oldest()->paginate(50);
+            ->oldest()
+            ->limit(50)
+            ->get();
 
         return response()->json($messages);
     }

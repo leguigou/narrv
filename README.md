@@ -66,6 +66,7 @@ php artisan migrate --force
 
 # Clé API DeepSeek (obligatoire)
 echo 'DEEPSEEK_API_KEY=sk-votre-cle' >> .env
+echo 'ADMIN_PASSWORD=mot-de-passe-solide' >> .env
 
 # Lancement
 php artisan serve
@@ -75,7 +76,7 @@ php artisan serve
 
 ```bash
 cp .env.example .env
-# Éditer .env pour DEEPSEEK_API_KEY et APP_KEY
+# Editer .env pour APP_KEY, DEEPSEEK_API_KEY et ADMIN_PASSWORD
 
 docker compose up -d
 ```
@@ -86,8 +87,9 @@ docker compose up -d
 |----------|--------|-------------|
 | `APP_KEY` | — | Clé Laravel (`php artisan key:generate`) |
 | `DEEPSEEK_API_KEY` | — | **Requis** — clé API DeepSeek |
-| `DEEPSEEK_BASE_URL` | `https://api.deepseek.com` | URL de l'API DeepSeek |
-| `ADMIN_PASSWORD` | `admin123` | Mot de passe zone admin |
+| `DEEPSEEK_BASE_URL` | `https://api.deepseek.com` | URL de l'API DeepSeek, sans `/v1` |
+| `DEEPSEEK_MODEL` | `deepseek-chat` | Modele DeepSeek utilise |
+| `ADMIN_PASSWORD` | - | **Requis** - mot de passe zone admin |
 | `APP_PORT` | `8080` | Port d'exposition Docker |
 
 ## 🚀 Déploiement Dokploy

@@ -20,8 +20,9 @@ RUN apk add --no-cache \
     py3-pip \
     sqlite \
     sqlite-dev \
+    oniguruma-dev \
     libzip-dev \
-    && docker-php-ext-install -j$(nproc) zip pdo_sqlite
+    && docker-php-ext-install -j$(nproc) zip pdo_sqlite mbstring
 
 # Copy PHP config
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer

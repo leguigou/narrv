@@ -3,43 +3,47 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\Video;
 use App\Models\Summary;
+use App\Models\Video;
 use App\Services\SummaryService;
 use Illuminate\Http\Request;
+use RuntimeException;
 
 class SummaryController extends Controller
 {
     public function store(Request $request, $id)
     {
-        $request->validate([
-            'temperature' => 'numeric|min:0|max:1.5',
-            'tone' => 'in:neutral,formal,casual,bullet_points',
-            'length' => 'in:short,medium,long',
+        $validated = $request->validate([
+            'temperature' => 'nullable|numeric|min:0|max:1.5',
+            'tone' => 'nullable|in:neutral,formal,casual,bullet_points',
+            'length' => 'nullable|in:short,medium,long',
         ]);
 
         $video = Video::with('transcript')->findOrFail($id);
         $transcript = $video->transcript;
 
-        if (!$transcript) {
-            return response()->json(['error' => 'Transcript pas encore prêt'], 404);
+        if (!$transcript || trim((string) $transcript->full_text) === '') {
+            return response()->json(['error' => 'Transcript pas encore pret'], 404);
         }
 
-        $service = new SummaryService();
-        $content = $service->generate(
-            $transcript->full_text,
-            $request->temperature ?? 0.3,
-            $request->tone ?? 'neutral',
-            $request->length ?? 'medium'
-        );
+        $temperature = (float) ($validated['temperature'] ?? 0.3);
+        $tone = $validated['tone'] ?? 'neutral';
+        $length = $validated['length'] ?? 'medium';
+
+        try {
+            $service = new SummaryService();
+            $content = $service->generate($transcript->full_text, $temperature, $tone, $length);
+        } catch (RuntimeException $e) {
+            return response()->json(['error' => $e->getMessage()], 502);
+        }
 
         $summary = Summary::create([
             'transcript_id' => $transcript->id,
             'content' => $content,
             'model' => config('services.deepseek.model'),
-            'temperature' => $request->temperature ?? 0.3,
-            'tone' => $request->tone ?? 'neutral',
-            'length' => $request->length ?? 'medium',
+            'temperature' => $temperature,
+            'tone' => $tone,
+            'length' => $length,
         ]);
 
         return response()->json($summary);
@@ -48,6 +52,7 @@ class SummaryController extends Controller
     public function index($id)
     {
         $video = Video::with('transcript.summaries')->findOrFail($id);
+
         return response()->json($video->transcript?->summaries ?? []);
     }
 }

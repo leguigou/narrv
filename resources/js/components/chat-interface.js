@@ -3,6 +3,7 @@ export default function chatInterface() {
         messages: [],
         input: '',
         loading: false,
+        error: null,
 
         async send() {
             if (!this.input.trim()) return;
@@ -10,10 +11,16 @@ export default function chatInterface() {
             const videoId = Alpine.store('app').currentVideo?.id;
             if (!videoId) return;
 
-            const userMsg = { role: 'user', content: this.input, created_at: new Date().toISOString() };
+            const userMsg = {
+                id: `local-${Date.now()}`,
+                role: 'user',
+                content: this.input,
+                created_at: new Date().toISOString()
+            };
             this.messages.push(userMsg);
             this.input = '';
             this.loading = true;
+            this.error = null;
 
             try {
                 const res = await fetch(`/api/videos/${videoId}/chat`, {
@@ -21,10 +28,15 @@ export default function chatInterface() {
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ message: userMsg.content })
                 });
+                if (!res.ok) {
+                    const payload = await res.json().catch(() => ({}));
+                    throw new Error(payload.error || 'Erreur du chat');
+                }
                 const data = await res.json();
                 this.messages.push(data.assistant);
             } catch (e) {
                 console.error('Chat error:', e);
+                this.error = e.message;
             } finally {
                 this.loading = false;
             }
@@ -35,7 +47,8 @@ export default function chatInterface() {
             if (!videoId) return;
 
             const res = await fetch(`/api/videos/${videoId}/chat`);
-            this.messages = await res.json();
+            const data = await res.json();
+            this.messages = data.data || data;
         },
 
         copyToClipboard(text) {

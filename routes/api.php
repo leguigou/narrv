@@ -8,7 +8,7 @@ use App\Http\Controllers\Api\ChatController;
 use App\Http\Controllers\Api\AdminController;
 
 // Health check
-Route::get('/api/health', function () {
+Route::get('/health', function () {
     return response()->json([
         'status' => 'ok',
         'version' => '1.0.0',
@@ -16,26 +16,28 @@ Route::get('/api/health', function () {
 });
 
 // Videos
-Route::post('/api/videos', [VideoController::class, 'store']);
-Route::get('/api/videos', [VideoController::class, 'index']);
-Route::get('/api/videos/{id}', [VideoController::class, 'show']);
+Route::post('/videos', [VideoController::class, 'store'])->middleware('throttle:10,1');
+Route::get('/videos', [VideoController::class, 'index'])->middleware('throttle:60,1');
+Route::get('/videos/{id}', [VideoController::class, 'show'])->middleware('throttle:60,1');
 
 // Transcript
-Route::get('/api/videos/{id}/transcript', [TranscriptController::class, 'show']);
-Route::get('/api/videos/{id}/transcript/download', [TranscriptController::class, 'download']);
-Route::post('/api/videos/{id}/translate', [TranscriptController::class, 'translate']);
+Route::get('/videos/{id}/transcript', [TranscriptController::class, 'show'])->middleware('throttle:60,1');
+Route::get('/videos/{id}/transcript/download', [TranscriptController::class, 'download'])->middleware('throttle:30,1');
+Route::post('/videos/{id}/translate', [TranscriptController::class, 'translate'])->middleware('throttle:5,1');
 
 // Summaries
-Route::post('/api/videos/{id}/summarize', [SummaryController::class, 'store']);
-Route::get('/api/videos/{id}/summaries', [SummaryController::class, 'index']);
+Route::post('/videos/{id}/summarize', [SummaryController::class, 'store'])->middleware('throttle:5,1');
+Route::get('/videos/{id}/summaries', [SummaryController::class, 'index'])->middleware('throttle:60,1');
 
 // Chat
-Route::post('/api/videos/{id}/chat', [ChatController::class, 'store']);
-Route::get('/api/videos/{id}/chat', [ChatController::class, 'index']);
+Route::post('/videos/{id}/chat', [ChatController::class, 'store'])->middleware('throttle:10,1');
+Route::get('/videos/{id}/chat', [ChatController::class, 'index'])->middleware('throttle:60,1');
 
 // Admin
-Route::post('/api/admin/login', [AdminController::class, 'login']);
-Route::get('/api/admin/stats', [AdminController::class, 'stats'])->middleware('admin.auth');
-Route::delete('/api/admin/videos', [AdminController::class, 'purgeAll'])->middleware('admin.auth');
-Route::delete('/api/admin/videos/{id}', [AdminController::class, 'deleteVideo'])->middleware('admin.auth');
-Route::post('/api/admin/videos/{id}/retry', [AdminController::class, 'retryVideo'])->middleware('admin.auth');
+Route::post('/admin/login', [AdminController::class, 'login'])->middleware('throttle:5,1');
+Route::middleware(['admin.auth', 'throttle:30,1'])->group(function () {
+    Route::get('/admin/stats', [AdminController::class, 'stats']);
+    Route::delete('/admin/videos', [AdminController::class, 'purgeAll']);
+    Route::delete('/admin/videos/{id}', [AdminController::class, 'deleteVideo']);
+    Route::post('/admin/videos/{id}/retry', [AdminController::class, 'retryVideo']);
+});

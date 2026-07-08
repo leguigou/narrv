@@ -15,12 +15,31 @@
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body class="bg-white dark:bg-gray-950 text-gray-900 dark:text-gray-100 min-h-screen">
-    <div id="app" class="flex flex-col min-h-screen">
+    <div id="app"
+         x-data="{
+             darkMode: document.documentElement.classList.contains('dark'),
+             toggleDark() {
+                 this.darkMode = !this.darkMode;
+                 document.documentElement.classList.toggle('dark', this.darkMode);
+                 localStorage.setItem('darkMode', this.darkMode);
+             }
+         }"
+         class="flex flex-col min-h-screen">
         <!-- Header -->
         <header class="sticky top-0 z-50 bg-white/80 dark:bg-gray-950/80 backdrop-blur-md border-b border-gray-200 dark:border-gray-800">
             <div class="max-w-5xl mx-auto px-4 h-16 flex items-center justify-between">
                 <a href="/" class="flex items-center gap-2 font-bold text-xl tracking-tight">
-                    <span class="w-8 h-8 rounded-lg bg-narrv-500 flex items-center justify-center text-white text-sm">N</span>
+                    <span class="w-9 h-9 rounded-lg bg-cyan-50 text-cyan-700 ring-1 ring-cyan-200 flex items-center justify-center dark:bg-cyan-950 dark:text-cyan-200 dark:ring-cyan-800">
+                        <svg class="h-7 w-7" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <rect x="8" y="10" width="48" height="44" rx="13" />
+                            <path d="M25 24.5v15l12-7.5-12-7.5Z" />
+                            <path d="M18 45h28" />
+                            <path d="M18 19h9" />
+                            <path d="M42 20v5" />
+                            <path d="M48 18v9" />
+                            <path d="M54 21v3" />
+                        </svg>
+                    </span>
                     Narrv
                 </a>
                 <nav class="flex items-center gap-4 text-sm">
@@ -43,18 +62,6 @@
         </footer>
     </div>
 
-    <script>
-        document.addEventListener('alpine:init', () => {
-            Alpine.data('darkModeToggle', () => ({
-                darkMode: document.documentElement.classList.contains('dark'),
-                toggleDark() {
-                    this.darkMode = !this.darkMode;
-                    document.documentElement.classList.toggle('dark', this.darkMode);
-                    localStorage.setItem('darkMode', this.darkMode);
-                }
-            }));
-        });
-    </script>
     @stack('scripts')
 </body>
 </html>

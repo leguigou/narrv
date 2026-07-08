@@ -78,6 +78,9 @@
                             <span x-show="loading">Génération...</span>
                         </button>
                     </div>
+                    <div x-show="error" x-text="error"
+                         class="mb-4 px-4 py-2 rounded-xl bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-sm">
+                    </div>
                     <div class="space-y-4">
                         <template x-for="summary in summaries" :key="summary.id">
                             <div class="p-5 rounded-2xl bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800">
@@ -101,6 +104,9 @@
                                 </div>
                             </template>
                             <div x-show="loading" class="text-center text-gray-400 text-sm py-4">Réflexion...</div>
+                        </div>
+                        <div x-show="error" x-text="error"
+                             class="px-4 py-2 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-sm">
                         </div>
                         <div class="border-t border-gray-200 dark:border-gray-800 p-3 flex gap-2">
                             <input type="text" x-model="input" @keydown.enter="send" :disabled="loading"
@@ -128,6 +134,9 @@
                             <span x-show="translating">Traduction...</span>
                         </button>
                     </div>
+                    <div x-show="error" x-text="error"
+                         class="mb-4 px-4 py-2 rounded-xl bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-sm">
+                    </div>
                     <div x-show="translation" class="p-5 rounded-2xl bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 text-sm whitespace-pre-wrap" x-text="translation"></div>
                 </div>
             </div>
@@ -136,7 +145,7 @@
 </div>
 
 <script>
-    document.addEventListener('alpine:data', () => {
+    document.addEventListener('alpine:init', () => {
         Alpine.data('videoDetail', () => ({
             video: null,
             tab: 'transcript',
@@ -147,7 +156,10 @@
             async loadVideo(id) {
                 try {
                     const res = await fetch(`/api/videos/${id}`);
-                    this.video = await res.json();
+                    if (!res.ok) throw new Error('Impossible de charger la video');
+                    const video = await res.json();
+                    Alpine.store('app').currentVideo = video;
+                    this.video = video;
                     if (this.video.status === 'pending' || this.video.status === 'processing') {
                         setTimeout(() => this.loadVideo(id), 3000);
                     }

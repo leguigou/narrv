@@ -2,15 +2,19 @@
 
 namespace App\Jobs;
 
+use App\Models\Transcript;
 use App\Models\Video;
 use App\Services\YoutubeService;
-use App\Models\Transcript;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Throwable;
 
 class ProcessYoutubeVideo implements ShouldQueue
 {
     use Queueable;
+
+    public int $tries = 2;
+    public int $timeout = 240;
 
     protected Video $video;
 
@@ -19,15 +23,13 @@ class ProcessYoutubeVideo implements ShouldQueue
         $this->video = $video;
     }
 
-    public function handle(): void
+    public function handle(YoutubeService $service): void
     {
         $this->video->update(['status' => 'processing']);
 
         try {
-            $service = new YoutubeService();
             $data = $service->fetchTranscript($this->video);
 
-            // Met à jour la vidéo avec les métadonnées
             $this->video->update([
                 'title' => $data['title'],
                 'channel_name' => $data['channel_name'],
@@ -36,19 +38,20 @@ class ProcessYoutubeVideo implements ShouldQueue
                 'thumbnail_url' => $data['thumbnail_url'],
                 'language' => $data['language'],
                 'status' => 'ready',
+                'error_message' => null,
             ]);
 
-            // Crée le transcript
-            Transcript::create([
-                'video_id' => $this->video->id,
-                'raw_file_path' => $data['raw_file_path'],
-                'full_text' => $data['full_text'],
-                'language' => $data['language'],
-                'word_count' => $data['word_count'],
-                'segments_json' => $data['segments_json'],
-            ]);
-
-        } catch (\Exception $e) {
+            Transcript::updateOrCreate(
+                ['video_id' => $this->video->id],
+                [
+                    'raw_file_path' => $data['raw_file_path'],
+                    'full_text' => $data['full_text'],
+                    'language' => $data['language'],
+                    'word_count' => $data['word_count'],
+                    'segments_json' => $data['segments_json'],
+                ]
+            );
+        } catch (Throwable $e) {
             $this->video->update([
                 'status' => 'error',
                 'error_message' => $e->getMessage(),

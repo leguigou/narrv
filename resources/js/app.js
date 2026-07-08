@@ -1,20 +1,25 @@
 import './bootstrap';
 import Alpine from 'alpinejs';
 
-// Stores globaux
+import adminPanel from './components/admin-panel';
+import chatInterface from './components/chat-interface';
+import summaryPanel from './components/summary-panel';
+import transcriptViewer from './components/transcript-viewer';
+import videoCard from './components/video-card';
+import youtubeInput from './components/youtube-input';
+
 Alpine.store('app', {
     currentVideo: null,
     videos: [],
     loading: false,
 });
 
-// Composants Alpine
-import './components/youtube-input';
-import './components/video-card';
-import './components/transcript-viewer';
-import './components/summary-panel';
-import './components/chat-interface';
-import './components/admin-panel';
+Alpine.data('adminPanel', adminPanel);
+Alpine.data('chatInterface', chatInterface);
+Alpine.data('summaryPanel', summaryPanel);
+Alpine.data('transcriptViewer', transcriptViewer);
+Alpine.data('videoCard', videoCard);
+Alpine.data('youtubeInput', youtubeInput);
 
 window.Alpine = Alpine;
 Alpine.start();

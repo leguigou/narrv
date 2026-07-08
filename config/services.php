@@ -35,4 +35,19 @@ return [
         ],
     ],
 
+    'deepseek' => [
+        'api_key' => env('DEEPSEEK_API_KEY'),
+        'base_url' => env('DEEPSEEK_BASE_URL', 'https://api.deepseek.com'),
+        'model' => env('DEEPSEEK_MODEL', 'deepseek-chat'),
+        'max_input_characters' => env('DEEPSEEK_MAX_INPUT_CHARACTERS', 45000),
+    ],
+
+    'youtube' => [
+        'yt_dlp_path' => env('YT_DLP_PATH', 'yt-dlp'),
+    ],
+
+    'admin' => [
+        'password' => env('ADMIN_PASSWORD'),
+    ],
+
 ];
