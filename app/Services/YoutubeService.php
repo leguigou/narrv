@@ -289,21 +289,91 @@ class YoutubeService
 
     private function dedupeConsecutiveSegments(array $segments): array
     {
-        $deduped = [];
+        if (empty($segments)) {
+            return [];
+        }
+
+        // Étape 1: enlever les doublons exacts et les buildup YouTube
+        $cleaned = [];
         $previousText = null;
 
         foreach ($segments as $segment) {
-            $normalizedText = mb_strtolower(trim($segment['text']));
+            $currentText = mb_strtolower(trim($segment['text']));
 
-            if ($normalizedText === '' || $normalizedText === $previousText) {
+            if ($currentText === '' || $currentText === $previousText) {
                 continue;
             }
 
-            $deduped[] = $segment;
-            $previousText = $normalizedText;
+            // YouTube buildup: si le précédent est préfixe du courant, remplacer
+            if ($previousText !== null) {
+                if (str_starts_with($currentText, $previousText)) {
+                    array_pop($cleaned);
+                    $cleaned[] = $segment;
+                    $previousText = $currentText;
+                    continue;
+                }
+                if (str_starts_with($previousText, $currentText)) {
+                    continue;
+                }
+            }
+
+            $cleaned[] = $segment;
+            $previousText = $currentText;
         }
 
-        return $deduped;
+        // Étape 2: enlever le chevauchement YouTube (chaque segment commence par la fin du précédent)
+        $result = [];
+        $prevText = '';
+
+        foreach ($cleaned as $i => $segment) {
+            $text = trim($segment['text']);
+
+            if ($i === 0) {
+                $result[] = $segment;
+                $prevText = $text;
+                continue;
+            }
+
+            // Chercher où commence la nouvelle info dans le segment courant
+            // Le segment courant commence généralement par la FIN du précédent
+            $newText = $this->removeOverlap($prevText, $text);
+
+            if (trim($newText) !== '') {
+                $segment['text'] = $newText;
+                $result[] = $segment;
+                $prevText = $text; // Garder le texte original pour le prochain chevauchement
+            }
+        }
+
+        return $result;
+    }
+
+    private function removeOverlap(string $previous, string $current): string
+    {
+        $prevWords = preg_split('/\s+/', trim($previous)) ?: [];
+        $currWords = preg_split('/\s+/', trim($current)) ?: [];
+
+        // Cherche le chevauchement maximum: combien de mots du début de $current
+        // sont identiques à la fin de $previous
+        $maxOverlap = min(count($prevWords), count($currWords));
+        $bestOverlap = 0;
+
+        for ($overlap = $maxOverlap; $overlap > 0; $overlap--) {
+            $prevEnd = array_slice($prevWords, -$overlap);
+            $currStart = array_slice($currWords, 0, $overlap);
+
+            if (mb_strtolower(implode(' ', $prevEnd)) === mb_strtolower(implode(' ', $currStart))) {
+                $bestOverlap = $overlap;
+                break;
+            }
+        }
+
+        if ($bestOverlap > 0) {
+            $newWords = array_slice($currWords, $bestOverlap);
+            return implode(' ', $newWords);
+        }
+
+        return $current;
     }
 
     private function vttTimeToSeconds(string $time): float
