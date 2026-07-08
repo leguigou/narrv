@@ -30,10 +30,12 @@ class YoutubeService
     {
         $metadata = $this->fetchMetadata($video->url);
         $language = $metadata['language'] ?? 'en';
+        // Normalise la langue (ex: fr-FR → fr)
+        $langBase = explode('-', $language)[0];
 
-        $this->downloadSubtitles($video->url, $language);
+        $this->downloadSubtitles($video->url, $langBase);
 
-        $vttFile = $this->findSubtitleFile($video->youtube_id, $language);
+        $vttFile = $this->findSubtitleFile($video->youtube_id, $langBase);
 
         if ($vttFile === null) {
             throw new RuntimeException('No usable subtitles found for this YouTube video.');

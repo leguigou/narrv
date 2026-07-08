@@ -64,9 +64,9 @@ class DeepseekService
         return $this->callApi($messages, $temperature);
     }
 
-    private function callApi(array $messages, float $temperature = 0.3): string
+    private function callApi(array $messages, float $temperature = 0.3): ?string
     {
-        if ($this->apiKey === '') {
+        if (empty($this->apiKey)) {
             throw new RuntimeException('DeepSeek API key is not configured.');
         }
 
@@ -76,36 +76,49 @@ class DeepseekService
         }
 
         try {
-            $response = Http::timeout(60)
-                ->withHeaders([
-                    'Authorization' => "Bearer {$this->apiKey}",
-                    'Content-Type' => 'application/json',
-                ])
-                ->post("{$endpoint}/chat/completions", [
-                    'model' => $this->model,
-                    'messages' => $messages,
-                    'temperature' => $temperature,
-                ]);
+            $payload = json_encode([
+                'model' => $this->model,
+                'messages' => $messages,
+                'temperature' => $temperature,
+            ]);
+
+            $ch = curl_init("{$endpoint}/chat/completions");
+            curl_setopt_array($ch, [
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_POST => true,
+                CURLOPT_POSTFIELDS => $payload,
+                CURLOPT_HTTPHEADER => [
+                    'Authorization: Bearer ' . $this->apiKey,
+                    'Content-Type: application/json',
+                ],
+                CURLOPT_TIMEOUT => 60,
+                CURLOPT_CONNECTTIMEOUT => 10,
+                CURLOPT_IPRESOLVE => CURL_IPRESOLVE_V4,
+            ]);
+
+            $response = curl_exec($ch);
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            $error = curl_error($ch);
+            curl_close($ch);
+
+            if ($error) {
+                logger()->error('DeepSeek API error: ' . $error);
+                throw new RuntimeException('DeepSeek API request failed: ' . $error);
+            }
+
+            if ($httpCode === 200) {
+                $data = json_decode($response, true);
+                return $data['choices'][0]['message']['content'] ?? null;
+            }
+
+            logger()->error('DeepSeek API HTTP error', ['code' => $httpCode, 'body' => $response]);
+            throw new RuntimeException("DeepSeek API returned HTTP {$httpCode}");
+        } catch (RuntimeException $e) {
+            throw $e;
         } catch (\Exception $e) {
             logger()->error('DeepSeek API error: ' . $e->getMessage());
             throw new RuntimeException('DeepSeek API request failed.', previous: $e);
         }
-
-        if (!$response->successful()) {
-            logger()->warning('DeepSeek API unsuccessful response.', [
-                'status' => $response->status(),
-                'body' => $response->body(),
-            ]);
-            throw new RuntimeException('DeepSeek API returned an error.');
-        }
-
-        $content = $response->json()['choices'][0]['message']['content'] ?? null;
-
-        if (!is_string($content) || $content === '') {
-            throw new RuntimeException('DeepSeek API returned no usable content.');
-        }
-
-        return $content;
     }
 
     private function trimToBudget(string $text): string
