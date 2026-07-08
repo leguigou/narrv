@@ -3,8 +3,11 @@
 namespace App\Services;
 
 use App\Models\PromptTemplate;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Collection;
 use InvalidArgumentException;
+use RuntimeException;
+use Throwable;
 
 class PromptService
 {
@@ -25,17 +28,24 @@ class PromptService
 
     public function all(): Collection
     {
+        if (!$this->storageIsReady()) {
+            return collect($this->defaultRows());
+        }
+
         $this->ensureDefaults();
 
         return PromptTemplate::query()
             ->whereIn('key', array_keys(self::DEFAULTS))
-            ->orderByRaw("case `key` when 'summary_system' then 1 when 'translate_system' then 2 when 'chat_system' then 3 else 4 end")
-            ->get();
+            ->get()
+            ->sortBy(fn (PromptTemplate $prompt) => $this->sortOrder($prompt->key))
+            ->values();
     }
 
     public function render(string $key, array $variables): string
     {
-        $template = $this->findOrCreate($key)->content;
+        $template = $this->storageIsReady()
+            ? $this->findOrCreate($key)->content
+            : $this->defaultFor($key)['content'];
 
         $replacements = [];
         foreach ($variables as $name => $value) {
@@ -47,6 +57,8 @@ class PromptService
 
     public function update(string $key, string $content): PromptTemplate
     {
+        $this->ensureStorageIsReady();
+
         $template = $this->findOrCreate($key);
         $template->update(['content' => $content]);
 
@@ -55,6 +67,8 @@ class PromptService
 
     public function reset(string $key): PromptTemplate
     {
+        $this->ensureStorageIsReady();
+
         $default = $this->defaultFor($key);
         $template = $this->findOrCreate($key);
         $template->update([
@@ -63,6 +77,44 @@ class PromptService
         ]);
 
         return $template->fresh();
+    }
+
+    private function storageIsReady(): bool
+    {
+        try {
+            return Schema::hasTable('prompt_templates');
+        } catch (Throwable) {
+            return false;
+        }
+    }
+
+    private function ensureStorageIsReady(): void
+    {
+        if (!$this->storageIsReady()) {
+            throw new RuntimeException('La table des prompts est absente. Lancez php artisan migrate --force dans le conteneur Dokploy.');
+        }
+    }
+
+    private function defaultRows(): array
+    {
+        return collect(self::DEFAULTS)
+            ->map(fn (array $default, string $key) => [
+                'key' => $key,
+                'label' => $default['label'],
+                'content' => $default['content'],
+            ])
+            ->sortBy(fn (array $prompt) => $this->sortOrder($prompt['key']))
+            ->values()
+            ->all();
+    }
+
+    private function sortOrder(string $key): int
+    {
+        return [
+            'summary_system' => 1,
+            'translate_system' => 2,
+            'chat_system' => 3,
+        ][$key] ?? 4;
     }
 
     private function ensureDefaults(): void

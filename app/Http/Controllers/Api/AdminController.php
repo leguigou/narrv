@@ -14,6 +14,7 @@ use App\Services\YoutubeService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
+use RuntimeException;
 
 class AdminController extends Controller
 {
@@ -153,10 +154,14 @@ class AdminController extends Controller
             'content' => 'required|string|max:30000',
         ]);
 
-        return response()->json([
-            'message' => 'Prompt enregistre.',
-            'prompt' => $prompts->update($key, $validated['content']),
-        ]);
+        try {
+            return response()->json([
+                'message' => 'Prompt enregistre.',
+                'prompt' => $prompts->update($key, $validated['content']),
+            ]);
+        } catch (RuntimeException $e) {
+            return response()->json(['error' => $e->getMessage()], 503);
+        }
     }
 
     public function resetPrompt(PromptService $prompts, string $key)
@@ -165,10 +170,14 @@ class AdminController extends Controller
             return response()->json(['error' => 'Prompt inconnu.'], 404);
         }
 
-        return response()->json([
-            'message' => 'Prompt remis par defaut.',
-            'prompt' => $prompts->reset($key),
-        ]);
+        try {
+            return response()->json([
+                'message' => 'Prompt remis par defaut.',
+                'prompt' => $prompts->reset($key),
+            ]);
+        } catch (RuntimeException $e) {
+            return response()->json(['error' => $e->getMessage()], 503);
+        }
     }
 
     public function purgeAll()
