@@ -26,13 +26,12 @@ export default function adminPanel() {
             try {
                 const res = await fetch('/api/admin/login', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: this.jsonHeaders(),
                     body: JSON.stringify({ password: this.password })
                 });
 
-                if (!res.ok) throw new Error('Mot de passe incorrect');
+                const data = await this.readApiResponse(res, 'Mot de passe incorrect');
 
-                const data = await res.json();
                 this.token = data.token;
                 localStorage.setItem('narrv_admin_token', this.token);
                 this.loginError = null;
@@ -51,9 +50,9 @@ export default function adminPanel() {
 
         async loadStats() {
             const res = await fetch('/api/admin/stats', {
-                headers: { 'Authorization': `Bearer ${this.token}` }
+                headers: this.authHeaders()
             });
-            this.stats = await res.json();
+            this.stats = await this.readApiResponse(res, 'Chargement des stats impossible.');
             this.cookiesStatus = this.stats.youtube_cookies || null;
         },
 
@@ -62,9 +61,9 @@ export default function adminPanel() {
 
             try {
                 const res = await fetch('/api/admin/videos?per_page=10', {
-                    headers: { 'Authorization': `Bearer ${this.token}` }
+                    headers: this.authHeaders()
                 });
-                const data = await res.json();
+                const data = await this.readApiResponse(res, 'Chargement des videos impossible.');
                 this.videos = data.data || [];
             } finally {
                 this.videosLoading = false;
@@ -94,15 +93,11 @@ export default function adminPanel() {
 
                 const res = await fetch('/api/admin/youtube-cookies', {
                     method: 'POST',
-                    headers: { 'Authorization': `Bearer ${this.token}` },
+                    headers: this.authHeaders(),
                     body: formData
                 });
 
-                const data = await res.json();
-
-                if (!res.ok) {
-                    throw new Error(data.error || data.message || 'Import impossible.');
-                }
+                const data = await this.readApiResponse(res, 'Import impossible.');
 
                 this.cookiesStatus = data.youtube_cookies;
                 this.cookiesMessage = data.message || 'Cookies importes.';
@@ -124,9 +119,9 @@ export default function adminPanel() {
 
             const res = await fetch('/api/admin/youtube-cookies', {
                 method: 'DELETE',
-                headers: { 'Authorization': `Bearer ${this.token}` }
+                headers: this.authHeaders()
             });
-            const data = await res.json();
+            const data = await this.readApiResponse(res, 'Suppression des cookies impossible.');
             this.cookiesStatus = data.youtube_cookies;
             this.cookiesMessage = data.message || 'Cookies supprimes.';
             this.cookiesError = null;
@@ -142,13 +137,9 @@ export default function adminPanel() {
             try {
                 const res = await fetch('/api/admin/youtube-cookies/test', {
                     method: 'POST',
-                    headers: { 'Authorization': `Bearer ${this.token}` }
+                    headers: this.authHeaders()
                 });
-                const data = await res.json();
-
-                if (!res.ok) {
-                    throw new Error(data.error || data.message || 'Diagnostic impossible.');
-                }
+                const data = await this.readApiResponse(res, 'Diagnostic impossible.');
 
                 this.cookiesDiagnostic = data;
                 this.cookiesMessage = data.diagnostic?.ok
@@ -175,7 +166,7 @@ export default function adminPanel() {
 
             await fetch('/api/admin/videos', {
                 method: 'DELETE',
-                headers: { 'Authorization': `Bearer ${this.token}` }
+                headers: this.authHeaders()
             });
             this.loadDashboard();
         },
@@ -187,13 +178,9 @@ export default function adminPanel() {
             try {
                 const res = await fetch(`/api/admin/videos/${video.id}/retry`, {
                     method: 'POST',
-                    headers: { 'Authorization': `Bearer ${this.token}` }
+                    headers: this.authHeaders()
                 });
-                const data = await res.json();
-
-                if (!res.ok) {
-                    throw new Error(data.error || data.message || 'Relance impossible.');
-                }
+                const data = await this.readApiResponse(res, 'Relance impossible.');
 
                 this.videoActionMessage = data.message || 'Video relancee.';
                 await this.loadDashboard();
@@ -211,13 +198,9 @@ export default function adminPanel() {
             try {
                 const res = await fetch(`/api/admin/videos/${video.id}`, {
                     method: 'DELETE',
-                    headers: { 'Authorization': `Bearer ${this.token}` }
+                    headers: this.authHeaders()
                 });
-                const data = await res.json();
-
-                if (!res.ok) {
-                    throw new Error(data.error || data.message || 'Suppression impossible.');
-                }
+                const data = await this.readApiResponse(res, 'Suppression impossible.');
 
                 this.videoActionMessage = data.message || 'Video supprimee.';
                 await this.loadDashboard();
@@ -242,6 +225,44 @@ export default function adminPanel() {
                 ready: 'bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-300',
                 error: 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300'
             }[status] || 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300';
+        },
+
+        jsonHeaders() {
+            return {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
+            };
+        },
+
+        authHeaders() {
+            return {
+                'Accept': 'application/json',
+                'Authorization': `Bearer ${this.token}`
+            };
+        },
+
+        async readApiResponse(response, fallbackMessage) {
+            const contentType = response.headers.get('content-type') || '';
+            const body = await response.text();
+            let data = {};
+
+            if (contentType.includes('application/json')) {
+                try {
+                    data = body ? JSON.parse(body) : {};
+                } catch {
+                    throw new Error(fallbackMessage);
+                }
+            } else if (body.trim().startsWith('<!DOCTYPE') || body.trim().startsWith('<html')) {
+                throw new Error(`${fallbackMessage} Le serveur a retourne une page HTML au lieu de JSON. Consultez les logs Dokploy/Laravel pour le detail.`);
+            } else if (body.trim() !== '') {
+                throw new Error(body.trim().slice(0, 300));
+            }
+
+            if (!response.ok) {
+                throw new Error(data.error || data.message || fallbackMessage);
+            }
+
+            return data;
         },
 
         logout() {
