@@ -44,7 +44,10 @@ RUN mkdir -p storage/app/transcripts storage/framework/cache/data storage/framew
 # Config
 COPY nginx.conf /etc/nginx/http.d/default.conf
 COPY supervisord.conf /etc/supervisord.conf
+COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
 EXPOSE 80
 
+ENTRYPOINT ["docker-entrypoint.sh"]
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisord.conf"]
