@@ -77,9 +77,11 @@ export default function youtubeInput() {
                 });
 
                 const data = await res.json().catch(() => ({}));
-                if (!res.ok) throw new Error(data.error || 'Erreur lors de l’analyse');
+                if (!res.ok) throw new Error(data.error || 'Erreur lors de l analyse');
 
-                this.success = 'Video ajoutee. Preparation du transcript en cours.';
+                this.success = data.already_imported
+                    ? 'Video deja importee. Ouverture de la fiche existante.'
+                    : 'Video ajoutee. Preparation du transcript en cours.';
                 this.url = '';
                 window.dispatchEvent(new CustomEvent('video-added', { detail: data }));
 

@@ -37,6 +37,16 @@
                 </div>
                 <h1 class="text-2xl font-bold" x-text="video.title || 'Video en analyse'"></h1>
                 <p class="text-gray-500 dark:text-gray-400 mt-1" x-show="video.channel_name" x-text="video.channel_name"></p>
+                <div class="mt-3 flex flex-wrap items-center gap-2 text-xs">
+                    <span class="rounded-md bg-gray-100 px-2.5 py-1 font-mono text-gray-600 dark:bg-gray-800 dark:text-gray-300"
+                          x-text="`ID YouTube: ${video.youtube_id}`"></span>
+                    <a :href="video.youtube_url || video.url"
+                       target="_blank"
+                       rel="noopener noreferrer"
+                       class="rounded-md border border-gray-200 px-2.5 py-1 font-medium text-gray-600 transition hover:border-cyan-300 hover:text-cyan-700 dark:border-gray-700 dark:text-gray-300 dark:hover:border-cyan-600 dark:hover:text-cyan-200">
+                        Ouvrir sur YouTube
+                    </a>
+                </div>
 
                 <!-- Status badge -->
                 <div x-show="video.status === 'processing' || video.status === 'pending'"

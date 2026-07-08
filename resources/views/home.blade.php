@@ -188,6 +188,7 @@
                     <div class="min-w-0">
                         <div class="truncate font-semibold text-gray-950 group-hover:text-cyan-700 dark:text-white dark:group-hover:text-cyan-200" x-text="video.title || 'Video en preparation'"></div>
                         <div class="mt-1 truncate text-sm text-gray-500 dark:text-gray-400" x-text="video.channel_name || 'YouTube'"></div>
+                        <div class="mt-2 font-mono text-xs text-gray-500 dark:text-gray-400" x-text="video.youtube_id"></div>
                         <div class="mt-3 inline-flex rounded-md bg-gray-100 px-2 py-1 text-xs font-medium text-gray-600 dark:bg-gray-800 dark:text-gray-300" x-text="statusLabel(video.status)"></div>
                     </div>
                 </a>

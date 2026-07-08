@@ -29,7 +29,9 @@ class VideoController extends Controller
             ['url' => $url, 'language' => $preferredLanguage, 'status' => 'pending']
         );
 
-        if (!$video->wasRecentlyCreated && $video->status !== 'ready') {
+        $alreadyImported = !$video->wasRecentlyCreated;
+
+        if ($alreadyImported && $video->status !== 'ready') {
             $video->update(['language' => $preferredLanguage]);
         }
 
@@ -37,7 +39,10 @@ class VideoController extends Controller
             ProcessYoutubeVideo::dispatch($video);
         }
 
-        return response()->json($video, $video->wasRecentlyCreated ? 201 : 200);
+        return response()->json(
+            $video->setAttribute('already_imported', $alreadyImported),
+            $video->wasRecentlyCreated ? 201 : 200
+        );
     }
 
     public function index(Request $request)

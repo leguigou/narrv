@@ -29,6 +29,8 @@ class VideoApiTest extends TestCase
         ])
             ->assertCreated()
             ->assertJsonPath('youtube_id', 'dQw4w9WgXcQ')
+            ->assertJsonPath('youtube_url', 'https://www.youtube.com/watch?v=dQw4w9WgXcQ')
+            ->assertJsonPath('already_imported', false)
             ->assertJsonPath('status', 'pending')
             ->assertJsonPath('language', 'fr');
 
@@ -76,7 +78,10 @@ class VideoApiTest extends TestCase
 
         $this->postJson('/api/videos', ['url' => 'youtu.be/dQw4w9WgXcQ'])
             ->assertOk()
-            ->assertJsonPath('status', 'ready');
+            ->assertJsonPath('status', 'ready')
+            ->assertJsonPath('youtube_id', 'dQw4w9WgXcQ')
+            ->assertJsonPath('youtube_url', 'https://www.youtube.com/watch?v=dQw4w9WgXcQ')
+            ->assertJsonPath('already_imported', true);
 
         Queue::assertNothingPushed();
     }
