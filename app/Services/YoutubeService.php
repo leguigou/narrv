@@ -61,6 +61,34 @@ class YoutubeService
         ];
     }
 
+    public function diagnoseMetadata(string $url): array
+    {
+        $process = new Process($this->ytDlpCommand([
+            '--dump-json',
+            '--no-download',
+            $url,
+        ]));
+        $process->setTimeout(120);
+        $process->run();
+
+        $metadata = null;
+        if ($process->isSuccessful()) {
+            try {
+                $metadata = json_decode($process->getOutput(), true, 512, JSON_THROW_ON_ERROR);
+            } catch (\JsonException) {
+                $metadata = null;
+            }
+        }
+
+        return [
+            'ok' => $process->isSuccessful(),
+            'exit_code' => $process->getExitCode(),
+            'cookies' => $this->cookiesDiagnostics(),
+            'title' => is_array($metadata) ? ($metadata['title'] ?? null) : null,
+            'error' => $this->trimDiagnosticOutput($process->getErrorOutput()),
+        ];
+    }
+
     private function fetchMetadata(string $url): array
     {
         $process = new Process($this->ytDlpCommand([
@@ -133,14 +161,39 @@ class YoutubeService
         $error = trim($process->getErrorOutput());
         $message = $prefix . ($error !== '' ? ': ' . $error : '.');
 
-        if (
-            !$this->hasReadableCookiesFile()
-            && str_contains($error, 'Sign in to confirm')
-        ) {
-            $message .= ' Configure YOUTUBE_COOKIES_BASE64 or YOUTUBE_COOKIES_PATH so yt-dlp can use an authenticated YouTube session.';
+        if (str_contains($error, 'Sign in to confirm')) {
+            $cookies = $this->cookiesDiagnostics();
+
+            if ($cookies['using_cookies']) {
+                $message .= " Cookies file was used by yt-dlp ({$cookies['size']} bytes), so the imported YouTube session is probably expired, incomplete, or not logged in.";
+            } else {
+                $message .= ' No readable cookies file was found. Import cookies.txt in the admin or configure YOUTUBE_COOKIES_BASE64/YOUTUBE_COOKIES_PATH.';
+            }
         }
 
         return $message;
+    }
+
+    private function cookiesDiagnostics(): array
+    {
+        $exists = $this->cookiesPath !== null && is_file($this->cookiesPath);
+        $readable = $exists && is_readable($this->cookiesPath);
+
+        return [
+            'path' => $this->cookiesPath,
+            'exists' => $exists,
+            'readable' => $readable,
+            'using_cookies' => $readable,
+            'size' => $exists ? (filesize($this->cookiesPath) ?: 0) : 0,
+            'updated_at' => $exists ? date(DATE_ATOM, filemtime($this->cookiesPath) ?: time()) : null,
+        ];
+    }
+
+    private function trimDiagnosticOutput(string $output): string
+    {
+        $output = preg_replace('/\s+/', ' ', trim($output)) ?? '';
+
+        return mb_substr($output, 0, 1200);
     }
 
     private function resolvePath(string $path): string

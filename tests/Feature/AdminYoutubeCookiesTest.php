@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\AdminSession;
 use App\Jobs\ProcessYoutubeVideo;
 use App\Models\Video;
+use App\Services\YoutubeService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Queue;
@@ -109,5 +110,40 @@ class AdminYoutubeCookiesTest extends TestCase
         ]);
 
         Queue::assertPushed(ProcessYoutubeVideo::class);
+    }
+
+    public function test_admin_can_test_youtube_cookies_against_latest_error_video(): void
+    {
+        Video::create([
+            'youtube_id' => 'XVA5q2H3KKA',
+            'url' => 'https://www.youtube.com/watch?v=XVA5q2H3KKA',
+            'status' => 'error',
+            'error_message' => 'Sign in to confirm you are not a bot.',
+        ]);
+
+        $this->mock(YoutubeService::class, function ($mock) {
+            $mock->shouldReceive('diagnoseMetadata')
+                ->once()
+                ->with('https://www.youtube.com/watch?v=XVA5q2H3KKA')
+                ->andReturn([
+                    'ok' => false,
+                    'exit_code' => 1,
+                    'cookies' => [
+                        'exists' => true,
+                        'readable' => true,
+                        'using_cookies' => true,
+                        'size' => 3799,
+                    ],
+                    'title' => null,
+                    'error' => 'Sign in to confirm you are not a bot.',
+                ]);
+        });
+
+        $this->withToken($this->token)
+            ->postJson('/api/admin/youtube-cookies/test')
+            ->assertOk()
+            ->assertJsonPath('url', 'https://www.youtube.com/watch?v=XVA5q2H3KKA')
+            ->assertJsonPath('diagnostic.cookies.using_cookies', true)
+            ->assertJsonPath('diagnostic.ok', false);
     }
 }

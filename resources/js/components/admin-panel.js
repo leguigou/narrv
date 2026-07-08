@@ -7,6 +7,8 @@ export default function adminPanel() {
         cookiesFile: null,
         cookiesMessage: null,
         cookiesError: null,
+        cookiesDiagnostic: null,
+        testingCookies: false,
         uploadingCookies: false,
         videos: [],
         videosLoading: false,
@@ -73,6 +75,7 @@ export default function adminPanel() {
             this.cookiesFile = event.target.files?.[0] || null;
             this.cookiesMessage = null;
             this.cookiesError = null;
+            this.cookiesDiagnostic = null;
         },
 
         async uploadYoutubeCookies() {
@@ -128,6 +131,34 @@ export default function adminPanel() {
             this.cookiesMessage = data.message || 'Cookies supprimes.';
             this.cookiesError = null;
             await this.loadStats();
+        },
+
+        async testYoutubeCookies() {
+            this.testingCookies = true;
+            this.cookiesMessage = null;
+            this.cookiesError = null;
+            this.cookiesDiagnostic = null;
+
+            try {
+                const res = await fetch('/api/admin/youtube-cookies/test', {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${this.token}` }
+                });
+                const data = await res.json();
+
+                if (!res.ok) {
+                    throw new Error(data.error || data.message || 'Diagnostic impossible.');
+                }
+
+                this.cookiesDiagnostic = data;
+                this.cookiesMessage = data.diagnostic?.ok
+                    ? 'Diagnostic OK : yt-dlp peut lire cette video.'
+                    : 'Diagnostic en erreur : consultez le detail ci-dessous.';
+            } catch (e) {
+                this.cookiesError = e.message;
+            } finally {
+                this.testingCookies = false;
+            }
         },
 
         formatCookiesDate(value) {

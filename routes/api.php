@@ -39,6 +39,7 @@ Route::middleware(['admin.auth', 'throttle:30,1'])->group(function () {
     Route::get('/admin/stats', [AdminController::class, 'stats']);
     Route::get('/admin/videos', [AdminController::class, 'videos']);
     Route::post('/admin/youtube-cookies', [AdminController::class, 'uploadYoutubeCookies']);
+    Route::post('/admin/youtube-cookies/test', [AdminController::class, 'testYoutubeCookies']);
     Route::delete('/admin/youtube-cookies', [AdminController::class, 'deleteYoutubeCookies']);
     Route::delete('/admin/videos', [AdminController::class, 'purgeAll']);
     Route::delete('/admin/videos/{id}', [AdminController::class, 'deleteVideo']);

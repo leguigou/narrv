@@ -77,6 +77,10 @@
                             :disabled="uploadingCookies"
                             class="rounded-lg bg-narrv-500 px-5 py-2 text-sm font-medium text-white transition hover:bg-narrv-600 disabled:cursor-not-allowed disabled:opacity-60"
                             x-text="uploadingCookies ? 'Import...' : 'Importer'"></button>
+                    <button @click="testYoutubeCookies"
+                            :disabled="testingCookies"
+                            class="rounded-lg border border-gray-200 px-5 py-2 text-sm font-medium text-gray-700 transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
+                            x-text="testingCookies ? 'Test...' : 'Tester'"></button>
                     <button x-show="cookiesStatus?.configured"
                             @click="deleteYoutubeCookies"
                             class="rounded-lg border border-red-200 px-5 py-2 text-sm font-medium text-red-600 transition hover:bg-red-50 dark:border-red-900 dark:text-red-300 dark:hover:bg-red-950">Supprimer</button>
@@ -84,6 +88,30 @@
 
                 <div x-show="cookiesMessage" x-text="cookiesMessage" class="mt-3 text-sm text-green-600 dark:text-green-400"></div>
                 <div x-show="cookiesError" x-text="cookiesError" class="mt-3 text-sm text-red-500"></div>
+                <div x-show="cookiesDiagnostic"
+                     class="mt-4 rounded-lg border border-gray-200 bg-white p-4 text-sm dark:border-gray-800 dark:bg-gray-950">
+                    <div class="grid gap-3 sm:grid-cols-2">
+                        <div>
+                            <div class="text-gray-500 dark:text-gray-400">Cookies utilises par yt-dlp</div>
+                            <div class="font-medium text-gray-950 dark:text-white" x-text="cookiesDiagnostic?.diagnostic?.cookies?.using_cookies ? 'Oui' : 'Non'"></div>
+                        </div>
+                        <div>
+                            <div class="text-gray-500 dark:text-gray-400">Resultat yt-dlp</div>
+                            <div class="font-medium" :class="cookiesDiagnostic?.diagnostic?.ok ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-300'" x-text="cookiesDiagnostic?.diagnostic?.ok ? 'OK' : 'Erreur'"></div>
+                        </div>
+                        <div>
+                            <div class="text-gray-500 dark:text-gray-400">Taille cookies</div>
+                            <div class="font-medium text-gray-950 dark:text-white" x-text="`${cookiesDiagnostic?.diagnostic?.cookies?.size || 0} octets`"></div>
+                        </div>
+                        <div>
+                            <div class="text-gray-500 dark:text-gray-400">Code sortie</div>
+                            <div class="font-medium text-gray-950 dark:text-white" x-text="cookiesDiagnostic?.diagnostic?.exit_code ?? '-'"></div>
+                        </div>
+                    </div>
+                    <p x-show="cookiesDiagnostic?.diagnostic?.error"
+                       class="mt-3 whitespace-pre-wrap text-xs leading-5 text-red-600 dark:text-red-300"
+                       x-text="cookiesDiagnostic?.diagnostic?.error"></p>
+                </div>
             </div>
 
             <div class="mb-8 rounded-xl border border-gray-200 bg-gray-50 p-5 dark:border-gray-800 dark:bg-gray-900">

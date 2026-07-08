@@ -9,6 +9,7 @@ use App\Models\ChatMessage;
 use App\Models\Summary;
 use App\Models\Translation;
 use App\Models\Video;
+use App\Services\YoutubeService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
@@ -113,6 +114,26 @@ class AdminController extends Controller
         return response()->json([
             'message' => 'Cookies YouTube supprimes.',
             'youtube_cookies' => $this->youtubeCookiesStatus(),
+        ]);
+    }
+
+    public function testYoutubeCookies(Request $request, YoutubeService $youtube)
+    {
+        $validated = $request->validate([
+            'url' => 'nullable|string|max:2048',
+        ]);
+
+        $url = $validated['url']
+            ?? Video::where('status', 'error')->latest()->value('url')
+            ?? Video::latest()->value('url');
+
+        if (!is_string($url) || trim($url) === '') {
+            return response()->json(['error' => 'Aucune video disponible pour tester yt-dlp.'], 422);
+        }
+
+        return response()->json([
+            'url' => $url,
+            'diagnostic' => $youtube->diagnoseMetadata($url),
         ]);
     }
 
