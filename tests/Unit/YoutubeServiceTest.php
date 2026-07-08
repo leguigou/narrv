@@ -8,6 +8,37 @@ use Tests\TestCase;
 
 class YoutubeServiceTest extends TestCase
 {
+    private ?string $cookiesFile = null;
+
+    protected function tearDown(): void
+    {
+        if ($this->cookiesFile !== null && is_file($this->cookiesFile)) {
+            unlink($this->cookiesFile);
+        }
+
+        parent::tearDown();
+    }
+
+    public function test_it_adds_cookie_arguments_when_cookie_file_exists(): void
+    {
+        $this->cookiesFile = storage_path('app/testing-youtube-cookies.txt');
+        if (!is_dir(dirname($this->cookiesFile))) {
+            mkdir(dirname($this->cookiesFile), 0755, true);
+        }
+
+        file_put_contents($this->cookiesFile, "# Netscape HTTP Cookie File\n");
+        config(['services.youtube.cookies_path' => $this->cookiesFile]);
+
+        $service = new YoutubeService();
+        $method = (new ReflectionClass($service))->getMethod('ytDlpCommand');
+        $method->setAccessible(true);
+
+        $command = $method->invoke($service, ['--dump-json', 'https://youtu.be/dQw4w9WgXcQ']);
+
+        $this->assertContains('--cookies', $command);
+        $this->assertContains($this->cookiesFile, $command);
+    }
+
     public function test_it_parses_vtt_timestamps_with_and_without_hours(): void
     {
         $service = new YoutubeService();

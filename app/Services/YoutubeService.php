@@ -10,11 +10,14 @@ class YoutubeService
 {
     private string $ytDlpPath;
     private string $storagePath;
+    private ?string $cookiesPath;
 
     public function __construct()
     {
         $this->ytDlpPath = (string) config('services.youtube.yt_dlp_path', 'yt-dlp');
         $this->storagePath = storage_path('app/transcripts');
+        $cookiesPath = config('services.youtube.cookies_path');
+        $this->cookiesPath = is_string($cookiesPath) && trim($cookiesPath) !== '' ? $cookiesPath : null;
 
         if (!is_dir($this->storagePath)) {
             mkdir($this->storagePath, 0755, true);
@@ -58,17 +61,16 @@ class YoutubeService
 
     private function fetchMetadata(string $url): array
     {
-        $process = new Process([
-            $this->ytDlpPath,
+        $process = new Process($this->ytDlpCommand([
             '--dump-json',
             '--no-download',
             $url,
-        ]);
+        ]));
         $process->setTimeout(120);
         $process->run();
 
         if (!$process->isSuccessful()) {
-            throw new RuntimeException('Unable to fetch YouTube metadata: ' . trim($process->getErrorOutput()));
+            throw new RuntimeException($this->ytDlpErrorMessage('Unable to fetch YouTube metadata', $process));
         }
 
         try {
@@ -83,8 +85,7 @@ class YoutubeService
         $outputTemplate = $this->storagePath . DIRECTORY_SEPARATOR . '%(id)s.%(ext)s';
         $languages = implode(',', array_values(array_unique(array_filter([$language, 'en', 'fr']))));
 
-        $process = new Process([
-            $this->ytDlpPath,
+        $process = new Process($this->ytDlpCommand([
             '--write-subs',
             '--write-auto-subs',
             '--sub-lang',
@@ -95,13 +96,49 @@ class YoutubeService
             '-o',
             $outputTemplate,
             $url,
-        ]);
+        ]));
         $process->setTimeout(180);
         $process->run();
 
         if (!$process->isSuccessful()) {
-            throw new RuntimeException('Unable to download YouTube subtitles: ' . trim($process->getErrorOutput()));
+            throw new RuntimeException($this->ytDlpErrorMessage('Unable to download YouTube subtitles', $process));
         }
+    }
+
+    private function ytDlpCommand(array $arguments): array
+    {
+        return array_merge([$this->ytDlpPath], $this->cookiesArguments(), $arguments);
+    }
+
+    private function cookiesArguments(): array
+    {
+        if (!$this->hasReadableCookiesFile()) {
+            return [];
+        }
+
+        return ['--cookies', $this->cookiesPath];
+    }
+
+    private function hasReadableCookiesFile(): bool
+    {
+        return $this->cookiesPath !== null
+            && is_file($this->cookiesPath)
+            && is_readable($this->cookiesPath);
+    }
+
+    private function ytDlpErrorMessage(string $prefix, Process $process): string
+    {
+        $error = trim($process->getErrorOutput());
+        $message = $prefix . ($error !== '' ? ': ' . $error : '.');
+
+        if (
+            !$this->hasReadableCookiesFile()
+            && str_contains($error, 'Sign in to confirm')
+        ) {
+            $message .= ' Configure YOUTUBE_COOKIES_BASE64 or YOUTUBE_COOKIES_PATH so yt-dlp can use an authenticated YouTube session.';
+        }
+
+        return $message;
     }
 
     private function findSubtitleFile(string $youtubeId, string $language): ?string

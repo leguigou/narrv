@@ -44,6 +44,7 @@ return [
 
     'youtube' => [
         'yt_dlp_path' => env('YT_DLP_PATH', 'yt-dlp'),
+        'cookies_path' => env('YOUTUBE_COOKIES_PATH', storage_path('app/youtube-cookies.txt')),
     ],
 
     'admin' => [

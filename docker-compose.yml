@@ -17,6 +17,8 @@ services:
       - DEEPSEEK_MODEL=${DEEPSEEK_MODEL:-deepseek-chat}
       - DEEPSEEK_MAX_INPUT_CHARACTERS=${DEEPSEEK_MAX_INPUT_CHARACTERS:-45000}
       - YT_DLP_PATH=${YT_DLP_PATH:-yt-dlp}
+      - YOUTUBE_COOKIES_PATH=${YOUTUBE_COOKIES_PATH:-/var/www/storage/app/youtube-cookies.txt}
+      - YOUTUBE_COOKIES_BASE64=${YOUTUBE_COOKIES_BASE64:-}
       - ADMIN_PASSWORD=${ADMIN_PASSWORD}
     volumes:
       - narrv_storage:/var/www/storage
