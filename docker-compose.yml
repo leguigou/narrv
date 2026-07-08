@@ -30,4 +30,6 @@ services:
 
 volumes:
   narrv_storage:
+    name: narrv_storage
   narrv_database:
+    name: narrv_database

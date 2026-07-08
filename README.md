@@ -97,7 +97,16 @@ docker compose up -d
 1. Connecter le repo `leguigou/narrv` à Dokploy
 2. Définir les variables d'environnement dans Dokploy
 3. Dokploy détecte automatiquement le `docker-compose.yml`
-4. Les volumes `narrv_storage` et `narrv_database` persistent les données
+4. Les volumes Docker nommes `narrv_storage` et `narrv_database` persistent les donnees entre les redeploys
+
+### Volumes persistants
+
+| Volume | Montage | Contenu |
+|--------|---------|---------|
+| `narrv_database` | `/var/www/database` | Base SQLite `narrv.sqlite` |
+| `narrv_storage` | `/var/www/storage` | Transcripts, logs, cache/session Laravel |
+
+Ne supprimez pas ces volumes dans Dokploy si vous voulez conserver les videos, transcripts, resumes, traductions et conversations.
 
 ## 🗺️ Routes API
 
