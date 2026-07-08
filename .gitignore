@@ -1,6 +1,5 @@
 /node_modules/
 /vendor/
-/public/build/
 /storage/framework/cache/*
 !/storage/framework/cache/.gitignore
 !/storage/framework/cache/data/
