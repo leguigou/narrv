@@ -3,8 +3,11 @@
 namespace Tests\Feature;
 
 use App\Models\AdminSession;
+use App\Jobs\ProcessYoutubeVideo;
+use App\Models\Video;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Queue;
 use Tests\TestCase;
 
 class AdminYoutubeCookiesTest extends TestCase
@@ -76,5 +79,35 @@ class AdminYoutubeCookiesTest extends TestCase
             ->assertJsonPath('youtube_cookies.configured', false);
 
         $this->assertFileDoesNotExist($this->cookiesPath);
+    }
+
+    public function test_admin_can_list_and_retry_error_videos(): void
+    {
+        Queue::fake();
+
+        $video = Video::create([
+            'youtube_id' => 'XVA5q2H3KKA',
+            'url' => 'https://www.youtube.com/watch?v=XVA5q2H3KKA',
+            'status' => 'error',
+            'error_message' => 'Sign in to confirm you are not a bot.',
+        ]);
+
+        $this->withToken($this->token)
+            ->getJson('/api/admin/videos')
+            ->assertOk()
+            ->assertJsonPath('data.0.youtube_id', 'XVA5q2H3KKA')
+            ->assertJsonPath('data.0.status', 'error');
+
+        $this->withToken($this->token)
+            ->postJson("/api/admin/videos/{$video->id}/retry")
+            ->assertOk();
+
+        $this->assertDatabaseHas('videos', [
+            'id' => $video->id,
+            'status' => 'pending',
+            'error_message' => null,
+        ]);
+
+        Queue::assertPushed(ProcessYoutubeVideo::class);
     }
 }

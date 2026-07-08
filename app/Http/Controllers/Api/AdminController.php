@@ -57,6 +57,27 @@ class AdminController extends Controller
         ]);
     }
 
+    public function videos(Request $request)
+    {
+        $perPage = min(max((int) $request->query('per_page', 10), 1), 50);
+
+        return response()->json(
+            Video::query()
+                ->select([
+                    'id',
+                    'youtube_id',
+                    'url',
+                    'title',
+                    'status',
+                    'error_message',
+                    'created_at',
+                    'updated_at',
+                ])
+                ->latest()
+                ->paginate($perPage)
+        );
+    }
+
     public function uploadYoutubeCookies(Request $request)
     {
         $validated = $request->validate([
