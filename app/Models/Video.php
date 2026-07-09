@@ -12,13 +12,14 @@ class Video extends Model
 
     protected $fillable = [
         'youtube_id', 'url', 'title', 'channel_name', 'channel_url',
-        'duration', 'thumbnail_url', 'language', 'status',
+        'duration', 'thumbnail_url', 'language', 'is_visible', 'status',
         'error_message', 'formats_json',
     ];
 
     protected $casts = [
         'duration' => 'integer',
         'formats_json' => 'array',
+        'is_visible' => 'boolean',
     ];
 
     public function transcript()

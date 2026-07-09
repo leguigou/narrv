@@ -1,9 +1,21 @@
+import { marked } from 'marked';
+
+marked.setOptions({
+    breaks: true,
+    gfm: true,
+});
+
 export default function chatInterface() {
     return {
         messages: [],
         input: '',
         loading: false,
         error: null,
+
+        renderMarkdown(text) {
+            if (!text) return '';
+            return marked.parse(text);
+        },
 
         async send() {
             if (!this.input.trim()) return;

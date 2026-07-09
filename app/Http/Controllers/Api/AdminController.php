@@ -11,6 +11,7 @@ use App\Models\Translation;
 use App\Models\Video;
 use App\Services\PromptService;
 use App\Services\YoutubeService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
@@ -72,6 +73,7 @@ class AdminController extends Controller
                     'url',
                     'title',
                     'status',
+                    'is_visible',
                     'error_message',
                     'created_at',
                     'updated_at',
@@ -207,6 +209,18 @@ class AdminController extends Controller
         ProcessYoutubeVideo::dispatch($video);
 
         return response()->json(['message' => 'Video relancee']);
+    }
+
+    public function toggleVisibility(string $id): JsonResponse
+    {
+        $video = Video::findOrFail($id);
+        $video->is_visible = !$video->is_visible;
+        $video->save();
+
+        return response()->json([
+            'message' => $video->is_visible ? 'Video visible sur l\'accueil' : 'Video masquee de l\'accueil',
+            'is_visible' => $video->is_visible,
+        ]);
     }
 
     private function deleteTranscriptFile(Video $video): void

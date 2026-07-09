@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Jobs\ProcessYoutubeVideo;
+use App\Models\AdminSession;
 use App\Models\Video;
 use Illuminate\Http\Request;
 
@@ -49,12 +50,31 @@ class VideoController extends Controller
     {
         $perPage = min(max((int) $request->query('per_page', 10), 1), 50);
 
-        return response()->json(Video::latest()->paginate($perPage));
+        return response()->json(Video::where('is_visible', true)->latest()->paginate($perPage));
     }
 
-    public function show($id)
+    public function show(Request $request, $id)
     {
-        return response()->json(Video::with('transcript')->findOrFail($id));
+        $video = Video::with('transcript')->findOrFail($id);
+
+        if (!$video->is_visible) {
+            // Allow admin access via token
+            $adminToken = $request->query('admin_token');
+            if ($adminToken && $this->isValidAdminToken($adminToken)) {
+                return response()->json($video);
+            }
+
+            return response()->json(['error' => 'Cette video n\'est pas disponible'], 404);
+        }
+
+        return response()->json($video);
+    }
+
+    private function isValidAdminToken(string $token): bool
+    {
+        return AdminSession::where('token', hash('sha256', $token))
+            ->where('expires_at', '>', now())
+            ->exists();
     }
 
     private function normalizeUrl(string $url): string

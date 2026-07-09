@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Translation;
 use App\Models\Video;
 use App\Services\DeepseekService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use RuntimeException;
 
@@ -98,6 +99,20 @@ class TranscriptController extends Controller
         );
 
         return response()->json($translation);
+    }
+
+    public function translations(string $id): JsonResponse
+    {
+        $video = Video::with('transcript')->findOrFail($id);
+
+        if (!$video->transcript) {
+            return response()->json([]);
+        }
+
+        return response()->json(
+            Translation::where('transcript_id', $video->transcript->id)
+                ->get(['id', 'target_language', 'content', 'model', 'created_at'])
+        );
     }
 
     private function normalizeLanguage(?string $language): ?string

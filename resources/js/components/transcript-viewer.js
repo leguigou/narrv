@@ -12,10 +12,17 @@ export default function transcriptViewer(transcript) {
         ],
         translating: false,
         translation: null,
+        translations: [],
         error: null,
 
         init() {
             this.targetLang = this.defaultTargetLanguage();
+            this.loadTranslations();
+
+            // Reafficher la trad stockee quand on change de langue
+            this.$watch('targetLang', () => {
+                this.showStoredTranslation();
+            });
         },
 
         get sourceLang() {
@@ -46,6 +53,25 @@ export default function transcriptViewer(transcript) {
             return Boolean(this.sourceLang && this.targetLang && this.sourceLang === this.targetLang);
         },
 
+        async loadTranslations() {
+            const videoId = this.transcript?.video_id || Alpine.store('app').currentVideo?.id;
+            if (!videoId) return;
+
+            try {
+                const res = await fetch(`/api/videos/${videoId}/translations`);
+                if (!res.ok) return;
+                this.translations = await res.json();
+                this.showStoredTranslation();
+            } catch (e) {
+                // Silently fail, translations are not critical
+            }
+        },
+
+        showStoredTranslation() {
+            const stored = this.translations.find((t) => t.target_language === this.targetLang);
+            this.translation = stored?.content || null;
+        },
+
         async download(format) {
             const videoId = this.transcript?.video_id || Alpine.store('app').currentVideo?.id;
             if (!videoId) return;
@@ -55,6 +81,13 @@ export default function transcriptViewer(transcript) {
         async translate() {
             if (this.isSameLanguage) {
                 this.error = 'La langue cible est identique a la langue source.';
+                return;
+            }
+
+            // Si deja traduite, afficher directement
+            const stored = this.translations.find((t) => t.target_language === this.targetLang);
+            if (stored) {
+                this.translation = stored.content;
                 return;
             }
 
@@ -75,6 +108,14 @@ export default function transcriptViewer(transcript) {
                 }
                 const data = await res.json();
                 this.translation = data.content;
+
+                // Stocker localement pour eviter un re-fetch
+                this.translations.push({
+                    id: data.id,
+                    target_language: this.targetLang,
+                    content: data.content,
+                    model: data.model,
+                });
             } catch (e) {
                 console.error('Translation error:', e);
                 this.error = e.message;
@@ -93,6 +134,11 @@ export default function transcriptViewer(transcript) {
 
         languageLabel(code) {
             return this.languages.find((language) => language.code === code)?.label || code || 'Inconnue';
+        },
+
+        flagFor(code) {
+            const flags = { en: '🇬🇧', fr: '🇫🇷', es: '🇪🇸', it: '🇮🇹', de: '🇩🇪' };
+            return flags[code] || '🏳️';
         },
 
         normalizeLanguage(language) {

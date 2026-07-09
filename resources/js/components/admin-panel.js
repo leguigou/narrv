@@ -2,7 +2,18 @@ export default function adminPanel() {
     return {
         token: localStorage.getItem('narrv_admin_token') || null,
         password: '',
+        section: 'dashboard',
+        sections: [
+            { id: 'dashboard', label: 'Dashboard', icon: '📊' },
+            { id: 'cookies', label: 'Cookies YouTube', icon: '🍪' },
+            { id: 'prompts', label: 'Prompts IA', icon: '🤖' },
+            { id: 'videos', label: 'Vidéos', icon: '🎬' },
+        ],
+
+        // Dashboard stats
         stats: null,
+
+        // Cookies
         cookiesStatus: null,
         cookiesFile: null,
         cookiesMessage: null,
@@ -10,21 +21,50 @@ export default function adminPanel() {
         cookiesDiagnostic: null,
         testingCookies: false,
         uploadingCookies: false,
+
+        // Videos
         videos: [],
         videosLoading: false,
         videoActionMessage: null,
         videoActionError: null,
+
+        // Prompts
         prompts: [],
         promptsLoading: false,
         promptMessage: null,
         promptError: null,
         savingPromptKey: null,
+
         loginError: null,
 
         init() {
             if (this.token) {
                 this.loadDashboard();
             }
+        },
+
+        setSection(id) {
+            this.section = id;
+            this.clearMessages();
+
+            if (id === 'videos' && this.videos.length === 0) {
+                this.loadVideos();
+            }
+            if (id === 'prompts' && this.prompts.length === 0) {
+                this.loadPrompts();
+            }
+            if (id === 'cookies' && !this.cookiesStatus) {
+                this.loadStats();
+            }
+        },
+
+        clearMessages() {
+            this.videoActionMessage = null;
+            this.videoActionError = null;
+            this.promptMessage = null;
+            this.promptError = null;
+            this.cookiesMessage = null;
+            this.cookiesError = null;
         },
 
         async login() {
@@ -283,6 +323,50 @@ export default function adminPanel() {
             }
         },
 
+        previewVideo: null,
+
+        async viewVideo(video) {
+            this.videoActionMessage = null;
+            this.videoActionError = null;
+
+            try {
+                // Use the public API with admin token to bypass visibility check
+                const res = await fetch(`/api/videos/${video.id}?admin_token=${this.token}`, {
+                    headers: { 'Accept': 'application/json' }
+                });
+                const data = await this.readApiResponse(res, 'Chargement de la video impossible.');
+                this.previewVideo = data;
+            } catch (e) {
+                this.videoActionError = e.message;
+            }
+        },
+
+        closePreview() {
+            this.previewVideo = null;
+        },
+
+        async toggleVisibility(video) {
+            this.videoActionMessage = null;
+            this.videoActionError = null;
+
+            try {
+                const res = await fetch(`/api/admin/videos/${video.id}/visibility`, {
+                    method: 'PUT',
+                    headers: this.authHeaders()
+                });
+                const data = await this.readApiResponse(res, 'Changement de visibilite impossible.');
+
+                video.is_visible = data.is_visible;
+                this.videoActionMessage = data.message;
+            } catch (e) {
+                this.videoActionError = e.message;
+            }
+        },
+
+        videoUrl(video) {
+            return `/video/${video.id}`;
+        },
+
         statusLabel(status) {
             return {
                 pending: 'En attente',
@@ -294,11 +378,11 @@ export default function adminPanel() {
 
         statusClass(status) {
             return {
-                pending: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-950 dark:text-yellow-300',
-                processing: 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300',
-                ready: 'bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-300',
-                error: 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300'
-            }[status] || 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300';
+                pending: 'bg-yellow-50 text-yellow-700 ring-1 ring-yellow-200 dark:bg-yellow-950 dark:text-yellow-300 dark:ring-yellow-800',
+                processing: 'bg-blue-50 text-blue-700 ring-1 ring-blue-200 dark:bg-blue-950 dark:text-blue-300 dark:ring-blue-800',
+                ready: 'bg-green-50 text-green-700 ring-1 ring-green-200 dark:bg-green-950 dark:text-green-300 dark:ring-green-800',
+                error: 'bg-red-50 text-red-700 ring-1 ring-red-200 dark:bg-red-950 dark:text-red-300 dark:ring-red-800'
+            }[status] || 'bg-gray-50 text-gray-700 ring-1 ring-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:ring-gray-700';
         },
 
         jsonHeaders() {
@@ -351,6 +435,7 @@ export default function adminPanel() {
             localStorage.removeItem('narrv_admin_token');
             this.stats = null;
             this.videos = [];
+            this.section = 'dashboard';
         }
     };
 }

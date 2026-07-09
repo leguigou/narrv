@@ -1,3 +1,10 @@
+import { marked } from 'marked';
+
+marked.setOptions({
+    breaks: true,
+    gfm: true,
+});
+
 export default function summaryPanel() {
     return {
         summaries: [],
@@ -14,6 +21,11 @@ export default function summaryPanel() {
             { code: 'de', label: 'Allemand' }
         ],
         error: null,
+
+        renderMarkdown(text) {
+            if (!text) return '';
+            return marked.parse(text);
+        },
 
         async generate() {
             this.loading = true;

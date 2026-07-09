@@ -27,6 +27,7 @@ Route::get('/videos/{id}/download', [MediaController::class, 'download'])->middl
 Route::get('/videos/{id}/transcript', [TranscriptController::class, 'show'])->middleware('throttle:60,1');
 Route::get('/videos/{id}/transcript/download', [TranscriptController::class, 'download'])->middleware('throttle:30,1');
 Route::post('/videos/{id}/translate', [TranscriptController::class, 'translate'])->middleware('throttle:5,1');
+Route::get('/videos/{id}/translations', [TranscriptController::class, 'translations'])->middleware('throttle:60,1');
 
 // Summaries
 Route::post('/videos/{id}/summarize', [SummaryController::class, 'store'])->middleware('throttle:5,1');
@@ -37,8 +38,8 @@ Route::post('/videos/{id}/chat', [ChatController::class, 'store'])->middleware('
 Route::get('/videos/{id}/chat', [ChatController::class, 'index'])->middleware('throttle:60,1');
 
 // Admin
-Route::post('/admin/login', [AdminController::class, 'login'])->middleware('throttle:5,1');
-Route::middleware(['admin.auth', 'throttle:30,1'])->group(function () {
+Route::post('/admin/login', [AdminController::class, 'login'])->middleware('throttle:20,1');
+Route::middleware(['admin.auth', 'throttle:60,1'])->group(function () {
     Route::get('/admin/stats', [AdminController::class, 'stats']);
     Route::get('/admin/videos', [AdminController::class, 'videos']);
     Route::post('/admin/youtube-cookies', [AdminController::class, 'uploadYoutubeCookies']);
@@ -50,4 +51,5 @@ Route::middleware(['admin.auth', 'throttle:30,1'])->group(function () {
     Route::delete('/admin/videos', [AdminController::class, 'purgeAll']);
     Route::delete('/admin/videos/{id}', [AdminController::class, 'deleteVideo']);
     Route::post('/admin/videos/{id}/retry', [AdminController::class, 'retryVideo']);
+    Route::put('/admin/videos/{id}/visibility', [AdminController::class, 'toggleVisibility']);
 });
