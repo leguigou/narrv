@@ -1,9 +1,4 @@
-import { marked } from 'marked';
-
-marked.setOptions({
-    breaks: true,
-    gfm: true,
-});
+import { renderMarkdown } from '../utils/markdown';
 
 export default function summaryPanel() {
     return {
@@ -23,8 +18,7 @@ export default function summaryPanel() {
         error: null,
 
         renderMarkdown(text) {
-            if (!text) return '';
-            return marked.parse(text);
+            return renderMarkdown(text);
         },
 
         async generate() {

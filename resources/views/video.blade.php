@@ -248,8 +248,7 @@
             adminToken: null,
             tab: 'transcript',
             init() {
-                const params = new URLSearchParams(window.location.search);
-                this.adminToken = params.get('admin_token') || null;
+                this.adminToken = localStorage.getItem('narrv_admin_token') || null;
                 const id = window.location.pathname.split('/').pop();
                 this.loadVideo(id);
             },
@@ -265,10 +264,12 @@
             },
             async loadVideo(id) {
                 try {
-                    const url = this.adminToken
-                        ? `/api/videos/${id}?admin_token=${this.adminToken}`
-                        : `/api/videos/${id}`;
-                    const res = await fetch(url);
+                    const headers = { 'Accept': 'application/json' };
+                    if (this.adminToken) {
+                        headers.Authorization = `Bearer ${this.adminToken}`;
+                    }
+
+                    const res = await fetch(`/api/videos/${id}`, { headers });
                     if (!res.ok) {
                         if (res.status === 404) {
                             this.notFound = true;
@@ -277,6 +278,7 @@
                         throw new Error('Impossible de charger la video');
                     }
                     const video = await res.json();
+                    this.notFound = false;
                     if (this.video?.thumbnail_url !== video.thumbnail_url) {
                         this.thumbnailFailed = false;
                     }

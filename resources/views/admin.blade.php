@@ -253,9 +253,8 @@
                                 </div>
 
                                 <div class="flex shrink-0 flex-wrap items-center gap-2">
-                                    <!-- Lien direct vers la video (visible uniquement) -->
-                                    <a x-show="video.is_visible"
-                                       :href="`/video/${video.id}`"
+                                    <!-- Lien direct: les videos masquees restent accessibles aux admins connectes -->
+                                    <a :href="`/video/${video.id}`"
                                        target="_blank"
                                        class="rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-600 transition hover:bg-gray-100 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800">
                                         Ouvrir

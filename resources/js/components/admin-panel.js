@@ -330,9 +330,8 @@ export default function adminPanel() {
             this.videoActionError = null;
 
             try {
-                // Use the public API with admin token to bypass visibility check
-                const res = await fetch(`/api/videos/${video.id}?admin_token=${this.token}`, {
-                    headers: { 'Accept': 'application/json' }
+                const res = await fetch(`/api/videos/${video.id}`, {
+                    headers: this.authHeaders()
                 });
                 const data = await this.readApiResponse(res, 'Chargement de la video impossible.');
                 this.previewVideo = data;

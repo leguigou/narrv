@@ -58,9 +58,8 @@ class VideoController extends Controller
         $video = Video::with('transcript')->findOrFail($id);
 
         if (!$video->is_visible) {
-            // Allow admin access via token
-            $adminToken = $request->query('admin_token');
-            if ($adminToken && $this->isValidAdminToken($adminToken)) {
+            $adminToken = $request->bearerToken();
+            if ($adminToken !== null && $this->isValidAdminToken($adminToken)) {
                 return response()->json($video);
             }
 

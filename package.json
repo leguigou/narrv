@@ -16,6 +16,7 @@
     },
     "dependencies": {
         "alpinejs": "^3.15.12",
+        "dompurify": "^3.4.11",
         "marked": "^18.0.5"
     }
 }

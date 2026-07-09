@@ -1,9 +1,4 @@
-import { marked } from 'marked';
-
-marked.setOptions({
-    breaks: true,
-    gfm: true,
-});
+import { renderMarkdown } from '../utils/markdown';
 
 export default function chatInterface() {
     return {
@@ -13,8 +8,7 @@ export default function chatInterface() {
         error: null,
 
         renderMarkdown(text) {
-            if (!text) return '';
-            return marked.parse(text);
+            return renderMarkdown(text);
         },
 
         async send() {

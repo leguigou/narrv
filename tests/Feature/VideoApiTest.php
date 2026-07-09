@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Jobs\ProcessYoutubeVideo;
+use App\Models\AdminSession;
 use App\Models\Video;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
@@ -84,5 +85,80 @@ class VideoApiTest extends TestCase
             ->assertJsonPath('already_imported', true);
 
         Queue::assertNothingPushed();
+    }
+
+    public function test_public_video_list_excludes_hidden_videos(): void
+    {
+        Video::create([
+            'youtube_id' => 'dQw4w9WgXcQ',
+            'url' => 'https://youtu.be/dQw4w9WgXcQ',
+            'status' => 'ready',
+            'is_visible' => true,
+        ]);
+
+        Video::create([
+            'youtube_id' => '9bZkp7q19f0',
+            'url' => 'https://youtu.be/9bZkp7q19f0',
+            'status' => 'ready',
+            'is_visible' => false,
+        ]);
+
+        $this->getJson('/api/videos')
+            ->assertOk()
+            ->assertJsonPath('data.0.youtube_id', 'dQw4w9WgXcQ')
+            ->assertJsonMissing(['youtube_id' => '9bZkp7q19f0']);
+    }
+
+    public function test_hidden_video_requires_admin_bearer_token(): void
+    {
+        $token = 'test-admin-token';
+        AdminSession::create([
+            'token' => hash('sha256', $token),
+            'expires_at' => now()->addHour(),
+        ]);
+
+        $video = Video::create([
+            'youtube_id' => '9bZkp7q19f0',
+            'url' => 'https://youtu.be/9bZkp7q19f0',
+            'status' => 'ready',
+            'is_visible' => false,
+        ]);
+
+        $this->getJson("/api/videos/{$video->id}")
+            ->assertNotFound();
+
+        $this->getJson("/api/videos/{$video->id}?admin_token={$token}")
+            ->assertNotFound();
+
+        $this->withToken($token)
+            ->getJson("/api/videos/{$video->id}")
+            ->assertOk()
+            ->assertJsonPath('youtube_id', '9bZkp7q19f0');
+    }
+
+    public function test_admin_can_toggle_video_visibility(): void
+    {
+        $token = 'test-admin-token';
+        AdminSession::create([
+            'token' => hash('sha256', $token),
+            'expires_at' => now()->addHour(),
+        ]);
+
+        $video = Video::create([
+            'youtube_id' => '9bZkp7q19f0',
+            'url' => 'https://youtu.be/9bZkp7q19f0',
+            'status' => 'ready',
+            'is_visible' => true,
+        ]);
+
+        $this->withToken($token)
+            ->putJson("/api/admin/videos/{$video->id}/visibility")
+            ->assertOk()
+            ->assertJsonPath('is_visible', false);
+
+        $this->assertDatabaseHas('videos', [
+            'id' => $video->id,
+            'is_visible' => false,
+        ]);
     }
 }
