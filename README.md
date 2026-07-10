@@ -90,6 +90,7 @@ docker compose up -d
 | `DEEPSEEK_BASE_URL` | `https://api.deepseek.com` | URL de l'API DeepSeek, sans `/v1` |
 | `DEEPSEEK_MODEL` | `deepseek-chat` | Modele DeepSeek utilise |
 | `YT_DLP_SLEEP_REQUESTS` | `1` | Delai entre les requetes yt-dlp pour limiter les erreurs 429 |
+| `YT_DLP_SLEEP_SUBTITLES` | `3` | Delai specifique entre les telechargements de sous-titres |
 | `YT_DLP_RETRIES` | `5` | Nombre de tentatives yt-dlp sur les erreurs reseau |
 | `YT_DLP_RETRY_SLEEP` | `http:exp=1:20` | Backoff yt-dlp entre les tentatives HTTP |
 | `YT_DLP_JS_RUNTIMES` | `node` | Runtime JavaScript utilise par yt-dlp pour resoudre les challenges YouTube |

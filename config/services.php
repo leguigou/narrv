@@ -46,6 +46,7 @@ return [
         'yt_dlp_path' => env('YT_DLP_PATH', 'yt-dlp'),
         'cookies_path' => env('YOUTUBE_COOKIES_PATH', storage_path('app/youtube-cookies.txt')),
         'sleep_requests' => env('YT_DLP_SLEEP_REQUESTS', 1),
+        'sleep_subtitles' => env('YT_DLP_SLEEP_SUBTITLES', 3),
         'retries' => env('YT_DLP_RETRIES', 5),
         'retry_sleep' => env('YT_DLP_RETRY_SLEEP', 'http:exp=1:20'),
         'js_runtimes' => env('YT_DLP_JS_RUNTIMES', 'node'),

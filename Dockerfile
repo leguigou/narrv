@@ -28,7 +28,7 @@ RUN apk add --no-cache \
     && node --version \
     && python3 -m virtualenv /opt/yt-dlp \
     && /opt/yt-dlp/bin/pip install --no-cache-dir --upgrade pip \
-    && /opt/yt-dlp/bin/pip install --no-cache-dir "yt-dlp[default]" "curl_cffi" \
+    && /opt/yt-dlp/bin/pip install --no-cache-dir --upgrade "yt-dlp[default,curl-cffi]" "curl_cffi" \
     && ln -s /opt/yt-dlp/bin/yt-dlp /usr/local/bin/yt-dlp \
     && docker-php-ext-install -j$(nproc) zip pdo_sqlite mbstring
 

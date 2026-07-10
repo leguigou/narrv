@@ -30,6 +30,7 @@ class YoutubeServiceTest extends TestCase
         config([
             'services.youtube.cookies_path' => $this->cookiesFile,
             'services.youtube.sleep_requests' => 2,
+            'services.youtube.sleep_subtitles' => 4,
             'services.youtube.retries' => 7,
             'services.youtube.retry_sleep' => 'http:exp=2:30',
             'services.youtube.js_runtimes' => 'node',
@@ -41,10 +42,13 @@ class YoutubeServiceTest extends TestCase
 
         $command = $method->invoke($service, ['--dump-json', 'https://youtu.be/dQw4w9WgXcQ']);
 
+        $this->assertContains('--no-update', $command);
         $this->assertContains('--cookies', $command);
         $this->assertContains($this->cookiesFile, $command);
         $this->assertContains('--sleep-requests', $command);
         $this->assertContains('2', $command);
+        $this->assertContains('--sleep-subtitles', $command);
+        $this->assertContains('4', $command);
         $this->assertContains('--retries', $command);
         $this->assertContains('7', $command);
         $this->assertContains('--retry-sleep', $command);

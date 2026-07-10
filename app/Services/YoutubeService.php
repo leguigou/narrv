@@ -12,6 +12,7 @@ class YoutubeService
     private string $storagePath;
     private ?string $cookiesPath;
     private float $sleepRequests;
+    private float $sleepSubtitles;
     private int $retries;
     private string $retrySleep;
     private string $jsRuntimes;
@@ -25,6 +26,7 @@ class YoutubeService
             ? $this->resolvePath($cookiesPath)
             : null;
         $this->sleepRequests = max(0, (float) config('services.youtube.sleep_requests', 1));
+        $this->sleepSubtitles = max(0, (float) config('services.youtube.sleep_subtitles', 3));
         $this->retries = max(0, (int) config('services.youtube.retries', 5));
         $retrySleep = config('services.youtube.retry_sleep', 'http:exp=1:20');
         $this->retrySleep = is_string($retrySleep) ? trim($retrySleep) : '';
@@ -397,6 +399,10 @@ class YoutubeService
             $errors[] = $process->isSuccessful()
                 ? "No subtitles found for '{$subtitleLanguage}'."
                 : $this->ytDlpErrorMessage("Unable to download YouTube subtitles for '{$subtitleLanguage}'", $process);
+
+            if ($this->isRateLimited($process)) {
+                throw new RuntimeException(end($errors));
+            }
         }
 
         throw new RuntimeException(implode(' ', $errors));
@@ -438,6 +444,10 @@ class YoutubeService
                 $errors[] = $process->isSuccessful()
                     ? "No subtitles found for '{$subtitleLanguage}'."
                     : $this->ytDlpErrorMessage("Unable to download YouTube subtitles for '{$subtitleLanguage}'", $process);
+
+                if ($this->isRateLimited($process)) {
+                    break;
+                }
             }
 
             return [
@@ -532,6 +542,7 @@ class YoutubeService
     private function networkArguments(): array
     {
         $arguments = [
+            '--no-update',
             '--retries',
             (string) $this->retries,
             '--fragment-retries',
@@ -545,6 +556,11 @@ class YoutubeService
             $arguments[] = (string) $this->sleepRequests;
         }
 
+        if ($this->sleepSubtitles > 0) {
+            $arguments[] = '--sleep-subtitles';
+            $arguments[] = (string) $this->sleepSubtitles;
+        }
+
         if ($this->retrySleep !== '') {
             $arguments[] = '--retry-sleep';
             $arguments[] = $this->retrySleep;
@@ -556,6 +572,14 @@ class YoutubeService
         }
 
         return $arguments;
+    }
+
+    private function isRateLimited(Process $process): bool
+    {
+        $error = $process->getErrorOutput();
+
+        return str_contains($error, 'HTTP Error 429')
+            || str_contains($error, 'Too Many Requests');
     }
 
     private function cookiesArguments(?string $cookiesPath = null): array
