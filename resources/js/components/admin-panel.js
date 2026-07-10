@@ -8,6 +8,7 @@ export default function adminPanel() {
             { id: 'cookies', label: 'Cookies YouTube', icon: '🍪' },
             { id: 'prompts', label: 'Prompts IA', icon: '🤖' },
             { id: 'videos', label: 'Vidéos', icon: '🎬' },
+            { id: 'monitoring', label: 'Monitoring', icon: '🩺' },
             { id: 'logs', label: 'Logs', icon: '⚠️' },
         ],
 
@@ -39,11 +40,21 @@ export default function adminPanel() {
 
         // Logs
         logs: [],
+        logGroups: [],
         logsMeta: null,
         logsLoading: false,
         logsMessage: null,
         logsError: null,
         expandedLogId: null,
+        logLevel: 'all',
+        logSource: 'all',
+        logSearch: '',
+        logGrouped: true,
+
+        // Monitoring
+        monitoring: null,
+        monitoringLoading: false,
+        monitoringError: null,
 
         loginError: null,
 
@@ -69,6 +80,9 @@ export default function adminPanel() {
             if (id === 'logs' && this.logs.length === 0) {
                 this.loadLogs();
             }
+            if (id === 'monitoring' && !this.monitoring) {
+                this.loadMonitoring();
+            }
         },
 
         clearMessages() {
@@ -80,6 +94,7 @@ export default function adminPanel() {
             this.cookiesError = null;
             this.logsMessage = null;
             this.logsError = null;
+            this.monitoringError = null;
         },
 
         async login() {
@@ -106,7 +121,8 @@ export default function adminPanel() {
                 this.loadStats(),
                 this.loadVideos(),
                 this.loadPrompts(),
-                this.loadLogs()
+                this.loadLogs(),
+                this.loadMonitoring()
             ]);
         },
 
@@ -303,24 +319,53 @@ export default function adminPanel() {
             }).format(new Date(value));
         },
 
+        async loadMonitoring() {
+            this.monitoringLoading = true;
+            this.monitoringError = null;
+
+            try {
+                const res = await fetch('/api/admin/monitoring', {
+                    headers: this.authHeaders()
+                });
+                this.monitoring = await this.readApiResponse(res, 'Chargement du monitoring impossible.');
+            } catch (e) {
+                this.monitoringError = e.message;
+                this.handleAuthError(e);
+            } finally {
+                this.monitoringLoading = false;
+            }
+        },
+
         async loadLogs() {
             this.logsLoading = true;
             this.logsError = null;
 
             try {
-                const res = await fetch('/api/admin/logs?limit=100', {
+                const params = new URLSearchParams({
+                    limit: '120',
+                    level: this.logLevel,
+                    source: this.logSource,
+                    search: this.logSearch.trim()
+                });
+
+                const res = await fetch(`/api/admin/logs?${params.toString()}`, {
                     headers: this.authHeaders()
                 });
                 const data = await this.readApiResponse(res, 'Chargement des logs impossible.');
                 this.logs = data.entries || [];
+                this.logGroups = data.groups || [];
                 this.logsMeta = {
                     total: data.total || 0,
                     size: data.size || 0,
-                    updated_at: data.updated_at || null
+                    updated_at: data.updated_at || null,
+                    levels: data.levels || {},
+                    sources: data.sources || {}
                 };
             } catch (e) {
                 this.logs = [];
+                this.logGroups = [];
                 this.logsError = e.message;
+                this.handleAuthError(e);
             } finally {
                 this.logsLoading = false;
             }
@@ -339,12 +384,18 @@ export default function adminPanel() {
                 });
                 const data = await this.readApiResponse(res, 'Purge des logs impossible.');
                 this.logs = [];
-                this.logsMeta = { total: 0, size: 0, updated_at: null };
+                this.logGroups = [];
+                this.logsMeta = { total: 0, size: 0, updated_at: null, levels: {}, sources: {} };
                 this.expandedLogId = null;
                 this.logsMessage = data.message || 'Logs purges.';
             } catch (e) {
                 this.logsError = e.message;
             }
+        },
+
+        async copyLog(log) {
+            await navigator.clipboard.writeText(log.raw || log.message || '');
+            this.logsMessage = 'Log copie dans le presse-papiers.';
         },
 
         toggleLog(log) {
@@ -358,6 +409,47 @@ export default function adminPanel() {
                 ALERT: 'bg-purple-50 text-purple-700 ring-1 ring-purple-200 dark:bg-purple-950 dark:text-purple-300 dark:ring-purple-800',
                 EMERGENCY: 'bg-purple-100 text-purple-800 ring-1 ring-purple-300 dark:bg-purple-950 dark:text-purple-200 dark:ring-purple-700'
             }[level] || 'bg-gray-50 text-gray-700 ring-1 ring-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:ring-gray-700';
+        },
+
+        sourceLabel(source) {
+            return {
+                deepseek: 'DeepSeek',
+                youtube: 'YouTube / yt-dlp',
+                database: 'Base de donnees',
+                storage: 'Stockage',
+                laravel: 'Laravel'
+            }[source] || source || 'Inconnue';
+        },
+
+        statusLabelFor(value) {
+            return {
+                ok: 'OK',
+                warning: 'Attention',
+                error: 'Erreur'
+            }[value] || value || 'Inconnu';
+        },
+
+        statusPillClass(value) {
+            return {
+                ok: 'bg-green-50 text-green-700 ring-1 ring-green-200 dark:bg-green-950 dark:text-green-300 dark:ring-green-800',
+                warning: 'bg-yellow-50 text-yellow-700 ring-1 ring-yellow-200 dark:bg-yellow-950 dark:text-yellow-300 dark:ring-yellow-800',
+                error: 'bg-red-50 text-red-700 ring-1 ring-red-200 dark:bg-red-950 dark:text-red-300 dark:ring-red-800'
+            }[value] || 'bg-gray-50 text-gray-700 ring-1 ring-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:ring-gray-700';
+        },
+
+        bytesLabel(value) {
+            if (!value && value !== 0) return '-';
+
+            const units = ['o', 'Ko', 'Mo', 'Go', 'To'];
+            let size = Number(value);
+            let unit = 0;
+
+            while (size >= 1024 && unit < units.length - 1) {
+                size /= 1024;
+                unit++;
+            }
+
+            return `${size.toFixed(unit === 0 ? 0 : 1)} ${units[unit]}`;
         },
 
         async purgeAll() {
@@ -524,7 +616,9 @@ export default function adminPanel() {
             this.stats = null;
             this.videos = [];
             this.logs = [];
+            this.logGroups = [];
             this.logsMeta = null;
+            this.monitoring = null;
             this.section = 'dashboard';
         }
     };

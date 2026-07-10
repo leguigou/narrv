@@ -62,6 +62,24 @@ class AdminLogsTest extends TestCase
             ->assertJsonPath('entries.1.message', 'Unable to download subtitles');
     }
 
+    public function test_admin_can_filter_and_group_logs(): void
+    {
+        file_put_contents($this->logPath, implode("\n", [
+            '[2026-07-10 08:01:00] production.ERROR: DeepSeek API returned HTTP 401',
+            '[2026-07-10 08:02:00] production.ERROR: DeepSeek API returned HTTP 429',
+            '[2026-07-10 08:03:00] production.WARNING: yt-dlp rate limited YouTube',
+            '[2026-07-10 08:04:00] production.ERROR: Database is locked',
+        ]));
+
+        $this->withToken($this->token)
+            ->getJson('/api/admin/logs?level=ERROR&source=deepseek&search=HTTP')
+            ->assertOk()
+            ->assertJsonPath('total', 2)
+            ->assertJsonPath('entries.0.source', 'deepseek')
+            ->assertJsonPath('groups.0.count', 2)
+            ->assertJsonPath('groups.0.message', 'DeepSeek API returned HTTP 429');
+    }
+
     public function test_admin_can_clear_error_logs(): void
     {
         file_put_contents($this->logPath, '[2026-07-10 08:01:00] production.ERROR: Boom');

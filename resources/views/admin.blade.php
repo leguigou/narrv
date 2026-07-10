@@ -66,7 +66,7 @@
                 <!-- Quick actions -->
                 <div class="rounded-xl border border-gray-200 bg-gray-50 p-5 dark:border-gray-800 dark:bg-gray-900">
                     <h2 class="mb-4 text-lg font-semibold text-gray-950 dark:text-white">Accès rapide</h2>
-                    <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                    <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
                         <button @click="setSection('cookies')" class="rounded-xl border border-gray-200 bg-white p-4 text-left transition hover:shadow-sm dark:border-gray-700 dark:bg-gray-950">
                             <div class="text-lg">🍪</div>
                             <div class="mt-1 text-sm font-medium text-gray-900 dark:text-white">Cookies YouTube</div>
@@ -81,6 +81,11 @@
                             <div class="text-lg">🎬</div>
                             <div class="mt-1 text-sm font-medium text-gray-900 dark:text-white">Vidéos</div>
                             <div class="mt-0.5 text-xs text-gray-500" x-text="videos.length + ' récentes'"></div>
+                        </button>
+                        <button @click="setSection('monitoring')" class="rounded-xl border border-gray-200 bg-white p-4 text-left transition hover:shadow-sm dark:border-gray-700 dark:bg-gray-950">
+                            <div class="text-lg">🩺</div>
+                            <div class="mt-1 text-sm font-medium text-gray-900 dark:text-white">Monitoring</div>
+                            <div class="mt-0.5 text-xs text-gray-500" x-text="monitoring ? statusLabelFor(monitoring.logs?.status) : 'A verifier'"></div>
                         </button>
                         <button @click="setSection('logs')" class="rounded-xl border border-gray-200 bg-white p-4 text-left transition hover:shadow-sm dark:border-gray-700 dark:bg-gray-950">
                             <div class="text-lg">⚠️</div>
@@ -301,19 +306,137 @@
                 </div>
             </div>
 
+            <!-- ====== MONITORING ====== -->
+            <div x-show="section === 'monitoring'">
+                <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div>
+                        <h2 class="text-lg font-semibold text-gray-950 dark:text-white">Monitoring</h2>
+                        <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">Etat des services critiques, du stockage, des jobs et de la configuration.</p>
+                        <p class="mt-1 text-xs text-gray-500" x-show="monitoring">Dernier controle <span x-text="formatCookiesDate(monitoring?.generated_at)"></span></p>
+                    </div>
+                    <button @click="loadMonitoring"
+                            :disabled="monitoringLoading"
+                            class="rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-700 transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
+                            x-text="monitoringLoading ? 'Controle...' : 'Rafraichir'"></button>
+                </div>
+
+                <div x-show="monitoringError" x-text="monitoringError" class="mb-3 text-sm text-red-500"></div>
+
+                <template x-if="monitoringLoading && !monitoring">
+                    <div class="rounded-xl border border-gray-200 bg-gray-50 p-5 text-sm text-gray-500 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-400">Controle des services...</div>
+                </template>
+
+                <div x-show="monitoring" class="space-y-4">
+                    <div class="grid gap-3 md:grid-cols-3">
+                        <div class="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-900">
+                            <div class="mb-2 flex items-center justify-between gap-2">
+                                <h3 class="text-sm font-semibold text-gray-950 dark:text-white">Application</h3>
+                                <span class="inline-flex rounded-full px-2.5 py-1 text-xs font-medium" :class="statusPillClass(monitoring?.app?.status)" x-text="statusLabelFor(monitoring?.app?.status)"></span>
+                            </div>
+                            <dl class="space-y-1 text-xs text-gray-600 dark:text-gray-400">
+                                <div class="flex justify-between gap-3"><dt>Env</dt><dd class="font-mono" x-text="monitoring?.app?.environment"></dd></div>
+                                <div class="flex justify-between gap-3"><dt>Debug</dt><dd x-text="monitoring?.app?.debug ? 'Actif' : 'Inactif'"></dd></div>
+                                <div class="flex justify-between gap-3"><dt>PHP</dt><dd class="font-mono" x-text="monitoring?.app?.php_version"></dd></div>
+                            </dl>
+                        </div>
+
+                        <div class="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-900">
+                            <div class="mb-2 flex items-center justify-between gap-2">
+                                <h3 class="text-sm font-semibold text-gray-950 dark:text-white">Base de donnees</h3>
+                                <span class="inline-flex rounded-full px-2.5 py-1 text-xs font-medium" :class="statusPillClass(monitoring?.database?.status)" x-text="statusLabelFor(monitoring?.database?.status)"></span>
+                            </div>
+                            <dl class="space-y-1 text-xs text-gray-600 dark:text-gray-400">
+                                <div class="flex justify-between gap-3"><dt>Connexion</dt><dd class="font-mono" x-text="monitoring?.database?.connection"></dd></div>
+                                <div class="flex justify-between gap-3"><dt>Latence</dt><dd x-text="monitoring?.database?.latency_ms ? monitoring.database.latency_ms + ' ms' : '-'"></dd></div>
+                            </dl>
+                            <p x-show="monitoring?.database?.message" class="mt-2 line-clamp-3 text-xs text-red-500" x-text="monitoring?.database?.message"></p>
+                        </div>
+
+                        <div class="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-900">
+                            <div class="mb-2 flex items-center justify-between gap-2">
+                                <h3 class="text-sm font-semibold text-gray-950 dark:text-white">Stockage</h3>
+                                <span class="inline-flex rounded-full px-2.5 py-1 text-xs font-medium" :class="statusPillClass(monitoring?.storage?.status)" x-text="statusLabelFor(monitoring?.storage?.status)"></span>
+                            </div>
+                            <dl class="space-y-1 text-xs text-gray-600 dark:text-gray-400">
+                                <div class="flex justify-between gap-3"><dt>Utilise</dt><dd x-text="monitoring?.storage?.used_percent !== null ? monitoring.storage.used_percent + '%' : '-'"></dd></div>
+                                <div class="flex justify-between gap-3"><dt>Libre</dt><dd x-text="bytesLabel(monitoring?.storage?.free_bytes)"></dd></div>
+                                <div class="flex justify-between gap-3"><dt>Ecriture</dt><dd x-text="monitoring?.storage?.writable ? 'OK' : 'Bloquee'"></dd></div>
+                            </dl>
+                        </div>
+                    </div>
+
+                    <div class="grid gap-3 md:grid-cols-2">
+                        <div class="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-900">
+                            <div class="mb-3 flex items-center justify-between gap-2">
+                                <h3 class="text-sm font-semibold text-gray-950 dark:text-white">IA et outils</h3>
+                                <span class="text-xs text-gray-500">DeepSeek / yt-dlp / ffmpeg</span>
+                            </div>
+                            <div class="space-y-3 text-sm">
+                                <div class="flex items-start justify-between gap-3">
+                                    <div>
+                                        <div class="font-medium text-gray-950 dark:text-white">DeepSeek</div>
+                                        <div class="text-xs text-gray-500" x-text="monitoring?.deepseek?.model"></div>
+                                    </div>
+                                    <span class="inline-flex rounded-full px-2.5 py-1 text-xs font-medium" :class="statusPillClass(monitoring?.deepseek?.status)" x-text="monitoring?.deepseek?.configured ? 'Configure' : 'Cle manquante'"></span>
+                                </div>
+                                <div class="flex items-start justify-between gap-3">
+                                    <div>
+                                        <div class="font-medium text-gray-950 dark:text-white">yt-dlp</div>
+                                        <div class="max-w-xs truncate text-xs text-gray-500" x-text="monitoring?.yt_dlp?.version || monitoring?.yt_dlp?.message"></div>
+                                    </div>
+                                    <span class="inline-flex rounded-full px-2.5 py-1 text-xs font-medium" :class="statusPillClass(monitoring?.yt_dlp?.status)" x-text="statusLabelFor(monitoring?.yt_dlp?.status)"></span>
+                                </div>
+                                <div class="flex items-start justify-between gap-3">
+                                    <div>
+                                        <div class="font-medium text-gray-950 dark:text-white">ffmpeg</div>
+                                        <div class="max-w-xs truncate text-xs text-gray-500" x-text="monitoring?.ffmpeg?.version || monitoring?.ffmpeg?.message"></div>
+                                    </div>
+                                    <span class="inline-flex rounded-full px-2.5 py-1 text-xs font-medium" :class="statusPillClass(monitoring?.ffmpeg?.status)" x-text="statusLabelFor(monitoring?.ffmpeg?.status)"></span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-900">
+                            <div class="mb-3 flex items-center justify-between gap-2">
+                                <h3 class="text-sm font-semibold text-gray-950 dark:text-white">Activite</h3>
+                                <button @click="setSection('logs')" class="text-xs font-medium text-narrv-500 hover:text-narrv-600">Voir les logs</button>
+                            </div>
+                            <div class="grid grid-cols-2 gap-3 text-sm">
+                                <div class="rounded-lg bg-white p-3 dark:bg-gray-950">
+                                    <div class="text-xl font-bold text-yellow-500" x-text="monitoring?.jobs?.pending_videos + monitoring?.jobs?.processing_videos"></div>
+                                    <div class="text-xs text-gray-500">Jobs actifs</div>
+                                </div>
+                                <div class="rounded-lg bg-white p-3 dark:bg-gray-950">
+                                    <div class="text-xl font-bold text-red-500" x-text="monitoring?.jobs?.error_videos"></div>
+                                    <div class="text-xs text-gray-500">Videos en erreur</div>
+                                </div>
+                                <div class="rounded-lg bg-white p-3 dark:bg-gray-950">
+                                    <div class="text-xl font-bold" :class="monitoring?.youtube_cookies?.configured ? 'text-green-500' : 'text-yellow-500'" x-text="monitoring?.youtube_cookies?.configured ? 'OK' : 'Non'"></div>
+                                    <div class="text-xs text-gray-500">Cookies YouTube</div>
+                                </div>
+                                <div class="rounded-lg bg-white p-3 dark:bg-gray-950">
+                                    <div class="text-xl font-bold" :class="monitoring?.logs?.recent_issues > 0 ? 'text-red-500' : 'text-green-500'" x-text="monitoring?.logs?.recent_issues || 0"></div>
+                                    <div class="text-xs text-gray-500">Erreurs recentes</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- ====== LOGS ====== -->
             <div x-show="section === 'logs'">
                 <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div>
-                        <h2 class="text-lg font-semibold text-gray-950 dark:text-white">Logs d'erreur</h2>
-                        <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">Les dernières erreurs Laravel enregistrées dans le fichier de logs de l'application.</p>
+                        <h2 class="text-lg font-semibold text-gray-950 dark:text-white">Logs système</h2>
+                        <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">Recherche, filtres et regroupement des erreurs récentes de l'application.</p>
                         <p class="mt-1 text-xs text-gray-500" x-show="logsMeta">
-                            <span x-text="`${logsMeta?.size || 0} octets`"></span>
+                            <span x-text="bytesLabel(logsMeta?.size)"></span>
                             <span> · Dernière écriture </span>
                             <span x-text="formatCookiesDate(logsMeta?.updated_at)"></span>
                         </p>
                     </div>
-                    <div class="flex gap-2">
+                    <div class="flex flex-wrap gap-2">
                         <button @click="loadLogs"
                                 :disabled="logsLoading"
                                 class="rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-700 transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
@@ -326,28 +449,101 @@
                 <div x-show="logsMessage" x-text="logsMessage" class="mb-3 text-sm text-green-600 dark:text-green-400"></div>
                 <div x-show="logsError" x-text="logsError" class="mb-3 text-sm text-red-500"></div>
 
+                <div class="mb-4 rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-900">
+                    <div class="grid gap-3 md:grid-cols-[160px_180px_1fr_auto]">
+                        <select x-model="logLevel" @change="loadLogs" class="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-950">
+                            <option value="all">Tous niveaux</option>
+                            <option value="ERROR">Error</option>
+                            <option value="CRITICAL">Critical</option>
+                            <option value="ALERT">Alert</option>
+                            <option value="EMERGENCY">Emergency</option>
+                            <option value="WARNING">Warning</option>
+                        </select>
+                        <select x-model="logSource" @change="loadLogs" class="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-950">
+                            <option value="all">Toutes sources</option>
+                            <option value="deepseek">DeepSeek</option>
+                            <option value="youtube">YouTube / yt-dlp</option>
+                            <option value="database">Base de donnees</option>
+                            <option value="storage">Stockage</option>
+                            <option value="laravel">Laravel</option>
+                        </select>
+                        <input type="search"
+                               x-model="logSearch"
+                               @keydown.enter="loadLogs"
+                               placeholder="Rechercher dans les logs..."
+                               class="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-950">
+                        <button @click="loadLogs" class="rounded-lg bg-gray-950 px-4 py-2 text-sm font-medium text-white dark:bg-white dark:text-gray-950">Filtrer</button>
+                    </div>
+                    <div class="mt-3 flex flex-wrap items-center gap-2 text-xs">
+                        <label class="inline-flex items-center gap-2 rounded-full bg-white px-3 py-1.5 text-gray-600 ring-1 ring-gray-200 dark:bg-gray-950 dark:text-gray-300 dark:ring-gray-800">
+                            <input type="checkbox" x-model="logGrouped" class="rounded border-gray-300 text-narrv-500 focus:ring-narrv-500">
+                            Regrouper les erreurs identiques
+                        </label>
+                        <template x-for="[level, count] in Object.entries(logsMeta?.levels || {})" :key="level">
+                            <span class="inline-flex items-center gap-1 rounded-full px-2.5 py-1 font-medium" :class="logLevelClass(level)">
+                                <span x-text="level"></span>
+                                <span x-text="count"></span>
+                            </span>
+                        </template>
+                        <template x-for="[source, count] in Object.entries(logsMeta?.sources || {})" :key="source">
+                            <span class="inline-flex items-center gap-1 rounded-full bg-white px-2.5 py-1 text-gray-600 ring-1 ring-gray-200 dark:bg-gray-950 dark:text-gray-300 dark:ring-gray-800">
+                                <span x-text="sourceLabel(source)"></span>
+                                <span x-text="count"></span>
+                            </span>
+                        </template>
+                    </div>
+                </div>
+
                 <template x-if="logsLoading">
                     <div class="rounded-xl border border-gray-200 bg-gray-50 p-5 text-sm text-gray-500 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-400">Chargement des logs...</div>
                 </template>
 
-                <template x-if="!logsLoading && !logsError && logs.length === 0">
-                    <div class="rounded-xl border border-gray-200 bg-gray-50 p-5 text-sm text-gray-500 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-400">Aucune erreur enregistrée.</div>
+                <template x-if="!logsLoading && !logsError && logsMeta && logsMeta.total === 0">
+                    <div class="rounded-xl border border-gray-200 bg-gray-50 p-5 text-sm text-gray-500 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-400">Aucun log ne correspond aux filtres.</div>
                 </template>
 
-                <div class="space-y-3" x-show="!logsLoading && logs.length > 0">
+                <div class="space-y-3" x-show="!logsLoading && logGrouped && logGroups.length > 0">
+                    <template x-for="group in logGroups" :key="group.id">
+                        <div class="overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-950">
+                            <button @click="toggleLog(group.sample)" class="w-full p-4 text-left transition hover:bg-gray-50 dark:hover:bg-gray-900">
+                                <div class="mb-2 flex flex-wrap items-center gap-2">
+                                    <span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium" :class="logLevelClass(group.level)" x-text="group.level"></span>
+                                    <span class="rounded-full bg-gray-100 px-2 py-1 text-xs text-gray-500 dark:bg-gray-800 dark:text-gray-400" x-text="sourceLabel(group.source)"></span>
+                                    <span class="rounded-full bg-narrv-50 px-2 py-1 text-xs font-medium text-narrv-700 dark:bg-narrv-950 dark:text-narrv-300" x-text="group.count + ' occurrence(s)'"></span>
+                                    <span class="font-mono text-xs text-gray-500" x-text="group.latest_date"></span>
+                                </div>
+                                <p class="line-clamp-2 text-sm font-medium text-gray-950 dark:text-white" x-text="group.message || 'Erreur sans message'"></p>
+                            </button>
+                            <div x-show="expandedLogId === group.sample.id" class="border-t border-gray-200 dark:border-gray-800">
+                                <div class="flex justify-end bg-gray-50 px-4 py-2 dark:bg-gray-900">
+                                    <button @click="copyLog(group.sample)" class="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-white dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800">Copier</button>
+                                </div>
+                                <pre x-text="group.sample.raw"
+                                 class="max-h-96 overflow-auto border-t border-gray-200 bg-gray-950 p-4 text-xs leading-5 text-gray-100 dark:border-gray-800"></pre>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+
+                <div class="space-y-3" x-show="!logsLoading && !logGrouped && logs.length > 0">
                     <template x-for="log in logs" :key="log.id">
                         <div class="overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-950">
                             <button @click="toggleLog(log)" class="w-full p-4 text-left transition hover:bg-gray-50 dark:hover:bg-gray-900">
                                 <div class="mb-2 flex flex-wrap items-center gap-2">
                                     <span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium" :class="logLevelClass(log.level)" x-text="log.level"></span>
+                                    <span class="rounded-full bg-gray-100 px-2 py-1 text-xs text-gray-500 dark:bg-gray-800 dark:text-gray-400" x-text="sourceLabel(log.source)"></span>
                                     <span class="font-mono text-xs text-gray-500" x-text="log.date"></span>
                                     <span class="rounded-full bg-gray-100 px-2 py-1 text-xs text-gray-500 dark:bg-gray-800 dark:text-gray-400" x-text="log.environment"></span>
                                 </div>
                                 <p class="line-clamp-2 text-sm font-medium text-gray-950 dark:text-white" x-text="log.message || 'Erreur sans message'"></p>
                             </button>
-                            <pre x-show="expandedLogId === log.id"
-                                 x-text="log.raw"
-                                 class="max-h-96 overflow-auto border-t border-gray-200 bg-gray-950 p-4 text-xs leading-5 text-gray-100 dark:border-gray-800"></pre>
+                            <div x-show="expandedLogId === log.id" class="border-t border-gray-200 dark:border-gray-800">
+                                <div class="flex justify-end bg-gray-50 px-4 py-2 dark:bg-gray-900">
+                                    <button @click="copyLog(log)" class="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-white dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800">Copier</button>
+                                </div>
+                                <pre x-text="log.raw"
+                                     class="max-h-96 overflow-auto border-t border-gray-200 bg-gray-950 p-4 text-xs leading-5 text-gray-100 dark:border-gray-800"></pre>
+                            </div>
                         </div>
                     </template>
                 </div>

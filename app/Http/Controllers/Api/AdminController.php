@@ -13,9 +13,11 @@ use App\Services\PromptService;
 use App\Services\YoutubeService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
 use RuntimeException;
+use Symfony\Component\Process\Process;
 
 class AdminController extends Controller
 {
@@ -84,27 +86,80 @@ class AdminController extends Controller
         );
     }
 
+    public function monitoring(): JsonResponse
+    {
+        $logPath = storage_path('logs/laravel.log');
+        $recentLogs = is_file($logPath)
+            ? $this->filterLogEntries($this->readLogEntries($logPath), ['levels' => ['ERROR', 'CRITICAL', 'ALERT', 'EMERGENCY', 'WARNING']])
+            : [];
+
+        return response()->json([
+            'generated_at' => now()->toAtomString(),
+            'app' => [
+                'status' => 'ok',
+                'environment' => app()->environment(),
+                'debug' => (bool) config('app.debug'),
+                'url' => config('app.url'),
+                'php_version' => PHP_VERSION,
+                'laravel_version' => app()->version(),
+            ],
+            'database' => $this->databaseStatus(),
+            'storage' => $this->storageStatus(),
+            'deepseek' => $this->deepseekStatus(),
+            'yt_dlp' => $this->commandStatus((string) config('services.youtube.yt_dlp_path', 'yt-dlp'), ['--version'], 'yt-dlp'),
+            'ffmpeg' => $this->commandStatus('ffmpeg', ['-version'], 'ffmpeg'),
+            'youtube_cookies' => $this->youtubeCookiesStatus(),
+            'logs' => [
+                'status' => count($recentLogs) > 0 ? 'warning' : 'ok',
+                'recent_issues' => count($recentLogs),
+                'levels' => $this->countBy($recentLogs, 'level'),
+                'sources' => $this->countBy($recentLogs, 'source'),
+                'size' => is_file($logPath) ? (filesize($logPath) ?: 0) : 0,
+                'updated_at' => is_file($logPath) ? date(DATE_ATOM, filemtime($logPath) ?: time()) : null,
+            ],
+            'jobs' => [
+                'pending_videos' => Video::where('status', 'pending')->count(),
+                'processing_videos' => Video::where('status', 'processing')->count(),
+                'error_videos' => Video::where('status', 'error')->count(),
+            ],
+        ]);
+    }
+
     public function logs(Request $request): JsonResponse
     {
         $limit = min(max((int) $request->query('limit', 100), 1), 300);
+        $level = strtoupper((string) $request->query('level', ''));
+        $source = strtolower((string) $request->query('source', ''));
+        $search = trim((string) $request->query('search', ''));
         $path = storage_path('logs/laravel.log');
 
         if (!is_file($path)) {
             return response()->json([
                 'entries' => [],
+                'groups' => [],
                 'total' => 0,
                 'size' => 0,
                 'updated_at' => null,
+                'levels' => [],
+                'sources' => [],
             ]);
         }
 
-        $entries = $this->readErrorLogEntries($path, $limit);
+        $entries = $this->readLogEntries($path);
+        $filtered = $this->filterLogEntries($entries, [
+            'levels' => $level && $level !== 'ALL' ? [$level] : ['ERROR', 'CRITICAL', 'ALERT', 'EMERGENCY', 'WARNING'],
+            'source' => $source && $source !== 'all' ? $source : null,
+            'search' => $search,
+        ]);
 
         return response()->json([
-            'entries' => $entries,
-            'total' => count($entries),
+            'entries' => array_slice(array_reverse($filtered), 0, $limit),
+            'groups' => $this->groupLogEntries($filtered),
+            'total' => count($filtered),
             'size' => filesize($path) ?: 0,
             'updated_at' => date(DATE_ATOM, filemtime($path) ?: time()),
+            'levels' => $this->countBy($filtered, 'level'),
+            'sources' => $this->countBy($filtered, 'source'),
         ]);
     }
 
@@ -306,7 +361,7 @@ class AdminController extends Controller
             || preg_match('/^[A-Za-z]:[\\\\\\/]/', $path) === 1;
     }
 
-    private function readErrorLogEntries(string $path, int $limit): array
+    private function readLogEntries(string $path): array
     {
         $content = $this->readLogTail($path);
 
@@ -320,7 +375,6 @@ class AdminController extends Controller
 
         $chunks = preg_split('/(?=^\[\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\])/m', $content, -1, PREG_SPLIT_NO_EMPTY) ?: [];
         $entries = [];
-        $errorLevels = ['ERROR', 'CRITICAL', 'ALERT', 'EMERGENCY'];
 
         foreach ($chunks as $chunk) {
             $raw = trim($chunk);
@@ -330,25 +384,25 @@ class AdminController extends Controller
             }
 
             $level = strtoupper($matches['level']);
-            if (!in_array($level, $errorLevels, true)) {
-                continue;
-            }
-
             $lines = preg_split('/\R/', trim($matches['body'])) ?: [];
             $firstLine = trim($lines[0] ?? '');
+            $message = $this->extractLogMessage($firstLine);
+            $source = $this->detectLogSource($raw, $message);
 
             $entries[] = [
                 'id' => sha1($raw),
                 'date' => $matches['date'],
                 'environment' => $matches['environment'],
                 'level' => $level,
-                'message' => $this->extractLogMessage($firstLine),
+                'source' => $source,
+                'message' => $message,
                 'trace' => implode("\n", array_slice($lines, 1)),
+                'fingerprint' => sha1($level . '|' . $source . '|' . $this->normalizeLogMessage($message)),
                 'raw' => Str::limit($raw, 20000, "\n..."),
             ];
         }
 
-        return array_slice(array_reverse($entries), 0, $limit);
+        return $entries;
     }
 
     private function readLogTail(string $path): string
@@ -377,5 +431,172 @@ class AdminController extends Controller
         $message = preg_replace('/\s+\{(?:\"exception\"|\"userId\"|\"trace\"|\"context\").*$/', '', $line);
 
         return trim($message ?: $line);
+    }
+
+    private function filterLogEntries(array $entries, array $filters): array
+    {
+        $levels = array_map('strtoupper', $filters['levels'] ?? []);
+        $source = $filters['source'] ?? null;
+        $search = strtolower((string) ($filters['search'] ?? ''));
+
+        return array_values(array_filter($entries, function (array $entry) use ($levels, $source, $search): bool {
+            if ($levels !== [] && !in_array($entry['level'], $levels, true)) {
+                return false;
+            }
+
+            if ($source && $entry['source'] !== $source) {
+                return false;
+            }
+
+            if ($search !== '') {
+                $haystack = strtolower($entry['message'] . "\n" . $entry['raw']);
+                if (!str_contains($haystack, $search)) {
+                    return false;
+                }
+            }
+
+            return true;
+        }));
+    }
+
+    private function groupLogEntries(array $entries): array
+    {
+        $groups = [];
+
+        foreach ($entries as $entry) {
+            $key = $entry['fingerprint'];
+
+            if (!isset($groups[$key])) {
+                $groups[$key] = [
+                    'id' => $key,
+                    'count' => 0,
+                    'level' => $entry['level'],
+                    'source' => $entry['source'],
+                    'message' => $entry['message'],
+                    'latest_date' => $entry['date'],
+                    'sample' => $entry,
+                ];
+            }
+
+            $groups[$key]['count']++;
+            $groups[$key]['message'] = $entry['message'];
+            $groups[$key]['latest_date'] = $entry['date'];
+            $groups[$key]['sample'] = $entry;
+        }
+
+        usort($groups, fn (array $a, array $b) => strcmp($b['latest_date'], $a['latest_date']));
+
+        return array_values($groups);
+    }
+
+    private function detectLogSource(string $raw, string $message): string
+    {
+        $text = strtolower($raw . ' ' . $message);
+
+        return match (true) {
+            str_contains($text, 'deepseek') => 'deepseek',
+            str_contains($text, 'yt-dlp') || str_contains($text, 'youtube') => 'youtube',
+            str_contains($text, 'sqlite') || str_contains($text, 'database') || str_contains($text, 'sql') => 'database',
+            str_contains($text, 'storage') || str_contains($text, 'filesystem') => 'storage',
+            default => 'laravel',
+        };
+    }
+
+    private function normalizeLogMessage(string $message): string
+    {
+        $message = preg_replace('/\b\d+\b/', '#', $message) ?? $message;
+        $message = preg_replace('/\s+/', ' ', $message) ?? $message;
+
+        return strtolower(trim($message));
+    }
+
+    private function countBy(array $entries, string $key): array
+    {
+        $counts = [];
+
+        foreach ($entries as $entry) {
+            $value = (string) ($entry[$key] ?? 'unknown');
+            $counts[$value] = ($counts[$value] ?? 0) + 1;
+        }
+
+        ksort($counts);
+
+        return $counts;
+    }
+
+    private function databaseStatus(): array
+    {
+        $startedAt = microtime(true);
+
+        try {
+            DB::select('select 1');
+
+            return [
+                'status' => 'ok',
+                'connection' => config('database.default'),
+                'latency_ms' => round((microtime(true) - $startedAt) * 1000, 1),
+            ];
+        } catch (\Throwable $e) {
+            return [
+                'status' => 'error',
+                'connection' => config('database.default'),
+                'message' => $e->getMessage(),
+            ];
+        }
+    }
+
+    private function storageStatus(): array
+    {
+        $path = storage_path();
+        $free = disk_free_space($path);
+        $total = disk_total_space($path);
+        $usedPercent = $free !== false && $total !== false && $total > 0
+            ? round((1 - ($free / $total)) * 100, 1)
+            : null;
+
+        return [
+            'status' => is_writable($path) ? 'ok' : 'error',
+            'path' => $path,
+            'writable' => is_writable($path),
+            'free_bytes' => $free ?: null,
+            'total_bytes' => $total ?: null,
+            'used_percent' => $usedPercent,
+        ];
+    }
+
+    private function deepseekStatus(): array
+    {
+        return [
+            'status' => config('services.deepseek.api_key') ? 'ok' : 'warning',
+            'configured' => (bool) config('services.deepseek.api_key'),
+            'model' => config('services.deepseek.model'),
+            'base_url' => config('services.deepseek.base_url'),
+            'max_input_characters' => (int) config('services.deepseek.max_input_characters', 45000),
+        ];
+    }
+
+    private function commandStatus(string $command, array $arguments, string $label): array
+    {
+        try {
+            $process = new Process(array_merge([$command], $arguments));
+            $process->setTimeout(8);
+            $process->run();
+            $output = trim($process->getOutput() ?: $process->getErrorOutput());
+            $firstLine = strtok($output, "\n") ?: $output;
+
+            return [
+                'status' => $process->isSuccessful() ? 'ok' : 'error',
+                'command' => $command,
+                'version' => trim($firstLine),
+                'exit_code' => $process->getExitCode(),
+            ];
+        } catch (\Throwable $e) {
+            return [
+                'status' => 'error',
+                'command' => $command,
+                'version' => null,
+                'message' => "{$label} indisponible: {$e->getMessage()}",
+            ];
+        }
     }
 }
