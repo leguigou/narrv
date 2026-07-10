@@ -37,12 +37,11 @@
                         <button @click="submit"
                                 :disabled="loading || !detectedId"
                                 class="min-h-14 rounded-md bg-cyan-600 px-6 font-semibold text-white transition hover:bg-cyan-700 disabled:cursor-not-allowed disabled:opacity-50">
-                            <span x-show="!loading">Analyser</span>
-                            <span x-show="loading">Analyse...</span>
+                            <span x-text="loading ? 'Analyse...' : 'Analyser'">Analyser</span>
                         </button>
                     </div>
 
-                    <div class="mt-3 flex flex-wrap items-center gap-3 text-sm">
+                    <div class="mt-3 flex flex-wrap items-center gap-3 text-sm" x-cloak>
                         <span x-show="detectedId" class="rounded-md border border-green-200 bg-green-50 px-3 py-1 font-medium text-green-800 dark:border-green-800 dark:bg-green-950 dark:text-green-200">
                             ID detecte : <span x-text="detectedId"></span>
                         </span>
@@ -54,10 +53,10 @@
                         </span>
                     </div>
 
-                    <div x-show="error" x-text="error"
+                    <div x-show="error" x-text="error" x-cloak
                          class="mt-4 rounded-md bg-red-50 px-4 py-3 text-sm text-red-700 ring-1 ring-red-200 dark:bg-red-950 dark:text-red-200 dark:ring-red-800">
                     </div>
-                    <div x-show="success" x-text="success"
+                    <div x-show="success" x-text="success" x-cloak
                          class="mt-4 rounded-md bg-green-50 px-4 py-3 text-sm text-green-700 ring-1 ring-green-200 dark:bg-green-950 dark:text-green-200 dark:ring-green-800">
                     </div>
 
@@ -178,8 +177,21 @@
             </a>
         </div>
 
-        <div class="mt-8 grid gap-4 md:grid-cols-2">
-            <template x-for="video in videos" :key="video.id">
+        <div class="mt-8 grid gap-4 md:grid-cols-2" x-show="loading">
+            <template x-for="index in 4" :key="index">
+                <div class="grid grid-cols-[112px_1fr] gap-4 rounded-lg border border-gray-200 bg-white p-3 dark:border-gray-800 dark:bg-gray-900">
+                    <div class="h-20 w-28 animate-pulse rounded-md bg-gray-100 dark:bg-gray-800"></div>
+                    <div class="min-w-0 space-y-3 py-1">
+                        <div class="h-4 w-3/4 animate-pulse rounded bg-gray-100 dark:bg-gray-800"></div>
+                        <div class="h-3 w-1/2 animate-pulse rounded bg-gray-100 dark:bg-gray-800"></div>
+                        <div class="h-6 w-20 animate-pulse rounded-md bg-gray-100 dark:bg-gray-800"></div>
+                    </div>
+                </div>
+            </template>
+        </div>
+
+        <div class="mt-8 grid gap-4 md:grid-cols-2" x-show="!loading && videos.length > 0">
+            <template x-for="video in videos.filter((item) => item && item.id)" :key="video.id">
                 <a :href="`/video/${video.id}`"
                    class="group grid grid-cols-[112px_1fr] gap-4 rounded-lg border border-gray-200 bg-white p-3 transition hover:border-cyan-300 hover:shadow-lg hover:shadow-cyan-900/5 dark:border-gray-800 dark:bg-gray-900 dark:hover:border-cyan-700">
                     <img :src="video.thumbnail_url || '/images/narrv-hero.png'"
@@ -194,7 +206,7 @@
             </template>
         </div>
 
-        <div x-show="videos.length === 0 && !loading"
+        <div x-show="videos.length === 0 && !loading" x-cloak
              class="mt-8 rounded-lg border border-dashed border-gray-300 bg-gray-50 p-8 text-center text-gray-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400">
             Aucune video pour le moment.
         </div>
