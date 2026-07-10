@@ -156,26 +156,90 @@
 
                 <!-- Chat tab -->
                 <div x-show="tab === 'chat'" x-data="chatInterface()" x-init="loadHistory()">
-                    <div class="rounded-2xl border border-gray-200 dark:border-gray-800 overflow-hidden">
-                        <div class="h-80 sm:h-96 overflow-y-auto p-4 space-y-3" x-ref="chatbox">
+                    <div class="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-950">
+                        <div class="flex items-center justify-between gap-3 border-b border-gray-200 bg-gray-50 px-4 py-3 dark:border-gray-800 dark:bg-gray-900">
+                            <div class="flex min-w-0 items-center gap-3">
+                                <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-narrv-500 text-sm font-bold text-white">IA</div>
+                                <div class="min-w-0">
+                                    <h2 class="truncate text-sm font-semibold text-gray-950 dark:text-white">Chat IA</h2>
+                                    <p class="truncate text-xs text-gray-500 dark:text-gray-400" x-text="video.title || 'Video en analyse'"></p>
+                                </div>
+                            </div>
+                            <span class="shrink-0 rounded-full bg-green-50 px-3 py-1 text-xs font-medium text-green-700 ring-1 ring-green-200 dark:bg-green-950 dark:text-green-300 dark:ring-green-800">Transcript prêt</span>
+                        </div>
+
+                        <div class="h-[28rem] overflow-y-auto bg-white p-4 dark:bg-gray-950 sm:p-5" x-ref="chatbox">
+                            <div x-show="messages.length === 0 && !loading" class="flex h-full flex-col items-center justify-center px-4 text-center">
+                                <div class="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-narrv-50 text-narrv-600 ring-1 ring-narrv-100 dark:bg-narrv-950 dark:text-narrv-300 dark:ring-narrv-900">IA</div>
+                                <h3 class="text-base font-semibold text-gray-950 dark:text-white">Interrogez le transcript</h3>
+                                <p class="mt-1 max-w-md text-sm text-gray-500 dark:text-gray-400">Posez une question précise ou partez d'une suggestion.</p>
+                                <div class="mt-5 grid w-full max-w-2xl gap-2 sm:grid-cols-3">
+                                    <template x-for="suggestion in suggestions" :key="suggestion">
+                                        <button @click="useSuggestion(suggestion)"
+                                                class="rounded-xl border border-gray-200 bg-gray-50 px-3 py-3 text-left text-xs font-medium leading-5 text-gray-700 transition hover:border-narrv-200 hover:bg-narrv-50 hover:text-narrv-700 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-300 dark:hover:border-narrv-900 dark:hover:bg-narrv-950 dark:hover:text-narrv-300"
+                                                x-text="suggestion"></button>
+                                    </template>
+                                </div>
+                            </div>
+
+                            <div class="space-y-5" x-show="messages.length > 0 || loading">
                             <template x-for="msg in messages" :key="msg.id">
-                                <div :class="msg.role === 'user' ? 'ml-auto bg-narrv-500 text-white' : 'bg-gray-100 dark:bg-gray-800 dark:text-gray-200'" class="max-w-[90%] sm:max-w-[80%] p-3 rounded-2xl text-sm">
-                                    <div x-show="msg.role === 'user'" x-text="msg.content"></div>
-                                    <div x-show="msg.role === 'assistant'" class="prose prose-sm dark:prose-invert max-w-none" x-html="renderMarkdown(msg.content)"></div>
-                                    <div x-show="msg.role === 'assistant'" @click="copyToClipboard(msg.content)" class="text-xs text-gray-400 mt-1 cursor-pointer hover:text-gray-600">📋 Copier</div>
+                                <div class="flex gap-3" :class="msg.role === 'user' ? 'justify-end' : 'justify-start'">
+                                    <div x-show="msg.role === 'assistant'" class="mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-gray-100 text-xs font-bold text-gray-600 dark:bg-gray-800 dark:text-gray-300">IA</div>
+
+                                    <div class="max-w-[88%] sm:max-w-[76%]">
+                                        <div class="mb-1 flex items-center gap-2 text-xs text-gray-400" :class="msg.role === 'user' ? 'justify-end' : 'justify-start'">
+                                            <span x-text="msg.role === 'user' ? 'Vous' : 'Narrv IA'"></span>
+                                            <span x-show="messageTime(msg)" x-text="messageTime(msg)"></span>
+                                        </div>
+                                        <div :class="msg.role === 'user'
+                                                ? 'rounded-2xl rounded-tr-md bg-narrv-500 px-4 py-3 text-white shadow-sm'
+                                                : 'rounded-2xl rounded-tl-md border border-gray-200 bg-gray-50 px-4 py-3 text-gray-800 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-100'"
+                                             class="text-sm leading-6">
+                                            <div x-show="msg.role === 'user'" class="whitespace-pre-wrap" x-text="msg.content"></div>
+                                            <div x-show="msg.role === 'assistant'" class="prose prose-sm max-w-none dark:prose-invert prose-p:my-2 prose-ul:my-2 prose-ol:my-2" x-html="renderMarkdown(msg.content)"></div>
+                                        </div>
+                                        <div x-show="msg.role === 'assistant'" class="mt-2 flex justify-end">
+                                            <button @click="copyToClipboard(msg)"
+                                                    class="rounded-full px-3 py-1 text-xs font-medium text-gray-500 transition hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-200"
+                                                    x-text="copiedMessageId === msg.id ? 'Copié' : 'Copier'"></button>
+                                        </div>
+                                    </div>
+
+                                    <div x-show="msg.role === 'user'" class="mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-narrv-100 text-xs font-bold text-narrv-700 dark:bg-narrv-950 dark:text-narrv-300">VO</div>
                                 </div>
                             </template>
-                            <div x-show="loading" class="text-center text-gray-400 text-sm py-4">Réflexion...</div>
+                            <div x-show="loading" class="flex items-start gap-3">
+                                <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-gray-100 text-xs font-bold text-gray-600 dark:bg-gray-800 dark:text-gray-300">IA</div>
+                                <div class="rounded-2xl rounded-tl-md border border-gray-200 bg-gray-50 px-4 py-3 dark:border-gray-800 dark:bg-gray-900">
+                                    <div class="flex items-center gap-1.5">
+                                        <span class="h-2 w-2 animate-pulse rounded-full bg-gray-400"></span>
+                                        <span class="h-2 w-2 animate-pulse rounded-full bg-gray-400 [animation-delay:120ms]"></span>
+                                        <span class="h-2 w-2 animate-pulse rounded-full bg-gray-400 [animation-delay:240ms]"></span>
+                                    </div>
+                                </div>
+                            </div>
+                            </div>
                         </div>
+
                         <div x-show="error" x-text="error"
-                             class="px-4 py-2 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-sm">
+                             class="border-t border-red-100 bg-red-50 px-4 py-2 text-sm text-red-600 dark:border-red-900/40 dark:bg-red-900/20 dark:text-red-400">
                         </div>
-                        <div class="border-t border-gray-200 dark:border-gray-800 p-3 flex gap-2">
-                            <input type="text" x-model="input" @keydown.enter="send" :disabled="loading"
-                                   placeholder="Posez une question sur la vidéo..."
-                                   class="flex-1 min-w-0 px-4 py-2 rounded-full bg-gray-100 dark:bg-gray-800 text-sm border-0 focus:ring-2 focus:ring-narrv-500">
+
+                        <div class="border-t border-gray-200 bg-gray-50 p-3 dark:border-gray-800 dark:bg-gray-900">
+                            <div class="flex items-end gap-2 rounded-2xl border border-gray-200 bg-white p-2 shadow-sm focus-within:ring-2 focus-within:ring-narrv-500/30 dark:border-gray-800 dark:bg-gray-950">
+                                <textarea x-model="input"
+                                          @keydown.enter.exact.prevent="send"
+                                          :disabled="loading"
+                                          rows="1"
+                                          placeholder="Posez une question sur la vidéo..."
+                                          class="max-h-28 min-h-10 flex-1 resize-none border-0 bg-transparent px-3 py-2 text-sm leading-6 text-gray-900 placeholder:text-gray-400 focus:ring-0 dark:text-gray-100"></textarea>
                             <button @click="send" :disabled="loading"
-                                    class="shrink-0 px-5 py-2 rounded-full bg-narrv-500 text-white text-sm disabled:opacity-50">Envoyer</button>
+                                        class="flex h-10 shrink-0 items-center justify-center rounded-xl bg-narrv-500 px-4 text-sm font-medium text-white transition hover:bg-narrv-600 disabled:cursor-not-allowed disabled:opacity-50">
+                                    <span x-show="!loading">Envoyer</span>
+                                    <span x-show="loading">...</span>
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
