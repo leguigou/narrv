@@ -41,6 +41,8 @@ Route::get('/videos/{id}/chat', [ChatController::class, 'index'])->middleware('t
 Route::post('/admin/login', [AdminController::class, 'login'])->middleware('throttle:20,1');
 Route::middleware(['admin.auth', 'throttle:60,1'])->group(function () {
     Route::get('/admin/stats', [AdminController::class, 'stats']);
+    Route::get('/admin/logs', [AdminController::class, 'logs']);
+    Route::delete('/admin/logs', [AdminController::class, 'clearLogs']);
     Route::get('/admin/videos', [AdminController::class, 'videos']);
     Route::post('/admin/youtube-cookies', [AdminController::class, 'uploadYoutubeCookies']);
     Route::post('/admin/youtube-cookies/test', [AdminController::class, 'testYoutubeCookies']);

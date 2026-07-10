@@ -83,6 +83,39 @@ class AdminController extends Controller
         );
     }
 
+    public function logs(Request $request): JsonResponse
+    {
+        $limit = min(max((int) $request->query('limit', 100), 1), 300);
+        $path = storage_path('logs/laravel.log');
+
+        if (!is_file($path)) {
+            return response()->json([
+                'entries' => [],
+                'total' => 0,
+                'size' => 0,
+                'updated_at' => null,
+            ]);
+        }
+
+        $entries = $this->readErrorLogEntries($path, $limit);
+
+        return response()->json([
+            'entries' => $entries,
+            'total' => count($entries),
+            'size' => filesize($path) ?: 0,
+            'updated_at' => date(DATE_ATOM, filemtime($path) ?: time()),
+        ]);
+    }
+
+    public function clearLogs(): JsonResponse
+    {
+        $path = storage_path('logs/laravel.log');
+        File::ensureDirectoryExists(dirname($path));
+        File::put($path, '');
+
+        return response()->json(['message' => 'Logs d\'erreur purges.']);
+    }
+
     public function uploadYoutubeCookies(Request $request)
     {
         $validated = $request->validate([
@@ -270,5 +303,78 @@ class AdminController extends Controller
     {
         return str_starts_with($path, '/')
             || preg_match('/^[A-Za-z]:[\\\\\\/]/', $path) === 1;
+    }
+
+    private function readErrorLogEntries(string $path, int $limit): array
+    {
+        $content = $this->readLogTail($path);
+
+        if (trim($content) === '') {
+            return [];
+        }
+
+        if (!str_starts_with($content, '[') && preg_match('/^\[\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\]/m', $content, $match, PREG_OFFSET_CAPTURE)) {
+            $content = substr($content, $match[0][1]);
+        }
+
+        $chunks = preg_split('/(?=^\[\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\])/m', $content, -1, PREG_SPLIT_NO_EMPTY) ?: [];
+        $entries = [];
+        $errorLevels = ['ERROR', 'CRITICAL', 'ALERT', 'EMERGENCY'];
+
+        foreach ($chunks as $chunk) {
+            $raw = trim($chunk);
+
+            if (!preg_match('/^\[(?<date>[^\]]+)\]\s+(?<environment>[^.]+)\.(?<level>[A-Z]+):\s+(?<body>.*)$/s', $raw, $matches)) {
+                continue;
+            }
+
+            $level = strtoupper($matches['level']);
+            if (!in_array($level, $errorLevels, true)) {
+                continue;
+            }
+
+            $lines = preg_split('/\R/', trim($matches['body'])) ?: [];
+            $firstLine = trim($lines[0] ?? '');
+
+            $entries[] = [
+                'id' => sha1($raw),
+                'date' => $matches['date'],
+                'environment' => $matches['environment'],
+                'level' => $level,
+                'message' => $this->extractLogMessage($firstLine),
+                'trace' => implode("\n", array_slice($lines, 1)),
+                'raw' => Str::limit($raw, 20000, "\n..."),
+            ];
+        }
+
+        return array_slice(array_reverse($entries), 0, $limit);
+    }
+
+    private function readLogTail(string $path): string
+    {
+        $size = filesize($path) ?: 0;
+        $maxBytes = 1024 * 1024;
+
+        if ($size <= $maxBytes) {
+            return (string) File::get($path);
+        }
+
+        $handle = fopen($path, 'rb');
+        if ($handle === false) {
+            return '';
+        }
+
+        fseek($handle, -$maxBytes, SEEK_END);
+        $content = stream_get_contents($handle);
+        fclose($handle);
+
+        return is_string($content) ? $content : '';
+    }
+
+    private function extractLogMessage(string $line): string
+    {
+        $message = preg_replace('/\s+\{(?:\"exception\"|\"userId\"|\"trace\"|\"context\").*$/', '', $line);
+
+        return trim($message ?: $line);
     }
 }

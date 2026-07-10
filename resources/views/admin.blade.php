@@ -66,7 +66,7 @@
                 <!-- Quick actions -->
                 <div class="rounded-xl border border-gray-200 bg-gray-50 p-5 dark:border-gray-800 dark:bg-gray-900">
                     <h2 class="mb-4 text-lg font-semibold text-gray-950 dark:text-white">Accès rapide</h2>
-                    <div class="grid gap-3 sm:grid-cols-3">
+                    <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                         <button @click="setSection('cookies')" class="rounded-xl border border-gray-200 bg-white p-4 text-left transition hover:shadow-sm dark:border-gray-700 dark:bg-gray-950">
                             <div class="text-lg">🍪</div>
                             <div class="mt-1 text-sm font-medium text-gray-900 dark:text-white">Cookies YouTube</div>
@@ -81,6 +81,11 @@
                             <div class="text-lg">🎬</div>
                             <div class="mt-1 text-sm font-medium text-gray-900 dark:text-white">Vidéos</div>
                             <div class="mt-0.5 text-xs text-gray-500" x-text="videos.length + ' récentes'"></div>
+                        </button>
+                        <button @click="setSection('logs')" class="rounded-xl border border-gray-200 bg-white p-4 text-left transition hover:shadow-sm dark:border-gray-700 dark:bg-gray-950">
+                            <div class="text-lg">⚠️</div>
+                            <div class="mt-1 text-sm font-medium text-gray-900 dark:text-white">Logs</div>
+                            <div class="mt-0.5 text-xs text-gray-500" x-text="(logsMeta?.total || 0) + ' erreurs'"></div>
                         </button>
                     </div>
                 </div>
@@ -278,6 +283,58 @@
                                             class="rounded-lg border border-red-200 px-3 py-2 text-sm font-medium text-red-600 transition hover:bg-red-50 dark:border-red-900 dark:text-red-300 dark:hover:bg-red-950">Supprimer</button>
                                 </div>
                             </div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+
+            <!-- ====== LOGS ====== -->
+            <div x-show="section === 'logs'">
+                <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div>
+                        <h2 class="text-lg font-semibold text-gray-950 dark:text-white">Logs d'erreur</h2>
+                        <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">Les dernières erreurs Laravel enregistrées dans le fichier de logs de l'application.</p>
+                        <p class="mt-1 text-xs text-gray-500" x-show="logsMeta">
+                            <span x-text="`${logsMeta?.size || 0} octets`"></span>
+                            <span> · Dernière écriture </span>
+                            <span x-text="formatCookiesDate(logsMeta?.updated_at)"></span>
+                        </p>
+                    </div>
+                    <div class="flex gap-2">
+                        <button @click="loadLogs"
+                                :disabled="logsLoading"
+                                class="rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-700 transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
+                                x-text="logsLoading ? 'Chargement...' : 'Rafraîchir'"></button>
+                        <button @click="clearLogs"
+                                class="rounded-lg border border-red-200 px-3 py-2 text-sm font-medium text-red-600 transition hover:bg-red-50 dark:border-red-900 dark:text-red-300 dark:hover:bg-red-950">Purger</button>
+                    </div>
+                </div>
+
+                <div x-show="logsMessage" x-text="logsMessage" class="mb-3 text-sm text-green-600 dark:text-green-400"></div>
+                <div x-show="logsError" x-text="logsError" class="mb-3 text-sm text-red-500"></div>
+
+                <template x-if="logsLoading">
+                    <div class="rounded-xl border border-gray-200 bg-gray-50 p-5 text-sm text-gray-500 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-400">Chargement des logs...</div>
+                </template>
+
+                <template x-if="!logsLoading && !logsError && logs.length === 0">
+                    <div class="rounded-xl border border-gray-200 bg-gray-50 p-5 text-sm text-gray-500 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-400">Aucune erreur enregistrée.</div>
+                </template>
+
+                <div class="space-y-3" x-show="!logsLoading && logs.length > 0">
+                    <template x-for="log in logs" :key="log.id">
+                        <div class="overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-950">
+                            <button @click="toggleLog(log)" class="w-full p-4 text-left transition hover:bg-gray-50 dark:hover:bg-gray-900">
+                                <div class="mb-2 flex flex-wrap items-center gap-2">
+                                    <span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium" :class="logLevelClass(log.level)" x-text="log.level"></span>
+                                    <span class="font-mono text-xs text-gray-500" x-text="log.date"></span>
+                                    <span class="rounded-full bg-gray-100 px-2 py-1 text-xs text-gray-500 dark:bg-gray-800 dark:text-gray-400" x-text="log.environment"></span>
+                                </div>
+                                <p class="line-clamp-2 text-sm font-medium text-gray-950 dark:text-white" x-text="log.message || 'Erreur sans message'"></p>
+                            </button>
+                            <pre x-show="expandedLogId === log.id"
+                                 x-text="log.raw"
+                                 class="max-h-96 overflow-auto border-t border-gray-200 bg-gray-950 p-4 text-xs leading-5 text-gray-100 dark:border-gray-800"></pre>
                         </div>
                     </template>
                 </div>

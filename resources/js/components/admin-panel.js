@@ -8,6 +8,7 @@ export default function adminPanel() {
             { id: 'cookies', label: 'Cookies YouTube', icon: '🍪' },
             { id: 'prompts', label: 'Prompts IA', icon: '🤖' },
             { id: 'videos', label: 'Vidéos', icon: '🎬' },
+            { id: 'logs', label: 'Logs', icon: '⚠️' },
         ],
 
         // Dashboard stats
@@ -35,6 +36,14 @@ export default function adminPanel() {
         promptError: null,
         savingPromptKey: null,
 
+        // Logs
+        logs: [],
+        logsMeta: null,
+        logsLoading: false,
+        logsMessage: null,
+        logsError: null,
+        expandedLogId: null,
+
         loginError: null,
 
         init() {
@@ -56,6 +65,9 @@ export default function adminPanel() {
             if (id === 'cookies' && !this.cookiesStatus) {
                 this.loadStats();
             }
+            if (id === 'logs' && this.logs.length === 0) {
+                this.loadLogs();
+            }
         },
 
         clearMessages() {
@@ -65,6 +77,8 @@ export default function adminPanel() {
             this.promptError = null;
             this.cookiesMessage = null;
             this.cookiesError = null;
+            this.logsMessage = null;
+            this.logsError = null;
         },
 
         async login() {
@@ -90,7 +104,8 @@ export default function adminPanel() {
             await Promise.allSettled([
                 this.loadStats(),
                 this.loadVideos(),
-                this.loadPrompts()
+                this.loadPrompts(),
+                this.loadLogs()
             ]);
         },
 
@@ -275,6 +290,63 @@ export default function adminPanel() {
             }).format(new Date(value));
         },
 
+        async loadLogs() {
+            this.logsLoading = true;
+            this.logsError = null;
+
+            try {
+                const res = await fetch('/api/admin/logs?limit=100', {
+                    headers: this.authHeaders()
+                });
+                const data = await this.readApiResponse(res, 'Chargement des logs impossible.');
+                this.logs = data.entries || [];
+                this.logsMeta = {
+                    total: data.total || 0,
+                    size: data.size || 0,
+                    updated_at: data.updated_at || null
+                };
+            } catch (e) {
+                this.logs = [];
+                this.logsError = e.message;
+            } finally {
+                this.logsLoading = false;
+            }
+        },
+
+        async clearLogs() {
+            if (!confirm('Vider les logs d\'erreur ?')) return;
+
+            this.logsMessage = null;
+            this.logsError = null;
+
+            try {
+                const res = await fetch('/api/admin/logs', {
+                    method: 'DELETE',
+                    headers: this.authHeaders()
+                });
+                const data = await this.readApiResponse(res, 'Purge des logs impossible.');
+                this.logs = [];
+                this.logsMeta = { total: 0, size: 0, updated_at: null };
+                this.expandedLogId = null;
+                this.logsMessage = data.message || 'Logs purges.';
+            } catch (e) {
+                this.logsError = e.message;
+            }
+        },
+
+        toggleLog(log) {
+            this.expandedLogId = this.expandedLogId === log.id ? null : log.id;
+        },
+
+        logLevelClass(level) {
+            return {
+                ERROR: 'bg-red-50 text-red-700 ring-1 ring-red-200 dark:bg-red-950 dark:text-red-300 dark:ring-red-800',
+                CRITICAL: 'bg-red-100 text-red-800 ring-1 ring-red-300 dark:bg-red-950 dark:text-red-200 dark:ring-red-700',
+                ALERT: 'bg-purple-50 text-purple-700 ring-1 ring-purple-200 dark:bg-purple-950 dark:text-purple-300 dark:ring-purple-800',
+                EMERGENCY: 'bg-purple-100 text-purple-800 ring-1 ring-purple-300 dark:bg-purple-950 dark:text-purple-200 dark:ring-purple-700'
+            }[level] || 'bg-gray-50 text-gray-700 ring-1 ring-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:ring-gray-700';
+        },
+
         async purgeAll() {
             if (!confirm('Supprimer toutes les donnees ?')) return;
 
@@ -434,6 +506,8 @@ export default function adminPanel() {
             localStorage.removeItem('narrv_admin_token');
             this.stats = null;
             this.videos = [];
+            this.logs = [];
+            this.logsMeta = null;
             this.section = 'dashboard';
         }
     };
