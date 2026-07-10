@@ -38,11 +38,7 @@ export default function summaryPanel() {
                         language: this.language
                     })
                 });
-                if (!res.ok) {
-                    const payload = await res.json().catch(() => ({}));
-                    throw new Error(payload.error || 'Erreur de generation');
-                }
-                const data = await res.json();
+                const data = await this.readApiResponse(res, 'Erreur de generation du resume');
                 this.summaries.unshift(data);
             } catch (e) {
                 console.error('Summary error:', e);
@@ -63,6 +59,30 @@ export default function summaryPanel() {
 
         languageLabel(code) {
             return this.languages.find((language) => language.code === code)?.label || code || 'Inconnue';
+        },
+
+        async readApiResponse(response, fallbackMessage) {
+            const contentType = response.headers.get('content-type') || '';
+            const body = await response.text();
+            let data = {};
+
+            if (contentType.includes('application/json')) {
+                try {
+                    data = body ? JSON.parse(body) : {};
+                } catch {
+                    throw new Error(fallbackMessage);
+                }
+            } else if (body.trim().startsWith('<!DOCTYPE') || body.trim().startsWith('<html')) {
+                throw new Error(`${fallbackMessage}. Le serveur a retourne une page HTML au lieu de JSON. Consultez les logs admin pour le detail.`);
+            } else if (body.trim() !== '') {
+                throw new Error(body.trim().slice(0, 300));
+            }
+
+            if (!response.ok) {
+                throw new Error(data.error || data.message || fallbackMessage);
+            }
+
+            return data;
         }
     };
 }

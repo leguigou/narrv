@@ -8,6 +8,7 @@ use App\Models\Video;
 use App\Services\SummaryService;
 use Illuminate\Http\Request;
 use RuntimeException;
+use Throwable;
 
 class SummaryController extends Controller
 {
@@ -37,6 +38,10 @@ class SummaryController extends Controller
             $content = $service->generate($transcript->full_text, $temperature, $tone, $length, $language);
         } catch (RuntimeException $e) {
             return response()->json(['error' => $e->getMessage()], 502);
+        } catch (Throwable $e) {
+            report($e);
+
+            return response()->json(['error' => 'Generation du resume impossible. Consultez les logs admin pour le detail.'], 500);
         }
 
         $summary = Summary::create([

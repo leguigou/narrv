@@ -2,7 +2,6 @@
 
 namespace App\Services;
 
-use Illuminate\Support\Facades\Http;
 use RuntimeException;
 
 class DeepseekService
@@ -123,10 +122,17 @@ class DeepseekService
 
             if ($httpCode === 200) {
                 $data = json_decode($response, true);
-                return $data['choices'][0]['message']['content'] ?? null;
+                $content = $data['choices'][0]['message']['content'] ?? null;
+
+                if (!is_string($content) || trim($content) === '') {
+                    logger()->error('DeepSeek API returned an empty completion', ['body' => $response]);
+                    throw new RuntimeException('DeepSeek API returned an empty response.');
+                }
+
+                return $content;
             }
 
-            $errorBody = mb_substr(trim(strip_tags($response)), 0, 300);
+            $errorBody = $this->limitString(trim(strip_tags((string) $response)), 300);
             logger()->error('DeepSeek API HTTP error', ['code' => $httpCode, 'body' => $response]);
             throw new RuntimeException("DeepSeek API returned HTTP {$httpCode}" . ($errorBody ? ": {$errorBody}" : ''));
         } catch (RuntimeException $e) {
@@ -141,11 +147,11 @@ class DeepseekService
     {
         $maxCharacters = (int) config('services.deepseek.max_input_characters', 45000);
 
-        if (mb_strlen($text) <= $maxCharacters) {
+        if ($this->stringLength($text) <= $maxCharacters) {
             return $text;
         }
 
-        return mb_substr($text, 0, $maxCharacters) . "\n\n[Transcript truncated for model context length.]";
+        return $this->limitString($text, $maxCharacters) . "\n\n[Transcript truncated for model context length.]";
     }
 
     private function languageName(?string $language): ?string
@@ -164,5 +170,19 @@ class DeepseekService
             'it' => 'Italian',
             'de' => 'German',
         ][$base] ?? $language;
+    }
+
+    private function stringLength(string $value): int
+    {
+        return function_exists('mb_strlen') ? mb_strlen($value) : strlen($value);
+    }
+
+    private function limitString(string $value, int $limit): string
+    {
+        if ($limit <= 0) {
+            return '';
+        }
+
+        return function_exists('mb_substr') ? mb_substr($value, 0, $limit) : substr($value, 0, $limit);
     }
 }
