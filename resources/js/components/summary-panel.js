@@ -79,6 +79,10 @@ export default function summaryPanel() {
             }
 
             if (!response.ok) {
+                if (response.status === 429) {
+                    throw new Error('Trop de demandes cote application. Patientez quelques secondes puis relancez le resume.');
+                }
+
                 throw new Error(data.error || data.message || fallbackMessage);
             }
 
