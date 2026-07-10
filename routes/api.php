@@ -26,15 +26,15 @@ Route::get('/videos/{id}/download', [MediaController::class, 'download'])->middl
 // Transcript
 Route::get('/videos/{id}/transcript', [TranscriptController::class, 'show'])->middleware('throttle:60,1');
 Route::get('/videos/{id}/transcript/download', [TranscriptController::class, 'download'])->middleware('throttle:30,1');
-Route::post('/videos/{id}/translate', [TranscriptController::class, 'translate'])->middleware('throttle:30,1');
+Route::post('/videos/{id}/translate', [TranscriptController::class, 'translate']);
 Route::get('/videos/{id}/translations', [TranscriptController::class, 'translations'])->middleware('throttle:60,1');
 
 // Summaries
-Route::post('/videos/{id}/summarize', [SummaryController::class, 'store'])->middleware('throttle:30,1');
+Route::post('/videos/{id}/summarize', [SummaryController::class, 'store']);
 Route::get('/videos/{id}/summaries', [SummaryController::class, 'index'])->middleware('throttle:60,1');
 
 // Chat
-Route::post('/videos/{id}/chat', [ChatController::class, 'store'])->middleware('throttle:30,1');
+Route::post('/videos/{id}/chat', [ChatController::class, 'store']);
 Route::get('/videos/{id}/chat', [ChatController::class, 'index'])->middleware('throttle:60,1');
 
 // Admin
