@@ -63,7 +63,7 @@ class AdminController extends Controller
 
     public function videos(Request $request)
     {
-        $perPage = min(max((int) $request->query('per_page', 10), 1), 50);
+        $perPage = min(max((int) $request->query('per_page', 10), 1), 200);
 
         return response()->json(
             Video::query()
@@ -74,6 +74,7 @@ class AdminController extends Controller
                     'title',
                     'status',
                     'is_visible',
+                    'thumbnail_url',
                     'error_message',
                     'created_at',
                     'updated_at',

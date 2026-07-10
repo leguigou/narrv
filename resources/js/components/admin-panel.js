@@ -26,6 +26,7 @@ export default function adminPanel() {
         // Videos
         videos: [],
         videosLoading: false,
+        retryingVideoId: null,
         videoActionMessage: null,
         videoActionError: null,
 
@@ -110,22 +111,28 @@ export default function adminPanel() {
         },
 
         async loadStats() {
-            const res = await fetch('/api/admin/stats', {
-                headers: this.authHeaders()
-            });
-            this.stats = await this.readApiResponse(res, 'Chargement des stats impossible.');
-            this.cookiesStatus = this.stats.youtube_cookies || null;
+            try {
+                const res = await fetch('/api/admin/stats', {
+                    headers: this.authHeaders()
+                });
+                this.stats = await this.readApiResponse(res, 'Chargement des stats impossible.');
+                this.cookiesStatus = this.stats.youtube_cookies || null;
+            } catch (e) {
+                this.handleAuthError(e);
+            }
         },
 
         async loadVideos() {
             this.videosLoading = true;
 
             try {
-                const res = await fetch('/api/admin/videos?per_page=10', {
+                const res = await fetch('/api/admin/videos?per_page=100', {
                     headers: this.authHeaders()
                 });
                 const data = await this.readApiResponse(res, 'Chargement des videos impossible.');
                 this.videos = data.data || [];
+            } catch (e) {
+                this.handleAuthError(e);
             } finally {
                 this.videosLoading = false;
             }
@@ -141,10 +148,16 @@ export default function adminPanel() {
                 });
                 this.prompts = await this.readApiResponse(res, 'Chargement des prompts impossible.');
             } catch (e) {
-                this.prompts = [];
                 this.promptError = e.message;
+                this.handleAuthError(e);
             } finally {
                 this.promptsLoading = false;
+            }
+        },
+
+        handleAuthError(error) {
+            if (error.message && error.message.includes('Session invalide')) {
+                this.logout();
             }
         },
 
@@ -360,6 +373,7 @@ export default function adminPanel() {
         async retryVideo(video) {
             this.videoActionMessage = null;
             this.videoActionError = null;
+            this.retryingVideoId = video.id;
 
             try {
                 const res = await fetch(`/api/admin/videos/${video.id}/retry`, {
@@ -368,10 +382,13 @@ export default function adminPanel() {
                 });
                 const data = await this.readApiResponse(res, 'Relance impossible.');
 
+                video.status = 'pending';
                 this.videoActionMessage = data.message || 'Video relancee.';
                 await this.loadDashboard();
             } catch (e) {
                 this.videoActionError = e.message;
+            } finally {
+                this.retryingVideoId = null;
             }
         },
 

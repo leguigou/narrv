@@ -244,27 +244,35 @@
                     <template x-for="video in videos" :key="video.id">
                         <div class="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-950">
                             <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                                <div class="min-w-0 flex-1">
-                                    <div class="flex flex-wrap items-center gap-2">
-                                        <span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium" :class="statusClass(video.status)" x-text="statusLabel(video.status)"></span>
-                                        <span class="text-xs text-gray-500" x-text="video.youtube_id"></span>
-                                        <!-- Visibilite badge -->
-                                        <span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium"
-                                              :class="video.is_visible ? 'bg-green-50 text-green-700 ring-1 ring-green-200 dark:bg-green-950 dark:text-green-300 dark:ring-green-800' : 'bg-gray-100 text-gray-500 ring-1 ring-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:ring-gray-700'"
-                                              x-text="video.is_visible ? 'Visible' : 'Masquee'"></span>
+                                <div class="flex gap-3 min-w-0 flex-1">
+                                    <!-- Thumbnail -->
+                                    <div class="shrink-0">
+                                        <img :src="video.thumbnail_url || '/images/narrv-hero.png'"
+                                             :alt="video.title || ''"
+                                             class="h-16 w-28 rounded-lg object-cover bg-gray-100 dark:bg-gray-800">
                                     </div>
-                                    <h3 class="mt-2 truncate text-sm font-semibold text-gray-950 dark:text-white" x-text="video.title || video.url"></h3>
-                                    <p x-show="video.error_message" class="mt-2 line-clamp-3 text-xs leading-5 text-red-600 dark:text-red-300" x-text="video.error_message"></p>
+                                    <div class="min-w-0">
+                                        <div class="flex flex-wrap items-center gap-2">
+                                            <span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium" :class="statusClass(video.status)" x-text="statusLabel(video.status)"></span>
+                                            <span class="text-xs text-gray-500" x-text="video.youtube_id"></span>
+                                            <!-- Visibilite badge -->
+                                            <span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium"
+                                                  :class="video.is_visible ? 'bg-green-50 text-green-700 ring-1 ring-green-200 dark:bg-green-950 dark:text-green-300 dark:ring-green-800' : 'bg-gray-100 text-gray-500 ring-1 ring-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:ring-gray-700'"
+                                                  x-text="video.is_visible ? 'Visible' : 'Masquee'"></span>
+                                        </div>
+                                        <h3 class="mt-2 truncate text-sm font-semibold text-gray-950 dark:text-white" x-text="video.title || video.url"></h3>
+                                        <p x-show="video.error_message" class="mt-2 line-clamp-2 text-xs leading-5 text-red-600 dark:text-red-300" x-text="video.error_message"></p>
+                                    </div>
                                 </div>
 
                                 <div class="flex shrink-0 flex-wrap items-center gap-2">
-                                    <!-- Lien direct: les videos masquees restent accessibles aux admins connectes -->
+                                    <!-- Lien direct -->
                                     <a :href="`/video/${video.id}`"
                                        target="_blank"
                                        class="rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-600 transition hover:bg-gray-100 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800">
                                         Ouvrir
                                     </a>
-                                    <!-- Voir (masquee ou non) avec le token admin -->
+                                    <!-- Voir (modal preview) -->
                                     <button @click="viewVideo(video)"
                                             class="rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-600 transition hover:bg-gray-100 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800">
                                         Voir
@@ -278,7 +286,12 @@
                                             x-text="video.is_visible ? 'Masquer' : 'Afficher'"></button>
                                     <button x-show="video.status === 'error'"
                                             @click="retryVideo(video)"
-                                            class="rounded-lg bg-narrv-500 px-3 py-2 text-sm font-medium text-white transition hover:bg-narrv-600">Relancer</button>
+                                            :disabled="retryingVideoId === video.id"
+                                            class="rounded-lg px-3 py-2 text-sm font-medium text-white transition"
+                                            :class="retryingVideoId === video.id ? 'bg-narrv-400 cursor-wait' : 'bg-narrv-500 hover:bg-narrv-600'">
+                                        <span x-show="retryingVideoId !== video.id">Relancer</span>
+                                        <span x-show="retryingVideoId === video.id">⟳ Relance...</span>
+                                    </button>
                                     <button @click="deleteVideo(video)"
                                             class="rounded-lg border border-red-200 px-3 py-2 text-sm font-medium text-red-600 transition hover:bg-red-50 dark:border-red-900 dark:text-red-300 dark:hover:bg-red-950">Supprimer</button>
                                 </div>

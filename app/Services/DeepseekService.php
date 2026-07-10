@@ -126,8 +126,9 @@ class DeepseekService
                 return $data['choices'][0]['message']['content'] ?? null;
             }
 
+            $errorBody = mb_substr(trim(strip_tags($response)), 0, 300);
             logger()->error('DeepSeek API HTTP error', ['code' => $httpCode, 'body' => $response]);
-            throw new RuntimeException("DeepSeek API returned HTTP {$httpCode}");
+            throw new RuntimeException("DeepSeek API returned HTTP {$httpCode}" . ($errorBody ? ": {$errorBody}" : ''));
         } catch (RuntimeException $e) {
             throw $e;
         } catch (\Exception $e) {

@@ -30,7 +30,7 @@ export default function summaryPanel() {
 
                 const res = await fetch(`/api/videos/${videoId}/summarize`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         temperature: this.temperature,
                         tone: this.tone,

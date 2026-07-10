@@ -23,23 +23,43 @@
         <div>
             <!-- Video info -->
             <div class="mb-8">
-                <div class="mb-4 flex aspect-video w-full items-center justify-center overflow-hidden rounded-2xl bg-gray-100 dark:bg-gray-800">
-                    <template x-if="hasThumbnail">
-                        <img :src="video.thumbnail_url"
-                             :alt="video.title || 'Miniature video'"
-                             x-on:error="thumbnailFailed = true"
-                             class="h-full w-full object-cover">
+                <div class="mb-4 flex aspect-video w-full items-center justify-center overflow-hidden rounded-2xl bg-gray-100 dark:bg-gray-800 relative">
+                    <!-- Player integre -->
+                    <template x-if="video.youtube_id && playing">
+                        <iframe :src="`https://www.youtube.com/embed/${video.youtube_id}?autoplay=1`"
+                                allow="autoplay; encrypted-media; fullscreen"
+                                allowfullscreen
+                                class="absolute inset-0 h-full w-full">
+                        </iframe>
                     </template>
-                    <div x-show="!hasThumbnail" class="flex h-full w-full flex-col items-center justify-center px-6 text-center">
-                        <div class="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl border border-cyan-400/40 bg-cyan-400/10 text-cyan-300">
-                            <svg viewBox="0 0 24 24" aria-hidden="true" class="h-7 w-7 fill-none stroke-current stroke-2">
-                                <rect x="4" y="5" width="16" height="14" rx="3"></rect>
-                                <path d="M10 9.5v5l4.5-2.5-4.5-2.5Z"></path>
-                            </svg>
+                    <!-- Miniature cliquable -->
+                    <template x-if="!playing">
+                        <div class="relative h-full w-full cursor-pointer group" @click="playVideo()">
+                            <template x-if="hasThumbnail">
+                                <img :src="video.thumbnail_url"
+                                     :alt="video.title || 'Miniature video'"
+                                     x-on:error="thumbnailFailed = true"
+                                     class="h-full w-full object-cover">
+                            </template>
+                            <div x-show="!hasThumbnail" class="flex h-full w-full flex-col items-center justify-center px-6 text-center bg-gray-100 dark:bg-gray-800">
+                                <div class="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl border border-cyan-400/40 bg-cyan-400/10 text-cyan-300">
+                                    <svg viewBox="0 0 24 24" aria-hidden="true" class="h-7 w-7 fill-none stroke-current stroke-2">
+                                        <rect x="4" y="5" width="16" height="14" rx="3"></rect>
+                                        <path d="M10 9.5v5l4.5-2.5-4.5-2.5Z"></path>
+                                    </svg>
+                                </div>
+                                <div class="text-sm font-medium text-gray-700 dark:text-gray-200">Video non disponible</div>
+                            </div>
+                            <!-- Play button overlay -->
+                            <div class="absolute inset-0 flex items-center justify-center">
+                                <div class="flex h-16 w-16 items-center justify-center rounded-full bg-black/60 text-white transition group-hover:bg-narrv-500 sm:h-20 sm:w-20">
+                                    <svg viewBox="0 0 24 24" class="h-8 w-8 fill-current sm:h-10 sm:w-10">
+                                        <path d="M8 5v14l11-7z"></path>
+                                    </svg>
+                                </div>
+                            </div>
                         </div>
-                        <div class="text-sm font-medium text-gray-700 dark:text-gray-200" x-text="thumbnailPlaceholderTitle"></div>
-                        <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">La miniature apparaitra des que les metadonnees seront disponibles.</div>
-                    </div>
+                    </template>
                 </div>
                 <h1 class="text-2xl font-bold" x-text="video.title || 'Video en analyse'"></h1>
                 <p class="text-gray-500 dark:text-gray-400 mt-1" x-show="video.channel_name" x-text="video.channel_name"></p>
@@ -245,6 +265,7 @@
             video: null,
             thumbnailFailed: false,
             notFound: false,
+            playing: false,
             adminToken: null,
             tab: 'transcript',
             init() {
@@ -261,6 +282,11 @@
                 }
 
                 return 'Miniature indisponible';
+            },
+            playVideo() {
+                if (this.video?.youtube_id) {
+                    this.playing = true;
+                }
             },
             async loadVideo(id) {
                 try {
