@@ -475,7 +475,7 @@ export default function adminPanel() {
                 const data = await this.readApiResponse(res, 'Relance impossible.');
 
                 video.status = 'pending';
-                this.videoActionMessage = data.message || 'Video relancee.';
+                this.videoActionMessage = data.message || 'Reanalyse du transcript lancee.';
                 await this.loadDashboard();
             } catch (e) {
                 this.videoActionError = e.message;

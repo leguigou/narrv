@@ -128,15 +128,25 @@
                                class="block w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 file:mr-3 file:rounded-md file:border-0 file:bg-gray-100 file:px-3 file:py-1.5 file:text-sm file:font-medium dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:file:bg-gray-700 dark:file:text-gray-100">
                         <button @click="uploadYoutubeCookies"
                                 :disabled="uploadingCookies"
-                                class="rounded-lg bg-narrv-500 px-5 py-2 text-sm font-medium text-white transition hover:bg-narrv-600 disabled:cursor-not-allowed disabled:opacity-60"
-                                x-text="uploadingCookies ? 'Import...' : 'Importer'"></button>
+                                title="Importer"
+                                class="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-narrv-500 text-lg font-semibold text-white transition hover:bg-narrv-600 disabled:cursor-not-allowed disabled:opacity-60">
+                            <span aria-hidden="true" x-text="uploadingCookies ? '…' : '↑'"></span>
+                            <span class="sr-only">Importer</span>
+                        </button>
                         <button @click="testYoutubeCookies"
                                 :disabled="testingCookies"
-                                class="rounded-lg border border-gray-200 px-5 py-2 text-sm font-medium text-gray-700 transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
-                                x-text="testingCookies ? 'Test...' : 'Tester'"></button>
+                                title="Tester"
+                                class="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-gray-200 text-lg font-semibold text-gray-700 transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800">
+                            <span aria-hidden="true" x-text="testingCookies ? '…' : '✓'"></span>
+                            <span class="sr-only">Tester</span>
+                        </button>
                         <button x-show="cookiesStatus?.configured"
                                 @click="deleteYoutubeCookies"
-                                class="rounded-lg border border-red-200 px-5 py-2 text-sm font-medium text-red-600 transition hover:bg-red-50 dark:border-red-900 dark:text-red-300 dark:hover:bg-red-950">Supprimer</button>
+                                title="Supprimer"
+                                class="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-red-200 text-lg font-semibold text-red-600 transition hover:bg-red-50 dark:border-red-900 dark:text-red-300 dark:hover:bg-red-950">
+                            <span aria-hidden="true">⌫</span>
+                            <span class="sr-only">Supprimer</span>
+                        </button>
                     </div>
 
                     <div x-show="cookiesMessage" x-text="cookiesMessage" class="mt-3 text-sm text-green-600 dark:text-green-400"></div>
@@ -183,7 +193,12 @@
             <div x-show="section === 'prompts'">
                 <div class="mb-4 flex items-center justify-between gap-3">
                     <h2 class="text-lg font-semibold text-gray-950 dark:text-white">Prompts IA</h2>
-                    <button @click="loadPrompts" class="rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-700 transition hover:bg-white dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800">Rafraîchir</button>
+                    <button @click="loadPrompts"
+                            title="Rafraîchir"
+                            class="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-gray-200 text-lg font-semibold text-gray-700 transition hover:bg-white dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800">
+                        <span aria-hidden="true">↻</span>
+                        <span class="sr-only">Rafraîchir</span>
+                    </button>
                 </div>
 
                 <div x-show="promptMessage" x-text="promptMessage" class="mb-3 text-sm text-green-600 dark:text-green-400"></div>
@@ -208,11 +223,18 @@
                                 <div class="flex gap-2">
                                     <button @click="savePrompt(prompt)"
                                             :disabled="savingPromptKey === prompt.key"
-                                            class="rounded-lg bg-narrv-500 px-4 py-2 text-sm font-medium text-white transition hover:bg-narrv-600 disabled:cursor-not-allowed disabled:opacity-60"
-                                            x-text="savingPromptKey === prompt.key ? '...' : 'Enregistrer'"></button>
+                                            title="Enregistrer"
+                                            class="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-narrv-500 text-lg font-semibold text-white transition hover:bg-narrv-600 disabled:cursor-not-allowed disabled:opacity-60">
+                                        <span aria-hidden="true" x-text="savingPromptKey === prompt.key ? '…' : '✓'"></span>
+                                        <span class="sr-only">Enregistrer</span>
+                                    </button>
                                     <button @click="resetPrompt(prompt)"
                                             :disabled="savingPromptKey === prompt.key"
-                                            class="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800">Défaut</button>
+                                            title="Remettre par défaut"
+                                            class="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-gray-200 text-lg font-semibold text-gray-700 transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800">
+                                        <span aria-hidden="true">↺</span>
+                                        <span class="sr-only">Remettre par défaut</span>
+                                    </button>
                                 </div>
                             </div>
                             <textarea x-model="prompt.content"
@@ -229,8 +251,18 @@
                 <div class="mb-4 flex items-center justify-between gap-3">
                     <h2 class="text-lg font-semibold text-gray-950 dark:text-white">Dernières vidéos</h2>
                     <div class="flex gap-2">
-                        <button @click="loadVideos" class="rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-700 transition hover:bg-white dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800">Rafraîchir</button>
-                        <button @click="purgeAll" class="rounded-full bg-red-500 px-4 py-2 text-sm text-white">Purger tout</button>
+                        <button @click="loadVideos"
+                                title="Rafraîchir"
+                                class="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-gray-200 text-lg font-semibold text-gray-700 transition hover:bg-white dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800">
+                            <span aria-hidden="true">↻</span>
+                            <span class="sr-only">Rafraîchir</span>
+                        </button>
+                        <button @click="purgeAll"
+                                title="Purger toutes les vidéos"
+                                class="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-red-500 text-lg font-semibold text-white transition hover:bg-red-600">
+                            <span aria-hidden="true">⌫</span>
+                            <span class="sr-only">Purger toutes les vidéos</span>
+                        </button>
                     </div>
                 </div>
 
@@ -274,31 +306,43 @@
                                     <!-- Lien direct -->
                                     <a :href="`/video/${video.id}`"
                                        target="_blank"
-                                       class="rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-600 transition hover:bg-gray-100 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800">
-                                        Ouvrir
+                                       title="Ouvrir"
+                                       class="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-gray-200 text-lg font-semibold text-gray-600 transition hover:bg-gray-100 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800">
+                                        <span aria-hidden="true">↗</span>
+                                        <span class="sr-only">Ouvrir</span>
                                     </a>
                                     <!-- Voir (modal preview) -->
                                     <button @click="viewVideo(video)"
-                                            class="rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-600 transition hover:bg-gray-100 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800">
-                                        Voir
+                                            title="Voir"
+                                            class="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-gray-200 text-lg font-semibold text-gray-600 transition hover:bg-gray-100 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800">
+                                        <span aria-hidden="true">◉</span>
+                                        <span class="sr-only">Voir</span>
                                     </button>
                                     <!-- Visibilite toggle -->
                                     <button @click="toggleVisibility(video)"
-                                            class="rounded-lg px-3 py-2 text-sm font-medium transition"
+                                            :title="video.is_visible ? 'Masquer' : 'Afficher'"
+                                            class="inline-flex h-10 w-10 items-center justify-center rounded-lg text-lg font-semibold transition"
                                             :class="video.is_visible
                                                 ? 'border border-yellow-200 text-yellow-700 hover:bg-yellow-50 dark:border-yellow-800 dark:text-yellow-300 dark:hover:bg-yellow-950'
                                                 : 'border border-green-200 text-green-700 hover:bg-green-50 dark:border-green-800 dark:text-green-300 dark:hover:bg-green-950'"
-                                            x-text="video.is_visible ? 'Masquer' : 'Afficher'"></button>
-                                    <button x-show="video.status === 'error'"
-                                            @click="retryVideo(video)"
+                                            >
+                                        <span aria-hidden="true" x-text="video.is_visible ? '◌' : '●'"></span>
+                                        <span class="sr-only" x-text="video.is_visible ? 'Masquer' : 'Afficher'"></span>
+                                    </button>
+                                    <button @click="retryVideo(video)"
                                             :disabled="retryingVideoId === video.id"
-                                            class="rounded-lg px-3 py-2 text-sm font-medium text-white transition"
+                                            title="Réanalyser le transcript"
+                                            class="inline-flex h-10 w-10 items-center justify-center rounded-lg text-lg font-semibold text-white transition"
                                             :class="retryingVideoId === video.id ? 'bg-narrv-400 cursor-wait' : 'bg-narrv-500 hover:bg-narrv-600'">
-                                        <span x-show="retryingVideoId !== video.id">Relancer</span>
-                                        <span x-show="retryingVideoId === video.id">⟳ Relance...</span>
+                                        <span aria-hidden="true" x-text="retryingVideoId === video.id ? '…' : '↻'"></span>
+                                        <span class="sr-only">Réanalyser le transcript</span>
                                     </button>
                                     <button @click="deleteVideo(video)"
-                                            class="rounded-lg border border-red-200 px-3 py-2 text-sm font-medium text-red-600 transition hover:bg-red-50 dark:border-red-900 dark:text-red-300 dark:hover:bg-red-950">Supprimer</button>
+                                            title="Supprimer"
+                                            class="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-red-200 text-lg font-semibold text-red-600 transition hover:bg-red-50 dark:border-red-900 dark:text-red-300 dark:hover:bg-red-950">
+                                        <span aria-hidden="true">⌫</span>
+                                        <span class="sr-only">Supprimer</span>
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -316,8 +360,11 @@
                     </div>
                     <button @click="loadMonitoring"
                             :disabled="monitoringLoading"
-                            class="rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-700 transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
-                            x-text="monitoringLoading ? 'Controle...' : 'Rafraichir'"></button>
+                            title="Rafraîchir"
+                            class="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-gray-200 text-lg font-semibold text-gray-700 transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800">
+                        <span aria-hidden="true" x-text="monitoringLoading ? '…' : '↻'"></span>
+                        <span class="sr-only">Rafraîchir</span>
+                    </button>
                 </div>
 
                 <div x-show="monitoringError" x-text="monitoringError" class="mb-3 text-sm text-red-500"></div>
@@ -399,7 +446,12 @@
                         <div class="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-900">
                             <div class="mb-3 flex items-center justify-between gap-2">
                                 <h3 class="text-sm font-semibold text-gray-950 dark:text-white">Activite</h3>
-                                <button @click="setSection('logs')" class="text-xs font-medium text-narrv-500 hover:text-narrv-600">Voir les logs</button>
+                                <button @click="setSection('logs')"
+                                        title="Voir les logs"
+                                        class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-lg font-semibold text-narrv-500 transition hover:bg-narrv-50 hover:text-narrv-600 dark:hover:bg-narrv-950">
+                                    <span aria-hidden="true">↗</span>
+                                    <span class="sr-only">Voir les logs</span>
+                                </button>
                             </div>
                             <div class="grid grid-cols-2 gap-3 text-sm">
                                 <div class="rounded-lg bg-white p-3 dark:bg-gray-950">
@@ -439,10 +491,17 @@
                     <div class="flex flex-wrap gap-2">
                         <button @click="loadLogs"
                                 :disabled="logsLoading"
-                                class="rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-700 transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
-                                x-text="logsLoading ? 'Chargement...' : 'Rafraîchir'"></button>
+                                title="Rafraîchir"
+                                class="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-gray-200 text-lg font-semibold text-gray-700 transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800">
+                            <span aria-hidden="true" x-text="logsLoading ? '…' : '↻'"></span>
+                            <span class="sr-only">Rafraîchir</span>
+                        </button>
                         <button @click="clearLogs"
-                                class="rounded-lg border border-red-200 px-3 py-2 text-sm font-medium text-red-600 transition hover:bg-red-50 dark:border-red-900 dark:text-red-300 dark:hover:bg-red-950">Purger</button>
+                                title="Purger"
+                                class="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-red-200 text-lg font-semibold text-red-600 transition hover:bg-red-50 dark:border-red-900 dark:text-red-300 dark:hover:bg-red-950">
+                            <span aria-hidden="true">⌫</span>
+                            <span class="sr-only">Purger</span>
+                        </button>
                     </div>
                 </div>
 
@@ -472,7 +531,12 @@
                                @keydown.enter="loadLogs"
                                placeholder="Rechercher dans les logs..."
                                class="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-950">
-                        <button @click="loadLogs" class="rounded-lg bg-gray-950 px-4 py-2 text-sm font-medium text-white dark:bg-white dark:text-gray-950">Filtrer</button>
+                        <button @click="loadLogs"
+                                title="Filtrer"
+                                class="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-gray-950 text-lg font-semibold text-white dark:bg-white dark:text-gray-950">
+                            <span aria-hidden="true">⌕</span>
+                            <span class="sr-only">Filtrer</span>
+                        </button>
                     </div>
                     <div class="mt-3 flex flex-wrap items-center gap-2 text-xs">
                         <label class="inline-flex items-center gap-2 rounded-full bg-white px-3 py-1.5 text-gray-600 ring-1 ring-gray-200 dark:bg-gray-950 dark:text-gray-300 dark:ring-gray-800">
@@ -516,7 +580,12 @@
                             </button>
                             <div x-show="expandedLogId === group.sample.id" class="border-t border-gray-200 dark:border-gray-800">
                                 <div class="flex justify-end bg-gray-50 px-4 py-2 dark:bg-gray-900">
-                                    <button @click="copyLog(group.sample)" class="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-white dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800">Copier</button>
+                                    <button @click="copyLog(group.sample)"
+                                            title="Copier"
+                                            class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-white dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800">
+                                        <span aria-hidden="true">⧉</span>
+                                        <span class="sr-only">Copier</span>
+                                    </button>
                                 </div>
                                 <pre x-text="group.sample.raw"
                                  class="max-h-96 overflow-auto border-t border-gray-200 bg-gray-950 p-4 text-xs leading-5 text-gray-100 dark:border-gray-800"></pre>
@@ -539,7 +608,12 @@
                             </button>
                             <div x-show="expandedLogId === log.id" class="border-t border-gray-200 dark:border-gray-800">
                                 <div class="flex justify-end bg-gray-50 px-4 py-2 dark:bg-gray-900">
-                                    <button @click="copyLog(log)" class="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-white dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800">Copier</button>
+                                    <button @click="copyLog(log)"
+                                            title="Copier"
+                                            class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-white dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800">
+                                        <span aria-hidden="true">⧉</span>
+                                        <span class="sr-only">Copier</span>
+                                    </button>
                                 </div>
                                 <pre x-text="log.raw"
                                      class="max-h-96 overflow-auto border-t border-gray-200 bg-gray-950 p-4 text-xs leading-5 text-gray-100 dark:border-gray-800"></pre>
@@ -591,7 +665,12 @@
                     </div>
 
                     <div class="mt-4 flex justify-end gap-2">
-                        <button @click="closePreview()" class="rounded-full border border-gray-200 px-5 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-100 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800">Fermer</button>
+                        <button @click="closePreview()"
+                                title="Fermer"
+                                class="inline-flex h-10 w-10 items-center justify-center rounded-full border border-gray-200 text-lg font-semibold text-gray-700 transition hover:bg-gray-100 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800">
+                            <span aria-hidden="true">×</span>
+                            <span class="sr-only">Fermer</span>
+                        </button>
                     </div>
                 </div>
             </div>

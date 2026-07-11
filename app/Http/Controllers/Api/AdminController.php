@@ -293,11 +293,18 @@ class AdminController extends Controller
 
     public function retryVideo($id)
     {
-        $video = Video::findOrFail($id);
-        $video->update(['status' => 'pending', 'error_message' => null]);
+        $video = Video::with('transcript')->findOrFail($id);
+
+        DB::transaction(function () use ($video): void {
+            $this->deleteTranscriptFile($video);
+            $video->transcript?->delete();
+
+            $video->update(['status' => 'pending', 'error_message' => null]);
+        });
+
         ProcessYoutubeVideo::dispatch($video);
 
-        return response()->json(['message' => 'Video relancee']);
+        return response()->json(['message' => 'Reanalyse du transcript lancee.']);
     }
 
     public function toggleVisibility(string $id): JsonResponse
