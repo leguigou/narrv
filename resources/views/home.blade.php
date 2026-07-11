@@ -2,21 +2,21 @@
 
 @section('content')
 <div class="bg-white dark:bg-gray-950">
-    <section class="relative min-h-[calc(100vh-4rem)] overflow-hidden">
+    <section class="relative overflow-hidden">
         <img src="/images/narrv-hero.png"
              alt=""
              class="absolute inset-0 h-full w-full object-cover opacity-60 dark:opacity-45">
         <div class="absolute inset-0 bg-white/90 dark:bg-gray-950/86"></div>
         <div class="absolute inset-0 bg-[linear-gradient(90deg,rgba(255,255,255,0.98)_0%,rgba(255,255,255,0.94)_48%,rgba(255,255,255,0.68)_100%)] dark:bg-[linear-gradient(90deg,rgba(3,7,18,0.98)_0%,rgba(3,7,18,0.92)_48%,rgba(3,7,18,0.62)_100%)]"></div>
 
-        <div class="relative mx-auto flex min-h-[calc(100vh-4rem)] max-w-6xl flex-col justify-center px-4 py-14 sm:px-6 lg:px-8">
+        <div class="relative mx-auto flex max-w-6xl flex-col justify-center px-4 pb-10 pt-10 sm:px-6 sm:py-14 lg:px-8 lg:pb-12 lg:pt-20">
             <div class="max-w-3xl" x-data="youtubeInput()">
                 <div class="mb-6 inline-flex items-center gap-2 rounded-full border border-cyan-200 bg-cyan-50 px-3 py-1 text-sm font-medium text-cyan-800 dark:border-cyan-800 dark:bg-cyan-950 dark:text-cyan-200">
                     YouTube vers transcript, resume et chat IA
                 </div>
 
                 <h1 class="max-w-2xl text-4xl font-bold leading-tight tracking-tight text-gray-950 dark:text-white sm:text-5xl lg:text-6xl">
-                    Comprenez une video YouTube sans la regarder en entier.
+                    Comprenez vos vidéos YouTube plus vite.
                 </h1>
 
                 <p class="mt-5 max-w-2xl text-lg leading-8 text-gray-700 dark:text-gray-300">
@@ -39,6 +39,7 @@
                                :class="!isSupportedUrl ? 'ring-red-400' : ''"
                                :disabled="loading">
                         <button @click="submit"
+                                aria-label="Analyser la vidéo YouTube"
                                 :disabled="loading || !detectedId"
                                 class="min-h-14 rounded-md bg-cyan-600 px-6 font-semibold text-white transition hover:bg-cyan-700 disabled:cursor-not-allowed disabled:opacity-50">
                             <span x-text="loading ? 'Analyse...' : 'Analyser'">Analyser</span>
@@ -71,56 +72,56 @@
                 </div>
             </div>
 
-            <div class="mt-12 grid max-w-5xl gap-4 md:grid-cols-2 xl:grid-cols-4">
-                <div class="rounded-lg border border-gray-200 bg-white/86 p-5 shadow-lg shadow-cyan-900/5 backdrop-blur dark:border-gray-800 dark:bg-gray-900/86">
+            <div class="mt-8 grid max-w-5xl gap-3 sm:mt-12 sm:gap-4 md:grid-cols-2 xl:grid-cols-4">
+                <div class="rounded-lg border border-gray-200 bg-white/86 p-4 shadow-lg shadow-cyan-900/5 backdrop-blur sm:p-5 dark:border-gray-800 dark:bg-gray-900/86">
                     <div class="flex items-center justify-between gap-3">
                         <div class="text-2xl font-bold text-cyan-600">01</div>
                         <div class="rounded-md bg-cyan-50 px-2 py-1 text-xs font-semibold text-cyan-700 dark:bg-cyan-950 dark:text-cyan-200">TXT · VTT · SRT</div>
                     </div>
-                    <h2 class="mt-4 text-base font-semibold text-gray-950 dark:text-white">Transcript horodate</h2>
-                    <p class="mt-2 text-sm leading-6 text-gray-600 dark:text-gray-400">
+                    <h2 class="mt-3 text-base font-semibold text-gray-950 dark:text-white sm:mt-4">Transcript horodaté</h2>
+                    <p class="mt-2 text-sm leading-5 text-gray-600 dark:text-gray-400 sm:leading-6">
                         Narrv extrait les sous-titres disponibles et reconstruit un texte lisible avec les timestamps utiles.
                     </p>
-                    <p class="mt-4 border-l-2 border-cyan-300 pl-3 text-xs leading-5 text-gray-500 dark:border-cyan-700 dark:text-gray-400">
+                    <p class="mt-3 border-l-2 border-cyan-300 pl-3 text-xs leading-5 text-gray-500 dark:border-cyan-700 dark:text-gray-400 sm:mt-4">
                         Ideal pour retrouver une citation, preparer des notes ou exporter des sous-titres.
                     </p>
                 </div>
-                <div class="rounded-lg border border-gray-200 bg-white/86 p-5 shadow-lg shadow-emerald-900/5 backdrop-blur dark:border-gray-800 dark:bg-gray-900/86">
+                <div class="rounded-lg border border-gray-200 bg-white/86 p-4 shadow-lg shadow-emerald-900/5 backdrop-blur sm:p-5 dark:border-gray-800 dark:bg-gray-900/86">
                     <div class="flex items-center justify-between gap-3">
                         <div class="text-2xl font-bold text-emerald-600">02</div>
                         <div class="rounded-md bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700 dark:bg-emerald-950 dark:text-emerald-200">Court · Moyen · Long</div>
                     </div>
-                    <h2 class="mt-4 text-base font-semibold text-gray-950 dark:text-white">Resume configurable</h2>
-                    <p class="mt-2 text-sm leading-6 text-gray-600 dark:text-gray-400">
+                    <h2 class="mt-3 text-base font-semibold text-gray-950 dark:text-white sm:mt-4">Résumé configurable</h2>
+                    <p class="mt-2 text-sm leading-5 text-gray-600 dark:text-gray-400 sm:leading-6">
                         Choisissez la longueur, le ton et la temperature pour obtenir une synthese adaptee a votre usage.
                     </p>
-                    <p class="mt-4 border-l-2 border-emerald-300 pl-3 text-xs leading-5 text-gray-500 dark:border-emerald-700 dark:text-gray-400">
+                    <p class="mt-3 border-l-2 border-emerald-300 pl-3 text-xs leading-5 text-gray-500 dark:border-emerald-700 dark:text-gray-400 sm:mt-4">
                         Utile pour comprendre l'essentiel avant de decider si la video vaut le temps.
                     </p>
                 </div>
-                <div class="rounded-lg border border-gray-200 bg-white/86 p-5 shadow-lg shadow-rose-900/5 backdrop-blur dark:border-gray-800 dark:bg-gray-900/86">
+                <div class="rounded-lg border border-gray-200 bg-white/86 p-4 shadow-lg shadow-rose-900/5 backdrop-blur sm:p-5 dark:border-gray-800 dark:bg-gray-900/86">
                     <div class="flex items-center justify-between gap-3">
                         <div class="text-2xl font-bold text-rose-600">03</div>
                         <div class="rounded-md bg-rose-50 px-2 py-1 text-xs font-semibold text-rose-700 dark:bg-rose-950 dark:text-rose-200">FR · EN · ES · IT · DE</div>
                     </div>
-                    <h2 class="mt-4 text-base font-semibold text-gray-950 dark:text-white">Traduction directe</h2>
-                    <p class="mt-2 text-sm leading-6 text-gray-600 dark:text-gray-400">
+                    <h2 class="mt-3 text-base font-semibold text-gray-950 dark:text-white sm:mt-4">Traduction directe</h2>
+                    <p class="mt-2 text-sm leading-5 text-gray-600 dark:text-gray-400 sm:leading-6">
                         Transformez un transcript dans une autre langue sans copier-coller le texte dans un outil externe.
                     </p>
-                    <p class="mt-4 border-l-2 border-rose-300 pl-3 text-xs leading-5 text-gray-500 dark:border-rose-700 dark:text-gray-400">
+                    <p class="mt-3 border-l-2 border-rose-300 pl-3 text-xs leading-5 text-gray-500 dark:border-rose-700 dark:text-gray-400 sm:mt-4">
                         Pratique pour exploiter des contenus internationaux ou partager une version localisee.
                     </p>
                 </div>
-                <div class="rounded-lg border border-gray-200 bg-white/86 p-5 shadow-lg shadow-gray-900/5 backdrop-blur dark:border-gray-800 dark:bg-gray-900/86">
+                <div class="rounded-lg border border-gray-200 bg-white/86 p-4 shadow-lg shadow-gray-900/5 backdrop-blur sm:p-5 dark:border-gray-800 dark:bg-gray-900/86">
                     <div class="flex items-center justify-between gap-3">
                         <div class="text-2xl font-bold text-gray-900 dark:text-white">04</div>
                         <div class="rounded-md bg-gray-100 px-2 py-1 text-xs font-semibold text-gray-700 dark:bg-gray-800 dark:text-gray-200">Questions ciblées</div>
                     </div>
-                    <h2 class="mt-4 text-base font-semibold text-gray-950 dark:text-white">Chat avec la video</h2>
-                    <p class="mt-2 text-sm leading-6 text-gray-600 dark:text-gray-400">
+                    <h2 class="mt-3 text-base font-semibold text-gray-950 dark:text-white sm:mt-4">Chat avec la vidéo</h2>
+                    <p class="mt-2 text-sm leading-5 text-gray-600 dark:text-gray-400 sm:leading-6">
                         Posez des questions sur le contenu et obtenez des reponses basees sur le transcript de la video.
                     </p>
-                    <p class="mt-4 border-l-2 border-gray-300 pl-3 text-xs leading-5 text-gray-500 dark:border-gray-700 dark:text-gray-400">
+                    <p class="mt-3 border-l-2 border-gray-300 pl-3 text-xs leading-5 text-gray-500 dark:border-gray-700 dark:text-gray-400 sm:mt-4">
                         Demandez un plan, une decision, une definition ou les points d'action mentionnes.
                     </p>
                 </div>
@@ -129,10 +130,10 @@
     </section>
 
     <section class="border-y border-gray-200 bg-gray-50 dark:border-gray-800 dark:bg-gray-900">
-        <div class="mx-auto grid max-w-6xl gap-8 px-4 py-14 sm:px-6 lg:grid-cols-3 lg:px-8">
+        <div class="mx-auto grid max-w-6xl gap-5 px-4 py-10 sm:px-6 sm:py-14 lg:grid-cols-3 lg:px-8">
             <div>
                 <p class="text-sm font-semibold uppercase tracking-wide text-cyan-700 dark:text-cyan-300">Pourquoi Narrv</p>
-                <h2 class="mt-3 text-3xl font-bold tracking-tight text-gray-950 dark:text-white">Une video devient une base de connaissance.</h2>
+                <h2 class="mt-3 text-2xl font-bold tracking-tight text-gray-950 dark:text-white sm:text-3xl">Une vidéo devient une base de connaissance.</h2>
             </div>
             <div class="rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-950">
                 <h3 class="font-semibold text-gray-950 dark:text-white">Texte exploitable</h3>
@@ -153,7 +154,7 @@
         </div>
     </section>
 
-    <section class="mx-auto max-w-6xl px-4 py-14 sm:px-6 lg:px-8" x-data="{
+    <section class="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-14 lg:px-8" x-data="{
         videos: [],
         loading: true,
         async init() {
@@ -179,12 +180,12 @@
             return new Date(date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' });
         }
     }">
-        <div class="flex items-end justify-between gap-6">
+        <div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <div>
                 <p class="text-sm font-semibold uppercase tracking-wide text-cyan-700 dark:text-cyan-300">Bibliotheque</p>
-                <h2 class="mt-3 text-3xl font-bold tracking-tight text-gray-950 dark:text-white">Dernieres videos analysees</h2>
+                <h2 class="mt-3 text-2xl font-bold tracking-tight text-gray-950 dark:text-white sm:text-3xl">Dernières vidéos analysées</h2>
             </div>
-            <a href="#youtube-url" class="hidden rounded-md border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 transition hover:border-cyan-300 hover:text-cyan-700 dark:border-gray-700 dark:text-gray-300 dark:hover:border-cyan-600 dark:hover:text-cyan-200 sm:inline-flex">
+            <a href="#youtube-url" class="inline-flex w-full justify-center rounded-md border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 transition hover:border-cyan-300 hover:text-cyan-700 dark:border-gray-700 dark:text-gray-300 dark:hover:border-cyan-600 dark:hover:text-cyan-200 sm:w-auto">
                 Ajouter une video
             </a>
         </div>
