@@ -26,7 +26,7 @@ class TranscriptController extends Controller
     public function download(Request $request, $id)
     {
         $request->validate([
-            'format' => 'nullable|in:txt,vtt,srt',
+            'format' => 'nullable|in:txt,vtt,srt,source',
         ]);
 
         $video = Video::with('transcript')->findOrFail($id);
@@ -39,21 +39,31 @@ class TranscriptController extends Controller
         $format = $request->query('format', 'txt');
         $segments = $transcript->segments_json ?? [];
 
-        $content = match ($format) {
-            'vtt' => $this->downloadableVtt($transcript->raw_file_path, $transcript->full_text, $segments),
-            'srt' => $this->txtToSrt($transcript->full_text, $segments),
-            default => $transcript->full_text,
-        };
+        if ($format === 'source') {
+            $content = $this->sourceVtt($transcript->raw_file_path);
+
+            if ($content === null) {
+                return response()->json(['error' => 'Fichier VTT source indisponible'], 404);
+            }
+        } else {
+            $content = match ($format) {
+                'vtt' => $this->downloadableVtt($transcript->raw_file_path, $transcript->full_text, $segments),
+                'srt' => $this->txtToSrt($transcript->full_text, $segments),
+                default => $transcript->full_text,
+            };
+        }
 
         $contentType = match ($format) {
-            'vtt' => 'text/vtt',
+            'vtt', 'source' => 'text/vtt',
             'srt' => 'application/x-subrip',
             default => 'text/plain',
         };
 
+        $extension = $format === 'source' ? 'vtt' : $format;
+
         return response($content)
             ->header('Content-Type', $contentType . '; charset=UTF-8')
-            ->header('Content-Disposition', "attachment; filename=\"{$video->youtube_id}.{$format}\"");
+            ->header('Content-Disposition', "attachment; filename=\"{$video->youtube_id}.{$extension}\"");
     }
 
     public function translate(Request $request, $id)
@@ -136,6 +146,17 @@ class TranscriptController extends Controller
         }
 
         return $this->txtToVtt($text, $segments);
+    }
+
+    private function sourceVtt(?string $rawFilePath): ?string
+    {
+        if (!$rawFilePath) {
+            return null;
+        }
+
+        $path = storage_path('app/' . $rawFilePath);
+
+        return is_file($path) ? (file_get_contents($path) ?: null) : null;
     }
 
     private function txtToVtt(?string $text, array $segments): string
