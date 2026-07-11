@@ -66,12 +66,49 @@
                 <div class="mt-3 flex flex-wrap items-center gap-2 text-xs">
                     <span class="rounded-md bg-gray-100 px-2.5 py-1 font-mono text-gray-600 dark:bg-gray-800 dark:text-gray-300"
                           x-text="`ID YouTube: ${video.youtube_id}`"></span>
+                    <span x-show="video.duration"
+                          class="rounded-md bg-gray-100 px-2.5 py-1 font-mono text-gray-600 dark:bg-gray-800 dark:text-gray-300"
+                          x-text="formatDuration(video.duration)"></span>
                     <a :href="video.youtube_url || video.url"
                        target="_blank"
                        rel="noopener noreferrer"
                        class="rounded-md border border-gray-200 px-2.5 py-1 font-medium text-gray-600 transition hover:border-cyan-300 hover:text-cyan-700 dark:border-gray-700 dark:text-gray-300 dark:hover:border-cyan-600 dark:hover:text-cyan-200">
                         Ouvrir sur YouTube
                     </a>
+                </div>
+
+                <!-- Infos detaillees -->
+                <div class="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                    <div class="rounded-xl border border-gray-200 bg-gray-50 p-3 text-center dark:border-gray-800 dark:bg-gray-900">
+                        <div class="text-xs text-gray-500 dark:text-gray-400">Duree</div>
+                        <div class="mt-0.5 text-sm font-semibold text-gray-950 dark:text-white" x-text="formatDuration(video.duration) || '-'"></div>
+                    </div>
+                    <div class="rounded-xl border border-gray-200 bg-gray-50 p-3 text-center dark:border-gray-800 dark:bg-gray-900">
+                        <div class="text-xs text-gray-500 dark:text-gray-400">Chaine</div>
+                        <div class="mt-0.5 truncate text-sm font-semibold text-gray-950 dark:text-white" x-text="video.channel_name || '-'"></div>
+                    </div>
+                    <div class="rounded-xl border border-gray-200 bg-gray-50 p-3 text-center dark:border-gray-800 dark:bg-gray-900">
+                        <div class="text-xs text-gray-500 dark:text-gray-400">Importee le</div>
+                        <div class="mt-0.5 text-sm font-semibold text-gray-950 dark:text-white" x-text="formatDate(video.created_at)"></div>
+                    </div>
+                    <div class="rounded-xl border border-gray-200 bg-gray-50 p-3 text-center dark:border-gray-800 dark:bg-gray-900">
+                        <div class="text-xs text-gray-500 dark:text-gray-400">Chapitres</div>
+                        <div class="mt-0.5 text-sm font-semibold text-gray-950 dark:text-white" x-text="(video.chapters_json?.length || 0) + ' chapitre' + ((video.chapters_json?.length || 0) > 1 ? 's' : '')"></div>
+                    </div>
+                </div>
+
+                <!-- Chapters recap -->
+                <div x-show="video.chapters_json?.length" class="mt-3 rounded-xl border border-gray-200 bg-gray-50 p-3 dark:border-gray-800 dark:bg-gray-900">
+                    <div class="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-2">Chapitres</div>
+                    <div class="flex flex-wrap gap-2">
+                        <template x-for="(ch, i) in video.chapters_json" :key="i">
+                            <button @click="playVideo(ch.start_time)"
+                                    class="rounded-full bg-white px-3 py-1.5 text-xs font-medium text-gray-700 shadow-sm transition hover:bg-narrv-50 hover:text-narrv-600 dark:bg-gray-950 dark:text-gray-300 dark:hover:bg-gray-800 dark:hover:text-narrv-400">
+                                <span class="font-mono" x-text="formatTime(ch.start_time)"></span>
+                                <span x-text="ch.title"></span>
+                            </button>
+                        </template>
+                    </div>
                 </div>
 
                 <!-- Status badge -->
@@ -465,6 +502,24 @@
                 const m = Math.floor(seconds / 60);
                 const s = Math.floor(seconds % 60);
                 return m + ':' + s.toString().padStart(2, '0');
+            },
+            formatDuration(seconds) {
+                if (!seconds && seconds !== 0) return '';
+                const h = Math.floor(seconds / 3600);
+                const m = Math.floor((seconds % 3600) / 60);
+                const s = Math.floor(seconds % 60);
+                if (h > 0) return h + 'h ' + m + 'm ' + s + 's';
+                if (m > 0) return m + 'min ' + s + 's';
+                return s + 's';
+            },
+            formatDate(dateStr) {
+                if (!dateStr) return '';
+                try {
+                    return new Date(dateStr).toLocaleDateString('fr-FR', {
+                        day: 'numeric', month: 'short', year: 'numeric',
+                        hour: '2-digit', minute: '2-digit'
+                    });
+                } catch { return dateStr; }
             },
             async loadVideo(id) {
                 try {
