@@ -89,7 +89,7 @@
                     </div>
                     <div class="rounded-xl border border-gray-200 bg-gray-50 p-3 text-center dark:border-gray-800 dark:bg-gray-900">
                         <div class="text-xs text-gray-500 dark:text-gray-400">Publiée le</div>
-                        <div class="mt-0.5 text-sm font-semibold text-gray-950 dark:text-white" x-text="formatPublicationDate(video.published_at) || '-'"></div>
+                        <div class="mt-0.5 text-sm font-semibold text-gray-950 dark:text-white" x-text="formatPublicationDate(video.published_at) || 'Indisponible'"></div>
                     </div>
                     <div class="rounded-xl border border-gray-200 bg-gray-50 p-3 text-center dark:border-gray-800 dark:bg-gray-900">
                         <div class="text-xs text-gray-500 dark:text-gray-400">Chapitres</div>

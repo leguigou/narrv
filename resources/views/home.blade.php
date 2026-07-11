@@ -5,9 +5,9 @@
     <section class="relative min-h-[calc(100vh-4rem)] overflow-hidden">
         <img src="/images/narrv-hero.png"
              alt=""
-             class="absolute inset-0 h-full w-full object-cover">
-        <div class="absolute inset-0 bg-white/88 dark:bg-gray-950/82"></div>
-        <div class="absolute inset-0 bg-[linear-gradient(90deg,rgba(255,255,255,0.98)_0%,rgba(255,255,255,0.92)_44%,rgba(255,255,255,0.36)_100%)] dark:bg-[linear-gradient(90deg,rgba(3,7,18,0.98)_0%,rgba(3,7,18,0.9)_44%,rgba(3,7,18,0.36)_100%)]"></div>
+             class="absolute inset-0 h-full w-full object-cover opacity-60 dark:opacity-45">
+        <div class="absolute inset-0 bg-white/90 dark:bg-gray-950/86"></div>
+        <div class="absolute inset-0 bg-[linear-gradient(90deg,rgba(255,255,255,0.98)_0%,rgba(255,255,255,0.94)_48%,rgba(255,255,255,0.68)_100%)] dark:bg-[linear-gradient(90deg,rgba(3,7,18,0.98)_0%,rgba(3,7,18,0.92)_48%,rgba(3,7,18,0.62)_100%)]"></div>
 
         <div class="relative mx-auto flex min-h-[calc(100vh-4rem)] max-w-6xl flex-col justify-center px-4 py-14 sm:px-6 lg:px-8">
             <div class="max-w-3xl" x-data="youtubeInput()">
@@ -28,9 +28,13 @@
                         <label for="youtube-url" class="sr-only">Lien YouTube</label>
                         <input id="youtube-url"
                                type="url"
+                               inputmode="url"
+                               autocomplete="url"
                                x-model="url"
                                @keydown.enter="submit"
                                placeholder="https://www.youtube.com/watch?v=..."
+                               aria-describedby="youtube-url-help"
+                               :aria-invalid="url && !detectedId ? 'true' : 'false'"
                                class="min-h-14 flex-1 rounded-md border-0 bg-gray-50 px-4 text-base text-gray-950 outline-none ring-1 ring-transparent transition focus:bg-white focus:ring-cyan-500 dark:bg-gray-800 dark:text-white dark:focus:bg-gray-950"
                                :class="!isSupportedUrl ? 'ring-red-400' : ''"
                                :disabled="loading">
@@ -49,9 +53,13 @@
                             Format non reconnu
                         </span>
                         <span class="text-gray-500 dark:text-gray-400">
-                            watch, youtu.be, shorts, embed, live et youtube-nocookie
+                            Formats acceptés : watch, youtu.be, shorts, embed et live
                         </span>
                     </div>
+
+                    <p id="youtube-url-help" class="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                        La date de publication et les informations de la vidéo sont récupérées pendant l'analyse.
+                    </p>
 
                     <div x-show="error" x-text="error" x-cloak
                          class="mt-4 rounded-md bg-red-50 px-4 py-3 text-sm text-red-700 ring-1 ring-red-200 dark:bg-red-950 dark:text-red-200 dark:ring-red-800">
@@ -164,7 +172,11 @@
             }
         },
         statusLabel(status) {
-            return { pending: 'En attente', processing: 'Analyse', ready: 'Pret', error: 'Erreur' }[status] || 'En attente';
+            return { pending: 'En attente', processing: 'Analyse', ready: 'Prête', error: 'Erreur' }[status] || 'En attente';
+        },
+        formatPublicationDate(date) {
+            if (!date) return '';
+            return new Date(date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' });
         }
     }">
         <div class="flex items-end justify-between gap-6">
@@ -201,6 +213,7 @@
                         <div class="truncate font-semibold text-gray-950 group-hover:text-cyan-700 dark:text-white dark:group-hover:text-cyan-200" x-text="video.title || 'Video en preparation'"></div>
                         <div class="mt-1 truncate text-sm text-gray-500 dark:text-gray-400" x-text="video.channel_name || 'YouTube'"></div>
                         <div class="mt-3 inline-flex rounded-md bg-gray-100 px-2 py-1 text-xs font-medium text-gray-600 dark:bg-gray-800 dark:text-gray-300" x-text="statusLabel(video.status)"></div>
+                        <div x-show="video.published_at" class="mt-2 text-xs text-gray-400 dark:text-gray-500" x-text="`Publiée le ${formatPublicationDate(video.published_at)}`"></div>
                     </div>
                 </a>
             </template>
