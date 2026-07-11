@@ -128,7 +128,6 @@
                         <button @click="downloadTranscript('txt')" class="px-4 py-2 rounded-full bg-gray-100 dark:bg-gray-800 text-sm hover:bg-gray-200 dark:hover:bg-gray-700">📥 .txt</button>
                         <button @click="downloadTranscript('vtt')" class="px-4 py-2 rounded-full bg-gray-100 dark:bg-gray-800 text-sm hover:bg-gray-200 dark:hover:bg-gray-700">📥 .vtt</button>
                         <button @click="downloadTranscript('srt')" class="px-4 py-2 rounded-full bg-gray-100 dark:bg-gray-800 text-sm hover:bg-gray-200 dark:hover:bg-gray-700">📥 .srt</button>
-                        <button @click="downloadTranscript('source')" class="px-4 py-2 rounded-full border border-cyan-200 bg-cyan-50 text-sm text-cyan-800 hover:bg-cyan-100 dark:border-cyan-800 dark:bg-cyan-950 dark:text-cyan-200 dark:hover:bg-cyan-900">📥 Source YouTube (.vtt)</button>
                     </div>
 
                     <div x-show="chapterCount > 0" class="mb-6 overflow-hidden rounded-xl border border-gray-200 bg-gray-50 dark:border-gray-800 dark:bg-gray-900">
