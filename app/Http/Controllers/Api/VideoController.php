@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Jobs\ProcessYoutubeVideo;
 use App\Models\AdminSession;
+use App\Models\Translation;
 use App\Models\Video;
 use Illuminate\Http\Request;
 
@@ -51,6 +52,42 @@ class VideoController extends Controller
         $perPage = min(max((int) $request->query('per_page', 10), 1), 50);
 
         return response()->json(Video::where('is_visible', true)->latest()->paginate($perPage));
+    }
+
+    public function search(Request $request)
+    {
+        $perPage = min(max((int) $request->query('per_page', 20), 1), 50);
+        $query = trim((string) $request->query('q', ''));
+
+        $videos = Video::where('is_visible', true);
+
+        if ($query !== '') {
+            $like = '%' . str_replace(['%', '_'], ['\\%', '\\_'], $query) . '%';
+
+            $videos = $videos->where(function ($q) use ($like) {
+                $q->where('title', 'LIKE', $like)
+                  ->orWhere('channel_name', 'LIKE', $like)
+                  ->orWhere('youtube_id', $like)
+                  ->orWhereHas('transcript', function ($t) use ($like) {
+                      $t->where('full_text', 'LIKE', $like);
+                  })
+                  ->orWhereHas('transcript.translations', function ($tr) use ($like) {
+                      $tr->where('content', 'LIKE', $like);
+                  });
+            });
+        }
+
+        return response()->json(
+            $videos->with('transcript')
+                ->latest()
+                ->paginate($perPage)
+                ->through(function ($video) {
+                    $data = $video->toArray();
+                    $data['has_transcript'] = $video->transcript !== null;
+                    unset($data['transcript']);
+                    return $data;
+                })
+        );
     }
 
     public function show(Request $request, $id)

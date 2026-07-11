@@ -5,6 +5,7 @@ use App\Http\Controllers\WebController;
 
 // Pages statiques
 Route::get('/', [WebController::class, 'home']);
+Route::get('/bibliotheque', [WebController::class, 'library']);
 Route::get('/admin', [WebController::class, 'admin']);
 
 // Page détail vidéo (doit être AVANT la catch-all)

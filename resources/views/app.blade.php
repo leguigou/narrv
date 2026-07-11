@@ -44,6 +44,7 @@
                     Narrv
                 </a>
                 <nav class="flex items-center gap-4 text-sm">
+                    <a href="/bibliotheque" class="px-3 py-1.5 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">Bibliothèque</a>
                     <button @click="toggleDark" class="px-3 py-1.5 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
                         <span x-text="darkMode ? '☀️' : '🌙'"></span>
                     </button>

@@ -11,6 +11,11 @@ class WebController extends Controller
         return view('home');
     }
 
+    public function library()
+    {
+        return view('library');
+    }
+
     public function video($id)
     {
         return view('video', ['videoId' => $id]);

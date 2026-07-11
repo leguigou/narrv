@@ -26,7 +26,7 @@
                 <div class="mb-4 flex aspect-video w-full items-center justify-center overflow-hidden rounded-2xl bg-gray-100 dark:bg-gray-800 relative">
                     <!-- Player integre -->
                     <template x-if="video.youtube_id && playing">
-                        <iframe :src="`https://www.youtube.com/embed/${video.youtube_id}?autoplay=1`"
+                        <iframe :src="playerSrc"
                                 allow="autoplay; encrypted-media; fullscreen"
                                 allowfullscreen
                                 class="absolute inset-0 h-full w-full">
@@ -106,7 +106,19 @@
                         <button @click="download('vtt')" class="px-4 py-2 rounded-full bg-gray-100 dark:bg-gray-800 text-sm hover:bg-gray-200 dark:hover:bg-gray-700">📥 .vtt</button>
                         <button @click="download('srt')" class="px-4 py-2 rounded-full bg-gray-100 dark:bg-gray-800 text-sm hover:bg-gray-200 dark:hover:bg-gray-700">📥 .srt</button>
                     </div>
-                    <div class="prose dark:prose-invert max-w-none whitespace-pre-wrap text-sm leading-relaxed" x-text="video.transcript?.full_text || 'Transcript non disponible'"></div>
+                    <!-- Transcript segments avec timestamps cliquables -->
+                    <div class="space-y-0.5" x-show="video.transcript?.segments_json?.length">
+                        <template x-for="(seg, i) in video.transcript.segments_json" :key="i">
+                            <div @click="playVideo(seg.start)"
+                                 class="flex gap-3 text-sm leading-relaxed rounded-lg px-2 py-1.5 -mx-2 cursor-pointer transition hover:bg-gray-100 dark:hover:bg-gray-800">
+                                <span class="shrink-0 font-mono text-xs text-gray-400 dark:text-gray-500 pt-0.5 w-16 text-right"
+                                      x-text="formatTime(seg.start)"></span>
+                                <span class="text-gray-900 dark:text-gray-100" x-text="seg.text"></span>
+                            </div>
+                        </template>
+                    </div>
+                    <!-- Fallback si pas de segments -->
+                    <div x-show="!video.transcript?.segments_json?.length" class="prose dark:prose-invert max-w-none whitespace-pre-wrap text-sm leading-relaxed" x-text="video.transcript?.full_text || 'Transcript non disponible'"></div>
                 </div>
 
                 <!-- Summary tab -->
@@ -330,6 +342,7 @@
             thumbnailFailed: false,
             notFound: false,
             playing: false,
+            seekTo: null,
             adminToken: null,
             tab: 'transcript',
             init() {
@@ -340,6 +353,14 @@
             get hasThumbnail() {
                 return Boolean(this.video?.thumbnail_url && !this.thumbnailFailed);
             },
+            get playerSrc() {
+                if (!this.video?.youtube_id) return '';
+                let src = `https://www.youtube.com/embed/${this.video.youtube_id}?autoplay=1`;
+                if (this.seekTo != null) {
+                    src += `&start=${Math.floor(this.seekTo)}`;
+                }
+                return src;
+            },
             get thumbnailPlaceholderTitle() {
                 if (this.video?.status === 'pending' || this.video?.status === 'processing') {
                     return 'Recuperation de la video en cours';
@@ -347,10 +368,17 @@
 
                 return 'Miniature indisponible';
             },
-            playVideo() {
+            playVideo(seconds) {
                 if (this.video?.youtube_id) {
+                    this.seekTo = seconds != null ? seconds : null;
                     this.playing = true;
                 }
+            },
+            formatTime(seconds) {
+                if (!seconds && seconds !== 0) return '';
+                const m = Math.floor(seconds / 60);
+                const s = Math.floor(seconds % 60);
+                return m + ':' + s.toString().padStart(2, '0');
             },
             async loadVideo(id) {
                 try {

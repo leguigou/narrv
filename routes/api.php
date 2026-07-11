@@ -19,6 +19,7 @@ Route::get('/health', function () {
 // Videos
 Route::post('/videos', [VideoController::class, 'store'])->middleware('throttle:10,1');
 Route::get('/videos', [VideoController::class, 'index'])->middleware('throttle:60,1');
+Route::get('/videos/search', [VideoController::class, 'search'])->middleware('throttle:60,1');
 Route::get('/videos/{id}', [VideoController::class, 'show'])->middleware('throttle:60,1');
 Route::get('/videos/{id}/formats', [MediaController::class, 'formats'])->middleware('throttle:30,1');
 Route::get('/videos/{id}/download', [MediaController::class, 'download'])->middleware('throttle:10,1');
