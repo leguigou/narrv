@@ -37,6 +37,7 @@ class ProcessYoutubeVideo implements ShouldQueue
                 'duration' => $data['duration'],
                 'thumbnail_url' => $data['thumbnail_url'],
                 'language' => $data['language'],
+                'chapters_json' => $data['chapters'] ?? [],
                 'status' => 'ready',
                 'error_message' => null,
             ]);

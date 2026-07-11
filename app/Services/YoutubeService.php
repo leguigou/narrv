@@ -72,6 +72,7 @@ class YoutubeService
             'full_text' => $fullText,
             'segments_json' => $segments,
             'word_count' => str_word_count($fullText),
+            'chapters' => $this->extractChapters($metadata),
         ];
     }
 
@@ -496,6 +497,26 @@ class YoutubeService
     private function manualSubtitleLanguages(array $metadata): array
     {
         return $this->subtitleKeys($metadata['subtitles'] ?? []);
+    }
+
+    private function extractChapters(array $metadata): array
+    {
+        $chapters = $metadata['chapters'] ?? [];
+
+        if (!is_array($chapters) || empty($chapters)) {
+            return [];
+        }
+
+        return array_values(array_filter(array_map(function ($chapter) {
+            if (!isset($chapter['title']) || !isset($chapter['start_time'])) {
+                return null;
+            }
+
+            return [
+                'title' => trim($chapter['title']),
+                'start_time' => (float) $chapter['start_time'],
+            ];
+        }, $chapters)));
     }
 
     private function subtitleKeys(mixed $subtitles): array

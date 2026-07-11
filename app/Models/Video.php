@@ -19,6 +19,7 @@ class Video extends Model
     protected $casts = [
         'duration' => 'integer',
         'formats_json' => 'array',
+        'chapters_json' => 'array',
         'is_visible' => 'boolean',
     ];
 

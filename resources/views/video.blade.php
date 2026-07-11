@@ -106,15 +106,27 @@
                         <button @click="download('vtt')" class="px-4 py-2 rounded-full bg-gray-100 dark:bg-gray-800 text-sm hover:bg-gray-200 dark:hover:bg-gray-700">📥 .vtt</button>
                         <button @click="download('srt')" class="px-4 py-2 rounded-full bg-gray-100 dark:bg-gray-800 text-sm hover:bg-gray-200 dark:hover:bg-gray-700">📥 .srt</button>
                     </div>
-                    <!-- Transcript segments avec timestamps cliquables -->
-                    <div class="space-y-0.5" x-show="video.transcript?.segments_json?.length">
-                        <template x-for="(seg, i) in video.transcript.segments_json" :key="i">
-                            <div @click="playVideo(seg.start)"
-                                 class="flex gap-3 text-sm leading-relaxed rounded-lg px-2 py-1.5 -mx-2 cursor-pointer transition hover:bg-gray-100 dark:hover:bg-gray-800">
-                                <span class="shrink-0 font-mono text-xs text-gray-400 dark:text-gray-500 pt-0.5 w-16 text-right"
-                                      x-text="formatTime(seg.start)"></span>
-                                <span class="text-gray-900 dark:text-gray-100" x-text="seg.text"></span>
-                            </div>
+                    <!-- Transcript sentences (grouped by . ! ?) -->
+                    <div class="space-y-2" x-show="video.transcript?.segments_json?.length">
+                        <template x-for="sentence in transcriptSentences" :key="sentence.index">
+                            <template x-if="sentence.isChapter">
+                                <div @click="playVideo(sentence.start)"
+                                     class="flex gap-3 text-sm font-semibold rounded-lg px-2 py-2 -mx-2 mt-4 cursor-pointer transition bg-gray-50 text-narrv-600 hover:bg-narrv-50 dark:bg-gray-800 dark:text-narrv-400 dark:hover:bg-gray-700">
+                                    <span class="shrink-0 font-mono text-xs pt-0.5 w-16 text-right" x-text="formatTime(sentence.start)"></span>
+                                    <span class="flex items-center gap-2">
+                                        <span>▶</span>
+                                        <span x-text="sentence.title"></span>
+                                    </span>
+                                </div>
+                            </template>
+                            <template x-if="!sentence.isChapter">
+                                <div @click="playVideo(sentence.start)"
+                                     class="flex gap-3 text-sm leading-relaxed rounded-lg px-2 py-1 -mx-2 cursor-pointer transition hover:bg-gray-100 dark:hover:bg-gray-800">
+                                    <span class="shrink-0 font-mono text-xs text-gray-400 dark:text-gray-500 pt-0.5 w-16 text-right"
+                                          x-text="formatTime(sentence.start)"></span>
+                                    <span class="text-gray-900 dark:text-gray-100" x-text="sentence.text"></span>
+                                </div>
+                            </template>
                         </template>
                     </div>
                     <!-- Fallback si pas de segments -->
@@ -352,6 +364,56 @@
             },
             get hasThumbnail() {
                 return Boolean(this.video?.thumbnail_url && !this.thumbnailFailed);
+            },
+            get transcriptSentences() {
+                const segments = this.video?.transcript?.segments_json;
+                if (!segments || !segments.length) return [];
+
+                const chapters = this.video?.chapters_json || [];
+                let chapterIdx = 0;
+
+                const sentences = [];
+                let buffer = '';
+                let startTime = null;
+
+                for (const seg of segments) {
+                    if (startTime === null) startTime = seg.start;
+
+                    // Check if we crossed a chapter boundary
+                    while (chapterIdx < chapters.length && chapters[chapterIdx].start_time <= (seg.start || 0)) {
+                        if (buffer.trim()) {
+                            sentences.push({
+                                start: startTime,
+                                text: buffer.trim(),
+                                index: sentences.length
+                            });
+                            buffer = '';
+                            startTime = null;
+                        }
+                        sentences.push({
+                            isChapter: true,
+                            title: chapters[chapterIdx].title,
+                            start: chapters[chapterIdx].start_time,
+                            index: sentences.length
+                        });
+                        chapterIdx++;
+                        startTime = seg.start;
+                    }
+
+                    buffer += (buffer ? ' ' : '') + (seg.text || '');
+
+                    if (/[.!?]$/.test(seg.text.trim())) {
+                        sentences.push({ start: startTime, text: buffer.trim(), index: sentences.length });
+                        buffer = '';
+                        startTime = null;
+                    }
+                }
+
+                if (buffer.trim()) {
+                    sentences.push({ start: startTime || 0, text: buffer.trim(), index: sentences.length });
+                }
+
+                return sentences;
             },
             get playerSrc() {
                 if (!this.video?.youtube_id) return '';
