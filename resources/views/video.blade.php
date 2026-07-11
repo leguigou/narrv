@@ -129,22 +129,40 @@
                         <button @click="downloadTranscript('vtt')" class="px-4 py-2 rounded-full bg-gray-100 dark:bg-gray-800 text-sm hover:bg-gray-200 dark:hover:bg-gray-700">📥 .vtt</button>
                         <button @click="downloadTranscript('srt')" class="px-4 py-2 rounded-full bg-gray-100 dark:bg-gray-800 text-sm hover:bg-gray-200 dark:hover:bg-gray-700">📥 .srt</button>
                     </div>
+
+                    <div x-show="chapterCount > 0" class="mb-6 overflow-hidden rounded-xl border border-gray-200 bg-gray-50 dark:border-gray-800 dark:bg-gray-900">
+                        <button @click="chaptersOpen = !chaptersOpen"
+                                class="flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition hover:bg-gray-100 dark:hover:bg-gray-800"
+                                :aria-expanded="chaptersOpen.toString()">
+                            <span>
+                                <span class="block text-sm font-semibold text-gray-900 dark:text-white">Chapitrage</span>
+                                <span class="mt-0.5 block text-xs text-gray-500 dark:text-gray-400" x-text="chapterCount + ' repère' + (chapterCount > 1 ? 's' : '') + ' de navigation'"></span>
+                            </span>
+                            <span class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white text-gray-500 ring-1 ring-gray-200 transition dark:bg-gray-950 dark:ring-gray-800"
+                                  :class="chaptersOpen ? 'rotate-180 text-narrv-500' : ''">
+                                <x-icon name="chevron-down" class="h-4 w-4" />
+                            </span>
+                        </button>
+                        <div x-show="chaptersOpen"
+                             x-transition
+                             class="flex flex-wrap gap-2 border-t border-gray-200 px-4 py-4 dark:border-gray-800">
+                            <template x-for="chapter in videoChapters" :key="chapter.start_time + '-' + chapter.title">
+                                <button @click="playVideo(chapter.start_time)"
+                                        class="inline-flex items-center gap-2 rounded-full bg-white px-3 py-1.5 text-xs font-medium text-narrv-700 ring-1 ring-narrv-100 transition hover:bg-narrv-100 dark:bg-gray-950 dark:text-narrv-300 dark:ring-narrv-900 dark:hover:bg-narrv-950">
+                                    <span class="font-mono" x-text="formatTime(chapter.start_time)"></span>
+                                    <span x-text="chapter.title"></span>
+                                </button>
+                            </template>
+                        </div>
+                    </div>
+
+                    <h2 class="mb-3 text-sm font-semibold text-gray-700 dark:text-gray-200">Transcript</h2>
                     <!-- Transcript complet, decoupe pour une lecture naturelle -->
                     <div class="space-y-2" x-show="hasSegmentTranscript">
                         <template x-for="block in transcriptBlocks" :key="block.index">
                             <div @click="playVideo(block.start)"
-                                 class="cursor-pointer transition"
-                                 :class="block.isChapter
-                                    ? 'flex gap-3 rounded-lg bg-gray-50 px-2 py-2 -mx-2 mt-4 text-sm font-semibold text-narrv-600 hover:bg-narrv-50 dark:bg-gray-800 dark:text-narrv-400 dark:hover:bg-gray-700'
-                                    : 'group rounded-lg px-3 py-2 -mx-3 hover:bg-gray-100 dark:hover:bg-gray-800'">
-                                <span x-show="block.isChapter"
-                                      class="shrink-0 font-mono text-xs pt-0.5 w-16 text-right"
-                                      x-text="formatTime(block.start)"></span>
-                                <span x-show="block.isChapter" class="flex items-center gap-2">
-                                    <span>▶</span>
-                                    <span x-text="block.title"></span>
-                                </span>
-                                <p x-show="!block.isChapter" class="text-sm leading-7 text-gray-900 dark:text-gray-100">
+                                 class="group cursor-pointer rounded-lg px-3 py-2 -mx-3 transition hover:bg-gray-100 dark:hover:bg-gray-800">
+                                <p class="text-sm leading-7 text-gray-900 dark:text-gray-100">
                                     <span class="mr-3 inline-flex align-baseline font-mono text-xs text-gray-400 dark:text-gray-500 group-hover:text-narrv-500"
                                           x-text="formatTime(block.start)"></span>
                                     <span x-text="block.text"></span>
@@ -384,6 +402,7 @@
             seekTo: null,
             adminToken: null,
             tab: 'transcript',
+            chaptersOpen: false,
             init() {
                 this.adminToken = localStorage.getItem('narrv_admin_token') || null;
                 const id = window.location.pathname.split('/').pop();
@@ -411,8 +430,6 @@
                 const segments = this.transcriptSegments;
                 if (!segments || !segments.length) return [];
 
-                const chapters = this.videoChapters;
-                let chapterIdx = 0;
                 const maxParagraphLength = 900;
                 const blocks = [];
                 let buffer = '';
@@ -438,18 +455,6 @@
                     if (!segText) continue;
 
                     if (startTime === null) startTime = segStart;
-
-                    while (chapterIdx < chapters.length && chapters[chapterIdx].start_time <= segStart) {
-                        pushText();
-                        blocks.push({
-                            isChapter: true,
-                            title: chapters[chapterIdx].title,
-                            start: chapters[chapterIdx].start_time,
-                            index: blocks.length
-                        });
-                        chapterIdx++;
-                        startTime = segStart;
-                    }
 
                     buffer += (buffer ? ' ' : '') + segText;
 
