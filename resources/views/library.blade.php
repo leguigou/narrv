@@ -12,12 +12,12 @@
 
     <!-- Search bar -->
     <div class="mb-8">
-        <div class="flex gap-3">
+        <div class="flex flex-col gap-3 sm:flex-row">
             <div class="relative flex-1">
                 <input type="text"
                        x-model="query"
-                       @input.debounce="search()"
-                       @keydown.enter="search()"
+                       @input.debounce.500ms="updateSearch()"
+                       @keydown.enter.prevent="updateSearch()"
                        placeholder="Rechercher dans les titres, transcripts et traductions..."
                        class="w-full rounded-full border border-gray-200 bg-white px-5 py-3 pl-12 text-sm transition focus:border-narrv-500 focus:outline-none focus:ring-2 focus:ring-narrv-500/20 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100">
                 <svg class="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -25,11 +25,19 @@
                     <path d="m21 21-4.35-4.35"></path>
                 </svg>
             </div>
-            <button @click="query = ''; search()"
-                    x-show="query"
-                    class="rounded-full border border-gray-200 px-4 py-3 text-sm text-gray-600 transition hover:bg-gray-100 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800">
-                Effacer
-            </button>
+            <div class="flex gap-2 sm:shrink-0">
+                <button @click="updateSearch()"
+                        :disabled="loading"
+                        class="flex-1 rounded-full bg-narrv-500 px-5 py-3 text-sm font-medium text-white transition hover:bg-narrv-600 disabled:cursor-not-allowed disabled:opacity-60 sm:flex-none">
+                    Rechercher
+                </button>
+                <button @click="query = ''; updateSearch()"
+                        x-show="query"
+                        x-cloak
+                        class="rounded-full border border-gray-200 px-4 py-3 text-sm text-gray-600 transition hover:bg-gray-100 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800">
+                    Effacer
+                </button>
+            </div>
         </div>
         <div class="mt-2 text-xs text-gray-400" x-show="total > 0" x-text="`${total} résultat${total > 1 ? 's' : ''}${query ? ' pour « ' + query + ' »' : ''}`"></div>
     </div>
@@ -106,6 +114,11 @@
                 if (q) {
                     this.query = q;
                 }
+                this.search();
+            },
+
+            updateSearch() {
+                this.currentPage = 1;
                 this.search();
             },
 

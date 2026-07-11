@@ -100,14 +100,14 @@
                 </div>
 
                 <!-- Transcript tab -->
-                <div x-show="tab === 'transcript'" x-data="transcriptViewer(video.transcript)">
+                <div x-show="tab === 'transcript'">
                     <div class="flex flex-wrap gap-2 mb-4">
-                        <button @click="download('txt')" class="px-4 py-2 rounded-full bg-gray-100 dark:bg-gray-800 text-sm hover:bg-gray-200 dark:hover:bg-gray-700">📥 .txt</button>
-                        <button @click="download('vtt')" class="px-4 py-2 rounded-full bg-gray-100 dark:bg-gray-800 text-sm hover:bg-gray-200 dark:hover:bg-gray-700">📥 .vtt</button>
-                        <button @click="download('srt')" class="px-4 py-2 rounded-full bg-gray-100 dark:bg-gray-800 text-sm hover:bg-gray-200 dark:hover:bg-gray-700">📥 .srt</button>
+                        <button @click="downloadTranscript('txt')" class="px-4 py-2 rounded-full bg-gray-100 dark:bg-gray-800 text-sm hover:bg-gray-200 dark:hover:bg-gray-700">📥 .txt</button>
+                        <button @click="downloadTranscript('vtt')" class="px-4 py-2 rounded-full bg-gray-100 dark:bg-gray-800 text-sm hover:bg-gray-200 dark:hover:bg-gray-700">📥 .vtt</button>
+                        <button @click="downloadTranscript('srt')" class="px-4 py-2 rounded-full bg-gray-100 dark:bg-gray-800 text-sm hover:bg-gray-200 dark:hover:bg-gray-700">📥 .srt</button>
                     </div>
                     <!-- Transcript sentences (grouped by . ! ?) -->
-                    <div class="space-y-2" x-show="video.transcript?.segments_json?.length">
+                    <div class="space-y-2" x-show="hasSegmentTranscript">
                         <template x-for="sentence in transcriptSentences" :key="sentence.index">
                             <template x-if="sentence.isChapter">
                                 <div @click="playVideo(sentence.start)"
@@ -130,7 +130,11 @@
                         </template>
                     </div>
                     <!-- Fallback si pas de segments -->
-                    <div x-show="!video.transcript?.segments_json?.length" class="prose dark:prose-invert max-w-none whitespace-pre-wrap text-sm leading-relaxed" x-text="video.transcript?.full_text || 'Transcript non disponible'"></div>
+                    <div x-show="!hasSegmentTranscript && transcriptText" class="prose dark:prose-invert max-w-none whitespace-pre-wrap text-sm leading-relaxed" x-text="transcriptText"></div>
+                    <div x-show="!hasSegmentTranscript && !transcriptText"
+                         class="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-8 text-center text-sm text-gray-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400">
+                        Transcript non disponible.
+                    </div>
                 </div>
 
                 <!-- Summary tab -->
@@ -365,6 +369,13 @@
             get hasThumbnail() {
                 return Boolean(this.video?.thumbnail_url && !this.thumbnailFailed);
             },
+            get hasSegmentTranscript() {
+                return Array.isArray(this.video?.transcript?.segments_json)
+                    && this.video.transcript.segments_json.length > 0;
+            },
+            get transcriptText() {
+                return (this.video?.transcript?.full_text || '').trim();
+            },
             get transcriptSentences() {
                 const segments = this.video?.transcript?.segments_json;
                 if (!segments || !segments.length) return [];
@@ -433,8 +444,21 @@
             playVideo(seconds) {
                 if (this.video?.youtube_id) {
                     this.seekTo = seconds != null ? seconds : null;
-                    this.playing = true;
+                    if (this.playing && seconds != null) {
+                        this.playing = false;
+                        this.$nextTick(() => {
+                            this.playing = true;
+                            window.scrollTo({ top: 0, behavior: 'smooth' });
+                        });
+                    } else {
+                        this.playing = true;
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                    }
                 }
+            },
+            downloadTranscript(format) {
+                if (!this.video?.id) return;
+                window.open(`/api/videos/${this.video.id}/transcript/download?format=${format}`, '_blank');
             },
             formatTime(seconds) {
                 if (!seconds && seconds !== 0) return '';

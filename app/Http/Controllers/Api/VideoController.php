@@ -67,7 +67,7 @@ class VideoController extends Controller
             $videos = $videos->where(function ($q) use ($like) {
                 $q->where('title', 'LIKE', $like)
                   ->orWhere('channel_name', 'LIKE', $like)
-                  ->orWhere('youtube_id', $like)
+                  ->orWhere('youtube_id', 'LIKE', $like)
                   ->orWhereHas('transcript', function ($t) use ($like) {
                       $t->where('full_text', 'LIKE', $like);
                   })
