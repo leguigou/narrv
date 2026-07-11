@@ -66,6 +66,7 @@ class YoutubeService
             'channel_name' => $metadata['channel'] ?? $metadata['uploader'] ?? null,
             'channel_url' => $metadata['channel_url'] ?? null,
             'duration' => $metadata['duration'] ?? null,
+            'published_at' => $this->publishedAtFromMetadata($metadata),
             'thumbnail_url' => $metadata['thumbnail'] ?? null,
             'language' => $transcriptLanguage,
             'raw_file_path' => 'transcripts/' . basename($vttFile),
@@ -364,14 +365,52 @@ class YoutubeService
         ], 120);
 
         if (!$process->isSuccessful()) {
-            throw new RuntimeException($this->ytDlpErrorMessage('Unable to fetch YouTube metadata', $process));
+            $message = $this->ytDlpErrorMessage('Unable to fetch YouTube metadata', $process);
+            logger()->error('YouTube metadata fetch failed', [
+                'source' => 'youtube',
+                'url' => $url,
+                'exit_code' => $process->getExitCode(),
+                'error' => $message,
+            ]);
+
+            throw new RuntimeException($message);
         }
 
         try {
             return json_decode($process->getOutput(), true, 512, JSON_THROW_ON_ERROR);
         } catch (\JsonException $e) {
+            logger()->error('Unable to decode YouTube metadata', [
+                'source' => 'youtube',
+                'url' => $url,
+                'error' => $e->getMessage(),
+                'output_preview' => substr($process->getOutput(), 0, 500),
+            ]);
+
             throw new RuntimeException('Unable to decode YouTube metadata.', previous: $e);
         }
+    }
+
+    private function publishedAtFromMetadata(array $metadata): ?string
+    {
+        foreach (['timestamp', 'release_timestamp', 'modified_timestamp'] as $key) {
+            if (isset($metadata[$key]) && is_numeric($metadata[$key])) {
+                return gmdate(DATE_ATOM, (int) $metadata[$key]);
+            }
+        }
+
+        foreach (['upload_date', 'release_date', 'modified_date'] as $key) {
+            $value = $metadata[$key] ?? null;
+            if (!is_string($value) || !preg_match('/^\d{8}$/', $value)) {
+                continue;
+            }
+
+            $date = \DateTimeImmutable::createFromFormat('!Ymd', $value, new \DateTimeZone('UTC'));
+            if ($date !== false) {
+                return $date->format(DATE_ATOM);
+            }
+        }
+
+        return null;
     }
 
     private function downloadSubtitles(string $url, string $youtubeId, array $languages): string
@@ -397,9 +436,19 @@ class YoutubeService
                 return $subtitleLanguage;
             }
 
-            $errors[] = $process->isSuccessful()
+            $error = $process->isSuccessful()
                 ? "No subtitles found for '{$subtitleLanguage}'."
                 : $this->ytDlpErrorMessage("Unable to download YouTube subtitles for '{$subtitleLanguage}'", $process);
+
+            $errors[] = $error;
+
+            logger()->warning('YouTube subtitle retrieval failed', [
+                'source' => 'youtube',
+                'youtube_id' => $youtubeId,
+                'language' => $subtitleLanguage,
+                'exit_code' => $process->getExitCode(),
+                'error' => $error,
+            ]);
 
             if ($this->isRateLimited($process)) {
                 throw new RuntimeException(end($errors));

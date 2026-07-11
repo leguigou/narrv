@@ -81,6 +81,12 @@ class DeepseekService
     private function callApi(array $messages, float $temperature = 0.3): ?string
     {
         if (empty($this->apiKey)) {
+            logger()->error('DeepSeek API key is not configured.', [
+                'source' => 'deepseek',
+                'base_url' => $this->baseUrl,
+                'model' => $this->model,
+            ]);
+
             throw new RuntimeException('DeepSeek API key is not configured.');
         }
 

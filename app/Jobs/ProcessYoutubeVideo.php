@@ -35,6 +35,7 @@ class ProcessYoutubeVideo implements ShouldQueue
                 'channel_name' => $data['channel_name'],
                 'channel_url' => $data['channel_url'],
                 'duration' => $data['duration'],
+                'published_at' => $data['published_at'],
                 'thumbnail_url' => $data['thumbnail_url'],
                 'language' => $data['language'],
                 'chapters_json' => $data['chapters'] ?? [],
@@ -53,6 +54,14 @@ class ProcessYoutubeVideo implements ShouldQueue
                 ]
             );
         } catch (Throwable $e) {
+            logger()->error('YouTube video processing failed', [
+                'source' => 'youtube',
+                'video_id' => $this->video->id,
+                'youtube_id' => $this->video->youtube_id,
+                'url' => $this->video->url,
+                'error' => $e->getMessage(),
+            ]);
+
             $this->video->update([
                 'status' => 'error',
                 'error_message' => $e->getMessage(),

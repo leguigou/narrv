@@ -17,6 +17,14 @@ class MediaController extends Controller
         try {
             return response()->json($youtube->downloadFormats($video));
         } catch (RuntimeException $e) {
+            logger()->error('YouTube media formats retrieval failed', [
+                'source' => 'youtube',
+                'video_id' => $video->id,
+                'youtube_id' => $video->youtube_id,
+                'url' => $video->url,
+                'error' => $e->getMessage(),
+            ]);
+
             return response()->json(['error' => $e->getMessage()], 502);
         }
     }
@@ -35,6 +43,16 @@ class MediaController extends Controller
         try {
             $download = $youtube->downloadMedia($video, $validated['type'], $validated['format_id']);
         } catch (RuntimeException $e) {
+            logger()->error('YouTube media download failed', [
+                'source' => 'youtube',
+                'video_id' => $video->id,
+                'youtube_id' => $video->youtube_id,
+                'url' => $video->url,
+                'type' => $validated['type'],
+                'format_id' => $validated['format_id'],
+                'error' => $e->getMessage(),
+            ]);
+
             return response()->json(['error' => $e->getMessage()], 502);
         }
 

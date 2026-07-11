@@ -88,26 +88,12 @@
                         <div class="mt-0.5 truncate text-sm font-semibold text-gray-950 dark:text-white" x-text="video.channel_name || '-'"></div>
                     </div>
                     <div class="rounded-xl border border-gray-200 bg-gray-50 p-3 text-center dark:border-gray-800 dark:bg-gray-900">
-                        <div class="text-xs text-gray-500 dark:text-gray-400">Importee le</div>
-                        <div class="mt-0.5 text-sm font-semibold text-gray-950 dark:text-white" x-text="formatDate(video.created_at)"></div>
+                        <div class="text-xs text-gray-500 dark:text-gray-400">Publiée le</div>
+                        <div class="mt-0.5 text-sm font-semibold text-gray-950 dark:text-white" x-text="formatPublicationDate(video.published_at) || '-'"></div>
                     </div>
                     <div class="rounded-xl border border-gray-200 bg-gray-50 p-3 text-center dark:border-gray-800 dark:bg-gray-900">
                         <div class="text-xs text-gray-500 dark:text-gray-400">Chapitres</div>
                         <div class="mt-0.5 text-sm font-semibold text-gray-950 dark:text-white" x-text="(video.chapters_json?.length || 0) + ' chapitre' + ((video.chapters_json?.length || 0) > 1 ? 's' : '')"></div>
-                    </div>
-                </div>
-
-                <!-- Chapters recap -->
-                <div x-show="video.chapters_json?.length" class="mt-3 rounded-xl border border-gray-200 bg-gray-50 p-3 dark:border-gray-800 dark:bg-gray-900">
-                    <div class="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-2">Chapitres</div>
-                    <div class="flex flex-wrap gap-2">
-                        <template x-for="(ch, i) in video.chapters_json" :key="i">
-                            <button @click="playVideo(ch.start_time)"
-                                    class="rounded-full bg-white px-3 py-1.5 text-xs font-medium text-gray-700 shadow-sm transition hover:bg-narrv-50 hover:text-narrv-600 dark:bg-gray-950 dark:text-gray-300 dark:hover:bg-gray-800 dark:hover:text-narrv-400">
-                                <span class="font-mono" x-text="formatTime(ch.start_time)"></span>
-                                <span x-text="ch.title"></span>
-                            </button>
-                        </template>
                     </div>
                 </div>
 
@@ -143,25 +129,27 @@
                         <button @click="downloadTranscript('vtt')" class="px-4 py-2 rounded-full bg-gray-100 dark:bg-gray-800 text-sm hover:bg-gray-200 dark:hover:bg-gray-700">📥 .vtt</button>
                         <button @click="downloadTranscript('srt')" class="px-4 py-2 rounded-full bg-gray-100 dark:bg-gray-800 text-sm hover:bg-gray-200 dark:hover:bg-gray-700">📥 .srt</button>
                     </div>
-                    <!-- Transcript sentences (grouped by . ! ?) -->
+                    <!-- Transcript complet, decoupe pour une lecture naturelle -->
                     <div class="space-y-2" x-show="hasSegmentTranscript">
-                        <template x-for="sentence in transcriptSentences" :key="sentence.index">
-                            <template x-if="sentence.isChapter">
-                                <div @click="playVideo(sentence.start)"
+                        <template x-for="block in transcriptBlocks" :key="block.index">
+                            <template x-if="block.isChapter">
+                                <div @click="playVideo(block.start)"
                                      class="flex gap-3 text-sm font-semibold rounded-lg px-2 py-2 -mx-2 mt-4 cursor-pointer transition bg-gray-50 text-narrv-600 hover:bg-narrv-50 dark:bg-gray-800 dark:text-narrv-400 dark:hover:bg-gray-700">
-                                    <span class="shrink-0 font-mono text-xs pt-0.5 w-16 text-right" x-text="formatTime(sentence.start)"></span>
+                                    <span class="shrink-0 font-mono text-xs pt-0.5 w-16 text-right" x-text="formatTime(block.start)"></span>
                                     <span class="flex items-center gap-2">
                                         <span>▶</span>
-                                        <span x-text="sentence.title"></span>
+                                        <span x-text="block.title"></span>
                                     </span>
                                 </div>
                             </template>
-                            <template x-if="!sentence.isChapter">
-                                <div @click="playVideo(sentence.start)"
-                                     class="flex gap-3 text-sm leading-relaxed rounded-lg px-2 py-1 -mx-2 cursor-pointer transition hover:bg-gray-100 dark:hover:bg-gray-800">
-                                    <span class="shrink-0 font-mono text-xs text-gray-400 dark:text-gray-500 pt-0.5 w-16 text-right"
-                                          x-text="formatTime(sentence.start)"></span>
-                                    <span class="text-gray-900 dark:text-gray-100" x-text="sentence.text"></span>
+                            <template x-if="!block.isChapter">
+                                <div @click="playVideo(block.start)"
+                                     class="group rounded-lg px-3 py-2 -mx-3 cursor-pointer transition hover:bg-gray-100 dark:hover:bg-gray-800">
+                                    <p class="text-sm leading-7 text-gray-900 dark:text-gray-100">
+                                        <span class="mr-3 inline-flex align-baseline font-mono text-xs text-gray-400 dark:text-gray-500 group-hover:text-narrv-500"
+                                              x-text="formatTime(block.start)"></span>
+                                        <span x-text="block.text"></span>
+                                    </p>
                                 </div>
                             </template>
                         </template>
@@ -413,55 +401,62 @@
             get transcriptText() {
                 return (this.video?.transcript?.full_text || '').trim();
             },
-            get transcriptSentences() {
+            get transcriptBlocks() {
                 const segments = this.video?.transcript?.segments_json;
                 if (!segments || !segments.length) return [];
 
                 const chapters = this.video?.chapters_json || [];
                 let chapterIdx = 0;
-
-                const sentences = [];
+                const maxParagraphLength = 900;
+                const blocks = [];
                 let buffer = '';
                 let startTime = null;
 
-                for (const seg of segments) {
-                    if (startTime === null) startTime = seg.start;
+                const pushText = () => {
+                    const text = buffer.trim();
+                    if (!text) return;
 
-                    // Check if we crossed a chapter boundary
-                    while (chapterIdx < chapters.length && chapters[chapterIdx].start_time <= (seg.start || 0)) {
-                        if (buffer.trim()) {
-                            sentences.push({
-                                start: startTime,
-                                text: buffer.trim(),
-                                index: sentences.length
-                            });
-                            buffer = '';
-                            startTime = null;
-                        }
-                        sentences.push({
+                    blocks.push({
+                        start: startTime ?? 0,
+                        text,
+                        index: blocks.length
+                    });
+
+                    buffer = '';
+                    startTime = null;
+                };
+
+                for (const seg of segments) {
+                    const segStart = Number(seg.start || 0);
+                    const segText = String(seg.text || '').trim();
+                    if (!segText) continue;
+
+                    if (startTime === null) startTime = segStart;
+
+                    while (chapterIdx < chapters.length && chapters[chapterIdx].start_time <= segStart) {
+                        pushText();
+                        blocks.push({
                             isChapter: true,
                             title: chapters[chapterIdx].title,
                             start: chapters[chapterIdx].start_time,
-                            index: sentences.length
+                            index: blocks.length
                         });
                         chapterIdx++;
-                        startTime = seg.start;
+                        startTime = segStart;
                     }
 
-                    buffer += (buffer ? ' ' : '') + (seg.text || '');
+                    buffer += (buffer ? ' ' : '') + segText;
 
-                    if (/[.!?]$/.test(seg.text.trim())) {
-                        sentences.push({ start: startTime, text: buffer.trim(), index: sentences.length });
-                        buffer = '';
-                        startTime = null;
+                    if (/[.!?…。]$/.test(segText)) {
+                        pushText();
+                    } else if (buffer.length >= maxParagraphLength && /[,;:]$/.test(segText)) {
+                        pushText();
                     }
                 }
 
-                if (buffer.trim()) {
-                    sentences.push({ start: startTime || 0, text: buffer.trim(), index: sentences.length });
-                }
+                pushText();
 
-                return sentences;
+                return blocks;
             },
             get playerSrc() {
                 if (!this.video?.youtube_id) return '';
@@ -518,6 +513,14 @@
                     return new Date(dateStr).toLocaleDateString('fr-FR', {
                         day: 'numeric', month: 'short', year: 'numeric',
                         hour: '2-digit', minute: '2-digit'
+                    });
+                } catch { return dateStr; }
+            },
+            formatPublicationDate(dateStr) {
+                if (!dateStr) return '';
+                try {
+                    return new Date(dateStr).toLocaleDateString('fr-FR', {
+                        day: 'numeric', month: 'long', year: 'numeric'
                     });
                 } catch { return dateStr; }
             },

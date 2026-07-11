@@ -78,6 +78,7 @@ class AdminController extends Controller
                     'is_visible',
                     'thumbnail_url',
                     'error_message',
+                    'published_at',
                     'created_at',
                     'updated_at',
                 ])
@@ -501,8 +502,14 @@ class AdminController extends Controller
         $text = strtolower($raw . ' ' . $message);
 
         return match (true) {
-            str_contains($text, 'deepseek') => 'deepseek',
-            str_contains($text, 'yt-dlp') || str_contains($text, 'youtube') => 'youtube',
+            str_contains($text, 'deepseek')
+                || str_contains($text, 'chat/completions')
+                || str_contains($text, 'api key')
+                || str_contains($text, 'cle api') => 'deepseek',
+            str_contains($text, 'yt-dlp')
+                || str_contains($text, 'youtube')
+                || str_contains($text, 'subtitle')
+                || str_contains($text, 'metadata') => 'youtube',
             str_contains($text, 'sqlite') || str_contains($text, 'database') || str_contains($text, 'sql') => 'database',
             str_contains($text, 'storage') || str_contains($text, 'filesystem') => 'storage',
             default => 'laravel',

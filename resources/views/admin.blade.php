@@ -130,21 +130,23 @@
                                 :disabled="uploadingCookies"
                                 title="Importer"
                                 class="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-narrv-500 text-lg font-semibold text-white transition hover:bg-narrv-600 disabled:cursor-not-allowed disabled:opacity-60">
-                            <span aria-hidden="true" x-text="uploadingCookies ? '…' : '↑'"></span>
+                            <span x-show="uploadingCookies" class="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" aria-hidden="true"></span>
+                            <x-icon name="upload" class="h-4 w-4" x-show="!uploadingCookies" />
                             <span class="sr-only">Importer</span>
                         </button>
                         <button @click="testYoutubeCookies"
                                 :disabled="testingCookies"
                                 title="Tester"
                                 class="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-gray-200 text-lg font-semibold text-gray-700 transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800">
-                            <span aria-hidden="true" x-text="testingCookies ? '…' : '✓'"></span>
+                            <span x-show="testingCookies" class="h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-gray-700 dark:border-gray-600 dark:border-t-gray-100" aria-hidden="true"></span>
+                            <x-icon name="check" class="h-4 w-4" x-show="!testingCookies" />
                             <span class="sr-only">Tester</span>
                         </button>
                         <button x-show="cookiesStatus?.configured"
                                 @click="deleteYoutubeCookies"
                                 title="Supprimer"
                                 class="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-red-200 text-lg font-semibold text-red-600 transition hover:bg-red-50 dark:border-red-900 dark:text-red-300 dark:hover:bg-red-950">
-                            <span aria-hidden="true">⌫</span>
+                            <x-icon name="trash" class="h-4 w-4" />
                             <span class="sr-only">Supprimer</span>
                         </button>
                     </div>
@@ -196,7 +198,7 @@
                     <button @click="loadPrompts"
                             title="Rafraîchir"
                             class="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-gray-200 text-lg font-semibold text-gray-700 transition hover:bg-white dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800">
-                        <span aria-hidden="true">↻</span>
+                        <x-icon name="refresh-cw" class="h-4 w-4" />
                         <span class="sr-only">Rafraîchir</span>
                     </button>
                 </div>
@@ -225,14 +227,15 @@
                                             :disabled="savingPromptKey === prompt.key"
                                             title="Enregistrer"
                                             class="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-narrv-500 text-lg font-semibold text-white transition hover:bg-narrv-600 disabled:cursor-not-allowed disabled:opacity-60">
-                                        <span aria-hidden="true" x-text="savingPromptKey === prompt.key ? '…' : '✓'"></span>
+                                        <span x-show="savingPromptKey === prompt.key" class="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" aria-hidden="true"></span>
+                                        <x-icon name="check" class="h-4 w-4" x-show="savingPromptKey !== prompt.key" />
                                         <span class="sr-only">Enregistrer</span>
                                     </button>
                                     <button @click="resetPrompt(prompt)"
                                             :disabled="savingPromptKey === prompt.key"
                                             title="Remettre par défaut"
                                             class="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-gray-200 text-lg font-semibold text-gray-700 transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800">
-                                        <span aria-hidden="true">↺</span>
+                                        <x-icon name="rotate-ccw" class="h-4 w-4" />
                                         <span class="sr-only">Remettre par défaut</span>
                                     </button>
                                 </div>
@@ -254,13 +257,13 @@
                         <button @click="loadVideos"
                                 title="Rafraîchir"
                                 class="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-gray-200 text-lg font-semibold text-gray-700 transition hover:bg-white dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800">
-                            <span aria-hidden="true">↻</span>
+                            <x-icon name="refresh-cw" class="h-4 w-4" />
                             <span class="sr-only">Rafraîchir</span>
                         </button>
                         <button @click="purgeAll"
                                 title="Purger toutes les vidéos"
                                 class="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-red-500 text-lg font-semibold text-white transition hover:bg-red-600">
-                            <span aria-hidden="true">⌫</span>
+                            <x-icon name="trash" class="h-4 w-4" />
                             <span class="sr-only">Purger toutes les vidéos</span>
                         </button>
                     </div>
@@ -308,14 +311,14 @@
                                        target="_blank"
                                        title="Ouvrir"
                                        class="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-gray-200 text-lg font-semibold text-gray-600 transition hover:bg-gray-100 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800">
-                                        <span aria-hidden="true">↗</span>
+                                        <x-icon name="external-link" class="h-4 w-4" />
                                         <span class="sr-only">Ouvrir</span>
                                     </a>
                                     <!-- Voir (modal preview) -->
                                     <button @click="viewVideo(video)"
                                             title="Voir"
                                             class="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-gray-200 text-lg font-semibold text-gray-600 transition hover:bg-gray-100 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800">
-                                        <span aria-hidden="true">◉</span>
+                                        <x-icon name="eye" class="h-4 w-4" />
                                         <span class="sr-only">Voir</span>
                                     </button>
                                     <!-- Visibilite toggle -->
@@ -326,21 +329,23 @@
                                                 ? 'border border-yellow-200 text-yellow-700 hover:bg-yellow-50 dark:border-yellow-800 dark:text-yellow-300 dark:hover:bg-yellow-950'
                                                 : 'border border-green-200 text-green-700 hover:bg-green-50 dark:border-green-800 dark:text-green-300 dark:hover:bg-green-950'"
                                             >
-                                        <span aria-hidden="true" x-text="video.is_visible ? '◌' : '●'"></span>
+                                        <x-icon name="eye-off" class="h-4 w-4" x-show="video.is_visible" />
+                                        <x-icon name="eye" class="h-4 w-4" x-show="!video.is_visible" />
                                         <span class="sr-only" x-text="video.is_visible ? 'Masquer' : 'Afficher'"></span>
                                     </button>
-                                    <button @click="retryVideo(video)"
-                                            :disabled="retryingVideoId === video.id"
+                                    <button @click="askRetryVideo(video)"
+                                            :disabled="isRetrying(video.id)"
                                             title="Réanalyser le transcript"
                                             class="inline-flex h-10 w-10 items-center justify-center rounded-lg text-lg font-semibold text-white transition"
-                                            :class="retryingVideoId === video.id ? 'bg-narrv-400 cursor-wait' : 'bg-narrv-500 hover:bg-narrv-600'">
-                                        <span aria-hidden="true" x-text="retryingVideoId === video.id ? '…' : '↻'"></span>
+                                            :class="isRetrying(video.id) ? 'bg-narrv-400 cursor-wait' : 'bg-narrv-500 hover:bg-narrv-600'">
+                                        <span x-show="isRetrying(video.id)" class="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" aria-hidden="true"></span>
+                                        <x-icon name="refresh-cw" class="h-4 w-4" x-show="!isRetrying(video.id)" />
                                         <span class="sr-only">Réanalyser le transcript</span>
                                     </button>
                                     <button @click="deleteVideo(video)"
                                             title="Supprimer"
                                             class="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-red-200 text-lg font-semibold text-red-600 transition hover:bg-red-50 dark:border-red-900 dark:text-red-300 dark:hover:bg-red-950">
-                                        <span aria-hidden="true">⌫</span>
+                                        <x-icon name="trash" class="h-4 w-4" />
                                         <span class="sr-only">Supprimer</span>
                                     </button>
                                 </div>
@@ -362,7 +367,8 @@
                             :disabled="monitoringLoading"
                             title="Rafraîchir"
                             class="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-gray-200 text-lg font-semibold text-gray-700 transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800">
-                        <span aria-hidden="true" x-text="monitoringLoading ? '…' : '↻'"></span>
+                        <span x-show="monitoringLoading" class="h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-gray-700 dark:border-gray-600 dark:border-t-gray-100" aria-hidden="true"></span>
+                        <x-icon name="refresh-cw" class="h-4 w-4" x-show="!monitoringLoading" />
                         <span class="sr-only">Rafraîchir</span>
                     </button>
                 </div>
@@ -414,31 +420,31 @@
 
                     <div class="grid gap-3 md:grid-cols-2">
                         <div class="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-900">
-                            <div class="mb-3 flex items-center justify-between gap-2">
+                            <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
                                 <h3 class="text-sm font-semibold text-gray-950 dark:text-white">IA et outils</h3>
-                                <span class="text-xs text-gray-500">DeepSeek / yt-dlp / ffmpeg</span>
+                                <span class="max-w-full truncate text-xs text-gray-500">DeepSeek / yt-dlp / ffmpeg</span>
                             </div>
                             <div class="space-y-3 text-sm">
-                                <div class="flex items-start justify-between gap-3">
-                                    <div>
+                                <div class="flex min-w-0 items-start justify-between gap-3">
+                                    <div class="min-w-0 flex-1">
                                         <div class="font-medium text-gray-950 dark:text-white">DeepSeek</div>
-                                        <div class="text-xs text-gray-500" x-text="monitoring?.deepseek?.model"></div>
+                                        <div class="truncate text-xs text-gray-500" x-text="monitoring?.deepseek?.model"></div>
                                     </div>
-                                    <span class="inline-flex rounded-full px-2.5 py-1 text-xs font-medium" :class="statusPillClass(monitoring?.deepseek?.status)" x-text="monitoring?.deepseek?.configured ? 'Configure' : 'Cle manquante'"></span>
+                                    <span class="inline-flex shrink-0 rounded-full px-2.5 py-1 text-xs font-medium" :class="statusPillClass(monitoring?.deepseek?.status)" x-text="monitoring?.deepseek?.configured ? 'Configure' : 'Cle manquante'"></span>
                                 </div>
-                                <div class="flex items-start justify-between gap-3">
-                                    <div>
+                                <div class="flex min-w-0 items-start justify-between gap-3">
+                                    <div class="min-w-0 flex-1">
                                         <div class="font-medium text-gray-950 dark:text-white">yt-dlp</div>
-                                        <div class="max-w-xs truncate text-xs text-gray-500" x-text="monitoring?.yt_dlp?.version || monitoring?.yt_dlp?.message"></div>
+                                        <div class="truncate text-xs text-gray-500" x-text="monitoring?.yt_dlp?.version || monitoring?.yt_dlp?.message"></div>
                                     </div>
-                                    <span class="inline-flex rounded-full px-2.5 py-1 text-xs font-medium" :class="statusPillClass(monitoring?.yt_dlp?.status)" x-text="statusLabelFor(monitoring?.yt_dlp?.status)"></span>
+                                    <span class="inline-flex shrink-0 rounded-full px-2.5 py-1 text-xs font-medium" :class="statusPillClass(monitoring?.yt_dlp?.status)" x-text="statusLabelFor(monitoring?.yt_dlp?.status)"></span>
                                 </div>
-                                <div class="flex items-start justify-between gap-3">
-                                    <div>
+                                <div class="flex min-w-0 items-start justify-between gap-3">
+                                    <div class="min-w-0 flex-1">
                                         <div class="font-medium text-gray-950 dark:text-white">ffmpeg</div>
-                                        <div class="max-w-xs truncate text-xs text-gray-500" x-text="monitoring?.ffmpeg?.version || monitoring?.ffmpeg?.message"></div>
+                                        <div class="truncate text-xs text-gray-500" x-text="monitoring?.ffmpeg?.version || monitoring?.ffmpeg?.message"></div>
                                     </div>
-                                    <span class="inline-flex rounded-full px-2.5 py-1 text-xs font-medium" :class="statusPillClass(monitoring?.ffmpeg?.status)" x-text="statusLabelFor(monitoring?.ffmpeg?.status)"></span>
+                                    <span class="inline-flex shrink-0 rounded-full px-2.5 py-1 text-xs font-medium" :class="statusPillClass(monitoring?.ffmpeg?.status)" x-text="statusLabelFor(monitoring?.ffmpeg?.status)"></span>
                                 </div>
                             </div>
                         </div>
@@ -449,7 +455,7 @@
                                 <button @click="setSection('logs')"
                                         title="Voir les logs"
                                         class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-lg font-semibold text-narrv-500 transition hover:bg-narrv-50 hover:text-narrv-600 dark:hover:bg-narrv-950">
-                                    <span aria-hidden="true">↗</span>
+                                    <x-icon name="external-link" class="h-4 w-4" />
                                     <span class="sr-only">Voir les logs</span>
                                 </button>
                             </div>
@@ -493,13 +499,14 @@
                                 :disabled="logsLoading"
                                 title="Rafraîchir"
                                 class="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-gray-200 text-lg font-semibold text-gray-700 transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800">
-                            <span aria-hidden="true" x-text="logsLoading ? '…' : '↻'"></span>
+                            <span x-show="logsLoading" class="h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-gray-700 dark:border-gray-600 dark:border-t-gray-100" aria-hidden="true"></span>
+                            <x-icon name="refresh-cw" class="h-4 w-4" x-show="!logsLoading" />
                             <span class="sr-only">Rafraîchir</span>
                         </button>
                         <button @click="clearLogs"
                                 title="Purger"
                                 class="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-red-200 text-lg font-semibold text-red-600 transition hover:bg-red-50 dark:border-red-900 dark:text-red-300 dark:hover:bg-red-950">
-                            <span aria-hidden="true">⌫</span>
+                            <x-icon name="trash" class="h-4 w-4" />
                             <span class="sr-only">Purger</span>
                         </button>
                     </div>
@@ -520,7 +527,7 @@
                         </select>
                         <select x-model="logSource" @change="loadLogs" class="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-950">
                             <option value="all">Toutes sources</option>
-                            <option value="deepseek">DeepSeek</option>
+                            <option value="deepseek">IA / DeepSeek</option>
                             <option value="youtube">YouTube / yt-dlp</option>
                             <option value="database">Base de donnees</option>
                             <option value="storage">Stockage</option>
@@ -534,7 +541,7 @@
                         <button @click="loadLogs"
                                 title="Filtrer"
                                 class="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-gray-950 text-lg font-semibold text-white dark:bg-white dark:text-gray-950">
-                            <span aria-hidden="true">⌕</span>
+                            <x-icon name="search" class="h-4 w-4" />
                             <span class="sr-only">Filtrer</span>
                         </button>
                     </div>
@@ -583,7 +590,7 @@
                                     <button @click="copyLog(group.sample)"
                                             title="Copier"
                                             class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-white dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800">
-                                        <span aria-hidden="true">⧉</span>
+                                        <x-icon name="copy" class="h-4 w-4" />
                                         <span class="sr-only">Copier</span>
                                     </button>
                                 </div>
@@ -611,7 +618,7 @@
                                     <button @click="copyLog(log)"
                                             title="Copier"
                                             class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-white dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800">
-                                        <span aria-hidden="true">⧉</span>
+                                        <x-icon name="copy" class="h-4 w-4" />
                                         <span class="sr-only">Copier</span>
                                     </button>
                                 </div>
@@ -629,7 +636,12 @@
                 <div class="w-full max-w-2xl rounded-2xl border border-gray-200 bg-white p-6 shadow-lg dark:border-gray-700 dark:bg-gray-900">
                     <div class="mb-4 flex items-start justify-between gap-4">
                         <h2 class="text-lg font-bold text-gray-950 dark:text-white" x-text="previewVideo.title || 'Sans titre'"></h2>
-                        <button @click="closePreview()" class="shrink-0 rounded-full p-1 text-2xl text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800">&times;</button>
+                        <button @click="closePreview()"
+                                title="Fermer"
+                                class="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800">
+                            <x-icon name="x" class="h-4 w-4" />
+                            <span class="sr-only">Fermer</span>
+                        </button>
                     </div>
 
                     <!-- Thumbnail -->
@@ -668,13 +680,108 @@
                         <button @click="closePreview()"
                                 title="Fermer"
                                 class="inline-flex h-10 w-10 items-center justify-center rounded-full border border-gray-200 text-lg font-semibold text-gray-700 transition hover:bg-gray-100 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800">
-                            <span aria-hidden="true">×</span>
+                            <x-icon name="x" class="h-4 w-4" />
                             <span class="sr-only">Fermer</span>
                         </button>
                     </div>
                 </div>
             </div>
             </template>
+
+            <!-- Retry confirmation -->
+            <div x-show="retryConfirmVideo"
+                 x-cloak
+                 x-transition.opacity
+                 class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+                 @click.self="cancelRetryVideo()">
+                <div x-transition
+                     class="w-full max-w-md rounded-xl border border-gray-200 bg-white p-5 shadow-xl dark:border-gray-700 dark:bg-gray-900">
+                    <div class="mb-4 flex items-start justify-between gap-4">
+                        <div>
+                            <h2 class="text-lg font-semibold text-gray-950 dark:text-white">Relancer l'analyse ?</h2>
+                            <p class="mt-1 text-sm leading-6 text-gray-600 dark:text-gray-400">
+                                Le transcript actuel sera supprimé puis régénéré en tâche de fond.
+                            </p>
+                        </div>
+                        <button @click="cancelRetryVideo()"
+                                title="Fermer"
+                                class="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800">
+                            <x-icon name="x" class="h-4 w-4" />
+                            <span class="sr-only">Fermer</span>
+                        </button>
+                    </div>
+
+                    <div class="rounded-lg bg-gray-50 p-3 dark:bg-gray-950">
+                        <div class="line-clamp-2 text-sm font-medium text-gray-950 dark:text-white" x-text="retryConfirmVideo?.title || retryConfirmVideo?.url || 'Video sans titre'"></div>
+                        <div class="mt-1 font-mono text-xs text-gray-500" x-text="retryConfirmVideo?.youtube_id"></div>
+                    </div>
+
+                    <div class="mt-5 flex justify-end gap-2">
+                        <button @click="cancelRetryVideo()"
+                                class="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-100 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800">
+                            Annuler
+                        </button>
+                        <button @click="confirmRetryVideo()"
+                                class="inline-flex items-center gap-2 rounded-lg bg-narrv-500 px-4 py-2 text-sm font-medium text-white transition hover:bg-narrv-600">
+                            <x-icon name="refresh-cw" class="h-4 w-4" />
+                            Relancer
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Analysis queue toast -->
+            <div x-show="analysisJobs.length > 0 && !analysisToastDismissed"
+                 x-cloak
+                 x-transition:enter="transition ease-out duration-300"
+                 x-transition:enter-start="translate-y-6 opacity-0"
+                 x-transition:enter-end="translate-y-0 opacity-100"
+                 x-transition:leave="transition ease-in duration-200"
+                 x-transition:leave-start="translate-y-0 opacity-100"
+                 x-transition:leave-end="translate-y-6 opacity-0"
+                 class="fixed inset-x-3 bottom-3 z-40 sm:left-auto sm:right-5 sm:w-96">
+                <div class="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-2xl dark:border-gray-700 dark:bg-gray-900">
+                    <div class="flex items-start justify-between gap-3 border-b border-gray-200 px-4 py-3 dark:border-gray-800">
+                        <div>
+                            <h2 class="text-sm font-semibold text-gray-950 dark:text-white">Analyses vidéo</h2>
+                            <p class="mt-0.5 text-xs text-gray-500">Récupération YouTube, transcript et mise à jour de la base.</p>
+                        </div>
+                        <button @click="dismissAnalysisToast()"
+                                title="Fermer"
+                                class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800">
+                            <x-icon name="x" class="h-4 w-4" />
+                            <span class="sr-only">Fermer</span>
+                        </button>
+                    </div>
+
+                    <div class="max-h-72 overflow-y-auto p-3">
+                        <template x-for="job in analysisJobs" :key="job.id">
+                            <div class="rounded-lg px-2 py-2">
+                                <div class="flex items-start gap-3">
+                                    <div class="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full"
+                                         :class="job.status === 'ready'
+                                            ? 'bg-green-50 text-green-600 dark:bg-green-950 dark:text-green-300'
+                                            : job.status === 'error'
+                                                ? 'bg-red-50 text-red-600 dark:bg-red-950 dark:text-red-300'
+                                                : 'bg-narrv-50 text-narrv-600 dark:bg-narrv-950 dark:text-narrv-300'">
+                                        <span x-show="job.status === 'pending' || job.status === 'processing'" class="h-4 w-4 animate-spin rounded-full border-2 border-current/30 border-t-current" aria-hidden="true"></span>
+                                        <x-icon name="check" class="h-4 w-4" x-show="job.status === 'ready'" />
+                                        <x-icon name="x" class="h-4 w-4" x-show="job.status === 'error'" />
+                                    </div>
+                                    <div class="min-w-0 flex-1">
+                                        <div class="truncate text-sm font-medium text-gray-950 dark:text-white" x-text="job.title"></div>
+                                        <div class="mt-1 flex flex-wrap items-center gap-2">
+                                            <span class="inline-flex rounded-full px-2 py-0.5 text-xs font-medium" :class="analysisJobClass(job.status)" x-text="analysisJobLabel(job.status)"></span>
+                                            <span class="font-mono text-xs text-gray-400" x-text="job.youtube_id"></span>
+                                        </div>
+                                        <p x-show="job.error_message" class="mt-1 line-clamp-2 text-xs text-red-500" x-text="job.error_message"></p>
+                                    </div>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+            </div>
         </div>
     </template>
 </div>

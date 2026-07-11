@@ -27,7 +27,11 @@ export default function adminPanel() {
         // Videos
         videos: [],
         videosLoading: false,
-        retryingVideoId: null,
+        retryingVideoIds: [],
+        retryConfirmVideo: null,
+        analysisJobs: [],
+        analysisToastDismissed: false,
+        analysisPollTimer: null,
         videoActionMessage: null,
         videoActionError: null,
 
@@ -138,8 +142,10 @@ export default function adminPanel() {
             }
         },
 
-        async loadVideos() {
-            this.videosLoading = true;
+        async loadVideos(silent = false) {
+            if (!silent) {
+                this.videosLoading = true;
+            }
 
             try {
                 const res = await fetch('/api/admin/videos?per_page=100', {
@@ -147,10 +153,13 @@ export default function adminPanel() {
                 });
                 const data = await this.readApiResponse(res, 'Chargement des videos impossible.');
                 this.videos = data.data || [];
+                this.syncAnalysisJobs();
             } catch (e) {
                 this.handleAuthError(e);
             } finally {
-                this.videosLoading = false;
+                if (!silent) {
+                    this.videosLoading = false;
+                }
             }
         },
 
@@ -413,7 +422,7 @@ export default function adminPanel() {
 
         sourceLabel(source) {
             return {
-                deepseek: 'DeepSeek',
+                deepseek: 'IA / DeepSeek',
                 youtube: 'YouTube / yt-dlp',
                 database: 'Base de donnees',
                 storage: 'Stockage',
@@ -462,10 +471,26 @@ export default function adminPanel() {
             this.loadDashboard();
         },
 
+        askRetryVideo(video) {
+            this.retryConfirmVideo = video;
+        },
+
+        cancelRetryVideo() {
+            this.retryConfirmVideo = null;
+        },
+
+        confirmRetryVideo() {
+            if (!this.retryConfirmVideo) return;
+
+            const video = this.retryConfirmVideo;
+            this.retryConfirmVideo = null;
+            this.retryVideo(video);
+        },
+
         async retryVideo(video) {
             this.videoActionMessage = null;
             this.videoActionError = null;
-            this.retryingVideoId = video.id;
+            this.markRetrying(video.id, true);
 
             try {
                 const res = await fetch(`/api/admin/videos/${video.id}/retry`, {
@@ -475,13 +500,139 @@ export default function adminPanel() {
                 const data = await this.readApiResponse(res, 'Relance impossible.');
 
                 video.status = 'pending';
+                video.error_message = null;
+                this.trackAnalysisJob(video, 'pending');
                 this.videoActionMessage = data.message || 'Reanalyse du transcript lancee.';
-                await this.loadDashboard();
+                this.startAnalysisPolling();
+                await this.loadVideos(true);
+                await this.loadStats();
             } catch (e) {
                 this.videoActionError = e.message;
             } finally {
-                this.retryingVideoId = null;
+                this.markRetrying(video.id, false);
             }
+        },
+
+        markRetrying(videoId, active) {
+            if (active) {
+                if (!this.retryingVideoIds.includes(videoId)) {
+                    this.retryingVideoIds.push(videoId);
+                }
+
+                return;
+            }
+
+            this.retryingVideoIds = this.retryingVideoIds.filter((id) => id !== videoId);
+        },
+
+        isRetrying(videoId) {
+            return this.retryingVideoIds.includes(videoId);
+        },
+
+        trackAnalysisJob(video, status = 'pending') {
+            const existing = this.analysisJobs.find((job) => job.id === video.id);
+            const title = video.title || video.url || `Video ${video.youtube_id || video.id}`;
+
+            if (existing) {
+                existing.title = title;
+                existing.youtube_id = video.youtube_id;
+                existing.status = status;
+                existing.error_message = video.error_message || null;
+                existing.updatedAt = Date.now();
+            } else {
+                this.analysisJobs.unshift({
+                    id: video.id,
+                    title,
+                    youtube_id: video.youtube_id,
+                    status,
+                    error_message: video.error_message || null,
+                    createdAt: Date.now(),
+                    updatedAt: Date.now(),
+                    completedAt: null
+                });
+            }
+
+            this.analysisToastDismissed = false;
+        },
+
+        syncAnalysisJobs() {
+            if (this.analysisJobs.length === 0) return;
+
+            const now = Date.now();
+            this.analysisJobs = this.analysisJobs
+                .map((job) => {
+                    const video = this.videos.find((item) => item.id === job.id);
+                    if (!video) return job;
+
+                    const status = video.status || job.status;
+                    const completedAt = ['ready', 'error'].includes(status)
+                        ? (job.completedAt || now)
+                        : null;
+
+                    return {
+                        ...job,
+                        title: video.title || job.title,
+                        youtube_id: video.youtube_id || job.youtube_id,
+                        status,
+                        error_message: video.error_message || null,
+                        updatedAt: now,
+                        completedAt
+                    };
+                })
+                .filter((job) => !job.completedAt || now - job.completedAt < 5000);
+
+            if (this.analysisJobs.length === 0) {
+                this.stopAnalysisPolling();
+            }
+        },
+
+        startAnalysisPolling() {
+            if (this.analysisPollTimer) return;
+
+            this.analysisPollTimer = window.setInterval(async () => {
+                if (this.analysisJobs.length === 0) {
+                    this.stopAnalysisPolling();
+                    return;
+                }
+
+                await Promise.allSettled([
+                    this.loadVideos(true),
+                    this.loadStats()
+                ]);
+            }, 3000);
+        },
+
+        stopAnalysisPolling() {
+            if (!this.analysisPollTimer) return;
+
+            window.clearInterval(this.analysisPollTimer);
+            this.analysisPollTimer = null;
+        },
+
+        hasActiveAnalysisJobs() {
+            return this.analysisJobs.some((job) => ['pending', 'processing'].includes(job.status));
+        },
+
+        dismissAnalysisToast() {
+            this.analysisToastDismissed = true;
+        },
+
+        analysisJobLabel(status) {
+            return {
+                pending: 'En file d attente',
+                processing: 'Recuperation YouTube et mise a jour',
+                ready: 'Termine, base a jour',
+                error: 'Erreur pendant l analyse'
+            }[status] || status || 'En cours';
+        },
+
+        analysisJobClass(status) {
+            return {
+                pending: 'bg-yellow-50 text-yellow-700 ring-1 ring-yellow-200 dark:bg-yellow-950 dark:text-yellow-300 dark:ring-yellow-800',
+                processing: 'bg-blue-50 text-blue-700 ring-1 ring-blue-200 dark:bg-blue-950 dark:text-blue-300 dark:ring-blue-800',
+                ready: 'bg-green-50 text-green-700 ring-1 ring-green-200 dark:bg-green-950 dark:text-green-300 dark:ring-green-800',
+                error: 'bg-red-50 text-red-700 ring-1 ring-red-200 dark:bg-red-950 dark:text-red-300 dark:ring-red-800'
+            }[status] || 'bg-gray-50 text-gray-700 ring-1 ring-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:ring-gray-700';
         },
 
         async deleteVideo(video) {
@@ -611,10 +762,14 @@ export default function adminPanel() {
         },
 
         logout() {
+            this.stopAnalysisPolling();
             this.token = null;
             localStorage.removeItem('narrv_admin_token');
             this.stats = null;
             this.videos = [];
+            this.analysisJobs = [];
+            this.retryingVideoIds = [];
+            this.retryConfirmVideo = null;
             this.logs = [];
             this.logGroups = [];
             this.logsMeta = null;
