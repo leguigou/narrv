@@ -93,7 +93,7 @@
                     </div>
                     <div class="rounded-xl border border-gray-200 bg-gray-50 p-3 text-center dark:border-gray-800 dark:bg-gray-900">
                         <div class="text-xs text-gray-500 dark:text-gray-400">Chapitres</div>
-                        <div class="mt-0.5 text-sm font-semibold text-gray-950 dark:text-white" x-text="(video.chapters_json?.length || 0) + ' chapitre' + ((video.chapters_json?.length || 0) > 1 ? 's' : '')"></div>
+                        <div class="mt-0.5 text-sm font-semibold text-gray-950 dark:text-white" x-text="chapterCount + ' chapitre' + (chapterCount > 1 ? 's' : '')"></div>
                     </div>
                 </div>
 
@@ -132,26 +132,24 @@
                     <!-- Transcript complet, decoupe pour une lecture naturelle -->
                     <div class="space-y-2" x-show="hasSegmentTranscript">
                         <template x-for="block in transcriptBlocks" :key="block.index">
-                            <template x-if="block.isChapter">
-                                <div @click="playVideo(block.start)"
-                                     class="flex gap-3 text-sm font-semibold rounded-lg px-2 py-2 -mx-2 mt-4 cursor-pointer transition bg-gray-50 text-narrv-600 hover:bg-narrv-50 dark:bg-gray-800 dark:text-narrv-400 dark:hover:bg-gray-700">
-                                    <span class="shrink-0 font-mono text-xs pt-0.5 w-16 text-right" x-text="formatTime(block.start)"></span>
-                                    <span class="flex items-center gap-2">
-                                        <span>▶</span>
-                                        <span x-text="block.title"></span>
-                                    </span>
-                                </div>
-                            </template>
-                            <template x-if="!block.isChapter">
-                                <div @click="playVideo(block.start)"
-                                     class="group rounded-lg px-3 py-2 -mx-3 cursor-pointer transition hover:bg-gray-100 dark:hover:bg-gray-800">
-                                    <p class="text-sm leading-7 text-gray-900 dark:text-gray-100">
-                                        <span class="mr-3 inline-flex align-baseline font-mono text-xs text-gray-400 dark:text-gray-500 group-hover:text-narrv-500"
-                                              x-text="formatTime(block.start)"></span>
-                                        <span x-text="block.text"></span>
-                                    </p>
-                                </div>
-                            </template>
+                            <div @click="playVideo(block.start)"
+                                 class="cursor-pointer transition"
+                                 :class="block.isChapter
+                                    ? 'flex gap-3 rounded-lg bg-gray-50 px-2 py-2 -mx-2 mt-4 text-sm font-semibold text-narrv-600 hover:bg-narrv-50 dark:bg-gray-800 dark:text-narrv-400 dark:hover:bg-gray-700'
+                                    : 'group rounded-lg px-3 py-2 -mx-3 hover:bg-gray-100 dark:hover:bg-gray-800'">
+                                <span x-show="block.isChapter"
+                                      class="shrink-0 font-mono text-xs pt-0.5 w-16 text-right"
+                                      x-text="formatTime(block.start)"></span>
+                                <span x-show="block.isChapter" class="flex items-center gap-2">
+                                    <span>▶</span>
+                                    <span x-text="block.title"></span>
+                                </span>
+                                <p x-show="!block.isChapter" class="text-sm leading-7 text-gray-900 dark:text-gray-100">
+                                    <span class="mr-3 inline-flex align-baseline font-mono text-xs text-gray-400 dark:text-gray-500 group-hover:text-narrv-500"
+                                          x-text="formatTime(block.start)"></span>
+                                    <span x-text="block.text"></span>
+                                </p>
+                            </div>
                         </template>
                     </div>
                     <!-- Fallback si pas de segments -->
@@ -394,18 +392,26 @@
             get hasThumbnail() {
                 return Boolean(this.video?.thumbnail_url && !this.thumbnailFailed);
             },
+            get transcriptSegments() {
+                return this.asArray(this.video?.transcript?.segments_json);
+            },
+            get videoChapters() {
+                return this.asArray(this.video?.chapters_json);
+            },
+            get chapterCount() {
+                return this.videoChapters.length;
+            },
             get hasSegmentTranscript() {
-                return Array.isArray(this.video?.transcript?.segments_json)
-                    && this.video.transcript.segments_json.length > 0;
+                return this.transcriptSegments.length > 0;
             },
             get transcriptText() {
                 return (this.video?.transcript?.full_text || '').trim();
             },
             get transcriptBlocks() {
-                const segments = this.video?.transcript?.segments_json;
+                const segments = this.transcriptSegments;
                 if (!segments || !segments.length) return [];
 
-                const chapters = this.video?.chapters_json || [];
+                const chapters = this.videoChapters;
                 let chapterIdx = 0;
                 const maxParagraphLength = 900;
                 const blocks = [];
@@ -457,6 +463,20 @@
                 pushText();
 
                 return blocks;
+            },
+            asArray(value) {
+                if (Array.isArray(value)) return value;
+
+                if (typeof value === 'string' && value.trim() !== '') {
+                    try {
+                        const parsed = JSON.parse(value);
+                        return Array.isArray(parsed) ? parsed : [];
+                    } catch {
+                        return [];
+                    }
+                }
+
+                return [];
             },
             get playerSrc() {
                 if (!this.video?.youtube_id) return '';
