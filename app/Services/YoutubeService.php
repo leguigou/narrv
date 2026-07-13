@@ -41,6 +41,12 @@ class YoutubeService
     public function fetchTranscript(Video $video): array
     {
         $metadata = $this->fetchMetadata($video->url);
+
+        return $this->transcriptFromMetadata($video, $metadata);
+    }
+
+    public function transcriptFromMetadata(Video $video, array $metadata): array
+    {
         $videoLanguage = $this->normalizeLanguageCode($metadata['language'] ?? null) ?? 'en';
         $preferredLanguage = $this->normalizeLanguageCode($video->language ?? null);
         $languageCandidates = $this->subtitleLanguageCandidates($metadata, $preferredLanguage, $videoLanguage);
@@ -356,7 +362,7 @@ class YoutubeService
         ];
     }
 
-    private function fetchMetadata(string $url): array
+    public function fetchMetadata(string $url): array
     {
         $process = $this->runYtDlp([
             '--dump-json',
@@ -548,7 +554,7 @@ class YoutubeService
         return $this->subtitleKeys($metadata['subtitles'] ?? []);
     }
 
-    private function extractChapters(array $metadata): array
+    public function extractChapters(array $metadata): array
     {
         $chapters = $metadata['chapters'] ?? [];
 

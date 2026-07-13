@@ -115,21 +115,23 @@
                 <div class="relative mb-6">
                     <div class="flex overflow-x-auto flex-nowrap gap-1 border-b border-gray-200 dark:border-gray-700 pb-px scrollbar-hide -mx-4 px-4 sm:mx-0 sm:px-0">
                         <button @click="tab = 'transcript'" :class="tab === 'transcript' ? 'border-b-2 border-narrv-500 text-narrv-500' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 border-b-2 border-transparent'" class="shrink-0 px-3 py-3 text-sm font-medium whitespace-nowrap transition-colors">Transcript</button>
-                        <button @click="tab = 'summary'" :class="tab === 'summary' ? 'border-b-2 border-narrv-500 text-narrv-500' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 border-b-2 border-transparent'" class="shrink-0 px-3 py-3 text-sm font-medium whitespace-nowrap transition-colors">Résumé</button>
-                        <button @click="tab = 'chat'" :class="tab === 'chat' ? 'border-b-2 border-narrv-500 text-narrv-500' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 border-b-2 border-transparent'" class="shrink-0 px-3 py-3 text-sm font-medium whitespace-nowrap transition-colors">Chat IA</button>
-                        <button @click="tab = 'translate'" :class="tab === 'translate' ? 'border-b-2 border-narrv-500 text-narrv-500' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 border-b-2 border-transparent'" class="shrink-0 px-3 py-3 text-sm font-medium whitespace-nowrap transition-colors">Traduire</button>
+                        <button x-show="hasTranscript" @click="tab = 'summary'" :class="tab === 'summary' ? 'border-b-2 border-narrv-500 text-narrv-500' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 border-b-2 border-transparent'" class="shrink-0 px-3 py-3 text-sm font-medium whitespace-nowrap transition-colors">Résumé</button>
+                        <button x-show="hasTranscript" @click="tab = 'chat'" :class="tab === 'chat' ? 'border-b-2 border-narrv-500 text-narrv-500' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 border-b-2 border-transparent'" class="shrink-0 px-3 py-3 text-sm font-medium whitespace-nowrap transition-colors">Chat IA</button>
+                        <button x-show="hasTranscript" @click="tab = 'translate'" :class="tab === 'translate' ? 'border-b-2 border-narrv-500 text-narrv-500' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 border-b-2 border-transparent'" class="shrink-0 px-3 py-3 text-sm font-medium whitespace-nowrap transition-colors">Traduire</button>
                         <button @click="tab = 'download'" :class="tab === 'download' ? 'border-b-2 border-narrv-500 text-narrv-500' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 border-b-2 border-transparent'" class="shrink-0 px-3 py-3 text-sm font-medium whitespace-nowrap transition-colors">Télécharger</button>
                     </div>
                 </div>
 
                 <!-- Transcript tab -->
                 <div x-show="tab === 'transcript'">
-                    <div class="flex flex-wrap gap-2 mb-4">
+                    <!-- Boutons de téléchargement seulement si transcript dispo -->
+                    <div x-show="hasTranscript" class="flex flex-wrap gap-2 mb-4">
                         <button @click="downloadTranscript('txt')" class="px-4 py-2 rounded-full bg-gray-100 dark:bg-gray-800 text-sm hover:bg-gray-200 dark:hover:bg-gray-700">📥 .txt</button>
                         <button @click="downloadTranscript('vtt')" class="px-4 py-2 rounded-full bg-gray-100 dark:bg-gray-800 text-sm hover:bg-gray-200 dark:hover:bg-gray-700">📥 .vtt</button>
                         <button @click="downloadTranscript('srt')" class="px-4 py-2 rounded-full bg-gray-100 dark:bg-gray-800 text-sm hover:bg-gray-200 dark:hover:bg-gray-700">📥 .srt</button>
                     </div>
 
+                    <!-- Chapitres (toujours affichés si présents) -->
                     <div x-show="chapterCount > 0" class="mb-6 overflow-hidden rounded-xl border border-gray-200 bg-gray-50 dark:border-gray-800 dark:bg-gray-900">
                         <button @click="chaptersOpen = !chaptersOpen"
                                 class="flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition hover:bg-gray-100 dark:hover:bg-gray-800"
@@ -157,8 +159,8 @@
                     </div>
 
                     <h2 class="mb-3 text-sm font-semibold text-gray-700 dark:text-gray-200">Transcript</h2>
-                    <!-- Transcript complet, decoupe pour une lecture naturelle -->
-                    <div class="space-y-2" x-show="hasSegmentTranscript">
+                    <!-- Transcript complet si dispo -->
+                    <div x-show="hasTranscript && hasSegmentTranscript" class="space-y-2">
                         <template x-for="block in transcriptBlocks" :key="block.index">
                             <div @click="playVideo(block.start)"
                                  class="group cursor-pointer rounded-lg px-3 py-2 -mx-3 transition hover:bg-gray-100 dark:hover:bg-gray-800">
@@ -170,16 +172,20 @@
                             </div>
                         </template>
                     </div>
-                    <!-- Fallback si pas de segments -->
-                    <div x-show="!hasSegmentTranscript && transcriptText" class="prose dark:prose-invert max-w-none whitespace-pre-wrap text-sm leading-relaxed" x-text="transcriptText"></div>
-                    <div x-show="!hasSegmentTranscript && !transcriptText"
-                         class="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-8 text-center text-sm text-gray-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400">
-                        Transcript non disponible.
+                    <!-- Fallback si transcript mais pas de segments -->
+                    <div x-show="hasTranscript && !hasSegmentTranscript && transcriptText" class="prose dark:prose-invert max-w-none whitespace-pre-wrap text-sm leading-relaxed" x-text="transcriptText"></div>
+                    <!-- Message si pas de transcript du tout -->
+                    <div x-show="!hasTranscript"
+                         class="rounded-xl border border-dashed border-gray-300 bg-amber-50 p-8 text-center text-sm text-gray-600 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400">
+                        <div class="mb-3 text-3xl">📝</div>
+                        <p class="font-medium text-gray-900 dark:text-white mb-1">Pas de transcript disponible</p>
+                        <p class="text-gray-500 dark:text-gray-400">Cette vidéo ne possède pas de sous-titres sur YouTube. Tu peux quand même la regarder et la télécharger.</p>
+                        <p class="mt-2 text-xs text-gray-400 dark:text-gray-500">Un jour peut-être des sous-titres seront ajoutés, réessaie plus tard.</p>
                     </div>
                 </div>
 
-                <!-- Summary tab -->
-                <div x-show="tab === 'summary'" x-data="summaryPanel()" x-init="loadSummaries()">
+                <!-- Summary tab (masqué si pas de transcript) -->
+                <div x-show="hasTranscript && tab === 'summary'" x-data="summaryPanel()" x-init="loadSummaries()">
                     <div class="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center mb-6">
                         <select x-model="tone" class="w-full sm:w-auto px-4 py-2 rounded-full bg-gray-100 dark:bg-gray-800 text-sm border-0">
                             <option value="neutral">Neutre</option>
@@ -223,8 +229,8 @@
                     </div>
                 </div>
 
-                <!-- Chat tab -->
-                <div x-show="tab === 'chat'" x-data="chatInterface()" x-init="loadHistory()">
+                <!-- Chat tab (masqué si pas de transcript) -->
+                <div x-show="hasTranscript && tab === 'chat'" x-data="chatInterface()" x-init="loadHistory()">
                     <div class="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-950">
                         <div class="flex items-center justify-between gap-3 border-b border-gray-200 bg-gray-50 px-4 py-3 dark:border-gray-800 dark:bg-gray-900">
                             <div class="flex min-w-0 items-center gap-3">
@@ -313,8 +319,8 @@
                     </div>
                 </div>
 
-                <!-- Translate tab -->
-                <div x-show="tab === 'translate'" x-data="transcriptViewer(video.transcript)">
+                <!-- Translate tab (masqué si pas de transcript) -->
+                <div x-show="hasTranscript && tab === 'translate'" x-data="transcriptViewer(video.transcript)">
                     <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:flex-wrap">
                         <div class="rounded-full bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700 dark:bg-gray-800 dark:text-gray-200 text-center sm:text-left"
                              x-text="translationPairLabel"></div>
@@ -419,6 +425,9 @@
             },
             get chapterCount() {
                 return this.videoChapters.length;
+            },
+            get hasTranscript() {
+                return Boolean(this.video?.transcript?.id);
             },
             get hasSegmentTranscript() {
                 return this.transcriptSegments.length > 0;
