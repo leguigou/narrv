@@ -368,30 +368,50 @@
                             <h2 class="text-lg font-semibold">Video complète</h2>
                             <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Télécharge la vidéo avec audio.</p>
 
-                            <select x-model="selectedVideo" class="mt-4 w-full rounded-xl border-0 bg-white px-4 py-3 text-sm dark:bg-gray-800">
+                            <select x-model="selectedVideo" :disabled="downloadingType" class="mt-4 w-full rounded-xl border-0 bg-white px-4 py-3 text-sm disabled:cursor-not-allowed disabled:opacity-60 dark:bg-gray-800">
                                 <option value="best">Meilleure qualité disponible</option>
                                 <template x-for="format in formats?.video || []" :key="format.format_id">
                                     <option :value="format.format_id" x-text="`${format.label}${format.filesize ? ' - ' + sizeLabel(format.filesize) : ''}`"></option>
                                 </template>
                             </select>
 
-                            <button @click="download('video')" class="mt-4 w-full rounded-xl bg-narrv-500 px-5 py-3 text-sm font-medium text-white transition hover:bg-narrv-600">Télécharger la vidéo</button>
+                            <button @click="download('video')" :disabled="downloadingType" class="mt-4 w-full rounded-xl bg-narrv-500 px-5 py-3 text-sm font-medium text-white transition hover:bg-narrv-600 disabled:cursor-wait disabled:opacity-60">
+                                <span x-text="downloadingType === 'video' ? 'Préparation...' : 'Télécharger la vidéo'"></span>
+                            </button>
                         </div>
 
                         <div class="rounded-2xl border border-gray-200 bg-gray-50 p-5 dark:border-gray-800 dark:bg-gray-900">
                             <h2 class="text-lg font-semibold">Audio seul</h2>
                             <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Extrait la piste audio en MP3.</p>
 
-                            <select x-model="selectedAudio" class="mt-4 w-full rounded-xl border-0 bg-white px-4 py-3 text-sm dark:bg-gray-800">
+                            <select x-model="selectedAudio" :disabled="downloadingType" class="mt-4 w-full rounded-xl border-0 bg-white px-4 py-3 text-sm disabled:cursor-not-allowed disabled:opacity-60 dark:bg-gray-800">
                                 <option value="bestaudio">Meilleure qualité audio</option>
                                 <template x-for="format in formats?.audio || []" :key="format.format_id">
                                     <option :value="format.format_id" x-text="`${format.label}${format.filesize ? ' - ' + sizeLabel(format.filesize) : ''}`"></option>
                                 </template>
                             </select>
 
-                            <button @click="download('audio')" class="mt-4 w-full rounded-xl bg-gray-950 px-5 py-3 text-sm font-medium text-white transition hover:bg-gray-800 dark:bg-white dark:text-gray-950 dark:hover:bg-gray-200">Télécharger l'audio MP3</button>
+                            <button @click="download('audio')" :disabled="downloadingType" class="mt-4 w-full rounded-xl bg-gray-950 px-5 py-3 text-sm font-medium text-white transition hover:bg-gray-800 disabled:cursor-wait disabled:opacity-60 dark:bg-white dark:text-gray-950 dark:hover:bg-gray-200">
+                                <span x-text="downloadingType === 'audio' ? 'Préparation...' : 'Télécharger l’audio MP3'"></span>
+                            </button>
                         </div>
                     </div>
+
+                    <div x-show="downloadingType" x-cloak class="mt-4 rounded-2xl border border-cyan-200 bg-cyan-50/70 p-4 dark:border-cyan-800 dark:bg-cyan-950/30"
+                         role="status" aria-live="polite">
+                        <div class="mb-2 flex items-center justify-between gap-4 text-sm">
+                            <span class="font-medium text-gray-700 dark:text-gray-200" x-text="progressMessage"></span>
+                            <span class="tabular-nums font-semibold text-cyan-700 dark:text-cyan-300" x-text="`${Math.round(progress)}%`"></span>
+                        </div>
+                        <div class="h-2.5 overflow-hidden rounded-full bg-white dark:bg-gray-800"
+                             role="progressbar" aria-label="Progression du téléchargement" aria-valuemin="0" aria-valuemax="100" :aria-valuenow="Math.round(progress)">
+                            <div class="h-full rounded-full bg-cyan-600 transition-[width] duration-500 ease-out" :style="`width: ${progress}%`"></div>
+                        </div>
+                        <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">Gardez cette page ouverte jusqu’au démarrage du fichier.</p>
+                    </div>
+
+                    <div x-show="success" x-text="success" x-cloak
+                         class="mt-4 rounded-xl bg-green-50 px-4 py-3 text-sm text-green-700 dark:bg-green-900/20 dark:text-green-300"></div>
                 </div>
             </div>
         </div>
@@ -439,44 +459,153 @@
                 const segments = this.transcriptSegments;
                 if (!segments || !segments.length) return [];
 
-                const maxParagraphLength = 900;
+                const minSentences = 2;
+                const maxSentences = 3;
+                const targetParagraphLength = 320;
+                const maxParagraphLength = 650;
+                const sentences = this.transcriptSentences(segments);
                 const blocks = [];
-                let buffer = '';
+                let buffer = [];
                 let startTime = null;
 
                 const pushText = () => {
-                    const text = buffer.trim();
+                    const text = buffer.map((sentence) => sentence.text).join(' ').trim();
                     if (!text) return;
 
                     blocks.push({
                         start: startTime ?? 0,
                         text,
+                        sentenceCount: buffer.length,
+                        sentences: [...buffer],
                         index: blocks.length
                     });
 
-                    buffer = '';
+                    buffer = [];
                     startTime = null;
                 };
 
-                for (const seg of segments) {
-                    const segStart = Number(seg.start || 0);
-                    const segText = String(seg.text || '').trim();
-                    if (!segText) continue;
+                for (const sentence of sentences) {
+                    const nextLength = buffer
+                        .map((item) => item.text)
+                        .concat(sentence.text)
+                        .join(' ')
+                        .length;
 
-                    if (startTime === null) startTime = segStart;
-
-                    buffer += (buffer ? ' ' : '') + segText;
-
-                    if (/[.!?…。]$/.test(segText)) {
+                    if (
+                        (buffer.length >= minSentences && buffer.length >= maxSentences) ||
+                        (buffer.length > 0 && nextLength > maxParagraphLength)
+                    ) {
                         pushText();
-                    } else if (buffer.length >= maxParagraphLength && /[,;:]$/.test(segText)) {
+                    }
+
+                    if (startTime === null) startTime = sentence.start;
+                    buffer.push(sentence);
+
+                    const currentLength = buffer.map((item) => item.text).join(' ').length;
+                    if (
+                        buffer.length >= maxSentences ||
+                        (buffer.length >= minSentences && currentLength >= targetParagraphLength)
+                    ) {
                         pushText();
+                    }
+                }
+
+                if (buffer.length === 1 && blocks.length > 0) {
+                    const previous = blocks[blocks.length - 1];
+                    const combinedText = `${previous.text} ${buffer[0].text}`.trim();
+
+                    if (previous.sentenceCount < maxSentences && combinedText.length <= maxParagraphLength + 80) {
+                        previous.text = combinedText;
+                        previous.sentenceCount += 1;
+                        previous.sentences.push(buffer[0]);
+                        buffer = [];
+                    } else if (previous.sentenceCount === maxSentences) {
+                        const movedSentence = previous.sentences.pop();
+                        previous.sentenceCount -= 1;
+                        previous.text = previous.sentences.map((sentence) => sentence.text).join(' ');
+                        buffer.unshift(movedSentence);
+                        startTime = movedSentence.start;
                     }
                 }
 
                 pushText();
 
-                return blocks;
+                return blocks.map(({ sentenceCount, sentences: blockSentences, ...block }, index) => ({
+                    ...block,
+                    index
+                }));
+            },
+            transcriptSentences(segments) {
+                const sentences = [];
+                let pendingText = '';
+                let pendingStart = null;
+
+                const pushSentence = () => {
+                    const text = pendingText.trim();
+                    if (!text) return;
+
+                    for (const part of this.splitLongTranscriptSentence(text)) {
+                        sentences.push({
+                            text: part,
+                            start: pendingStart ?? 0
+                        });
+                    }
+
+                    pendingText = '';
+                    pendingStart = null;
+                };
+
+                for (const segment of segments) {
+                    const start = Number(segment.start || 0);
+                    const text = String(segment.text || '').trim();
+                    if (!text) continue;
+
+                    for (const part of this.splitTranscriptSentences(text)) {
+                        if (pendingStart === null) pendingStart = start;
+                        pendingText += `${pendingText ? ' ' : ''}${part}`;
+
+                        if (/[.!?…。][\s'"»”)]*$/.test(part)) {
+                            pushSentence();
+                        } else if (pendingText.length >= 650) {
+                            pushSentence();
+                        }
+                    }
+                }
+
+                pushSentence();
+                return sentences;
+            },
+            splitTranscriptSentences(text) {
+                if (typeof Intl?.Segmenter === 'function') {
+                    const language = this.video?.transcript?.language || this.video?.language || 'fr';
+                    const segmenter = new Intl.Segmenter(language, { granularity: 'sentence' });
+                    return Array.from(segmenter.segment(text), ({ segment }) => segment.trim()).filter(Boolean);
+                }
+
+                return text.match(/[^.!?…。]+(?:[.!?…。]+(?=\s|$)|$)/gu)
+                    ?.map((part) => part.trim())
+                    .filter(Boolean) || [text];
+            },
+            splitLongTranscriptSentence(text) {
+                const maxLength = 520;
+                if (text.length <= maxLength) return [text];
+
+                const parts = [];
+                const words = text.split(/\s+/);
+                let current = '';
+
+                for (const word of words) {
+                    const candidate = `${current}${current ? ' ' : ''}${word}`;
+                    if (current && candidate.length > maxLength) {
+                        parts.push(current);
+                        current = word;
+                    } else {
+                        current = candidate;
+                    }
+                }
+
+                if (current) parts.push(current);
+                return parts;
             },
             asArray(value) {
                 if (Array.isArray(value)) return value;

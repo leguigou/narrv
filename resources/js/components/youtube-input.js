@@ -4,6 +4,9 @@ export default function youtubeInput() {
         loading: false,
         error: null,
         success: null,
+        progress: 0,
+        progressMessage: '',
+        progressTimer: null,
 
         examples: [
             'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
@@ -65,6 +68,7 @@ export default function youtubeInput() {
             this.loading = true;
             this.error = null;
             this.success = null;
+            this.startProgress();
 
             try {
                 const res = await fetch('/api/videos', {
@@ -86,13 +90,85 @@ export default function youtubeInput() {
                 window.dispatchEvent(new CustomEvent('video-added', { detail: data }));
 
                 if (data.id) {
+                    await this.waitForAnalysis(data.id, data.status);
+                    await this.completeProgress();
                     window.location.href = `/video/${data.id}`;
                 }
             } catch (e) {
                 this.error = e.message;
+                this.stopProgress();
             } finally {
                 this.loading = false;
             }
+        },
+
+        startProgress() {
+            this.stopProgress(false);
+            this.progress = 4;
+            this.progressMessage = 'Préparation de la vidéo...';
+
+            this.progressTimer = window.setInterval(() => {
+                let increment;
+
+                if (this.progress < 35) {
+                    increment = 4 + Math.random() * 4;
+                    this.progressMessage = 'Récupération des informations...';
+                } else if (this.progress < 80) {
+                    increment = 1.5 + Math.random() * 2.5;
+                    this.progressMessage = 'Extraction et analyse du transcript...';
+                } else {
+                    increment = 0.15 + Math.random() * 0.55;
+                    this.progressMessage = 'Finalisation de l’analyse...';
+                }
+
+                this.progress = Math.min(94, this.progress + increment);
+            }, 450);
+        },
+
+        stopProgress(reset = true) {
+            if (this.progressTimer) {
+                window.clearInterval(this.progressTimer);
+                this.progressTimer = null;
+            }
+
+            if (reset) {
+                this.progress = 0;
+                this.progressMessage = '';
+            }
+        },
+
+        async waitForAnalysis(videoId, initialStatus) {
+            if (initialStatus === 'ready') return;
+            if (initialStatus === 'error') throw new Error('L’analyse de cette vidéo a échoué.');
+
+            while (true) {
+                await new Promise((resolve) => window.setTimeout(resolve, 2500));
+
+                const res = await fetch(`/api/videos/${videoId}`, {
+                    headers: { 'Accept': 'application/json' }
+                });
+                const video = await res.json().catch(() => ({}));
+
+                if (!res.ok) {
+                    throw new Error(video.error || 'Impossible de suivre l’analyse.');
+                }
+                if (video.status === 'ready') return;
+                if (video.status === 'error') {
+                    throw new Error(video.error_message || 'L’analyse de cette vidéo a échoué.');
+                }
+            }
+        },
+
+        async completeProgress() {
+            this.stopProgress(false);
+            this.progressMessage = 'Analyse terminée, affichage des résultats...';
+
+            while (this.progress < 100) {
+                this.progress = Math.min(100, this.progress + 3);
+                await new Promise((resolve) => window.setTimeout(resolve, 25));
+            }
+
+            await new Promise((resolve) => window.setTimeout(resolve, 250));
         },
 
         preferredLanguage() {

@@ -69,6 +69,20 @@
                          class="mt-4 rounded-md bg-green-50 px-4 py-3 text-sm text-green-700 ring-1 ring-green-200 dark:bg-green-950 dark:text-green-200 dark:ring-green-800">
                     </div>
 
+                    <div x-show="loading" x-cloak class="mt-4 rounded-lg border border-cyan-200 bg-white/90 p-4 shadow-lg shadow-cyan-900/5 dark:border-cyan-800 dark:bg-gray-900/90"
+                         role="status" aria-live="polite">
+                        <div class="mb-2 flex items-center justify-between gap-4 text-sm">
+                            <span class="font-medium text-gray-700 dark:text-gray-200" x-text="progressMessage"></span>
+                            <span class="tabular-nums font-semibold text-cyan-700 dark:text-cyan-300" x-text="`${Math.round(progress)}%`"></span>
+                        </div>
+                        <div class="h-2.5 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800"
+                             role="progressbar" aria-label="Progression de l’analyse" aria-valuemin="0" aria-valuemax="100" :aria-valuenow="Math.round(progress)">
+                            <div class="h-full rounded-full bg-cyan-600 transition-[width] duration-500 ease-out"
+                                 :style="`width: ${progress}%`"></div>
+                        </div>
+                        <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">Vous pouvez laisser cette page ouverte, les résultats s’afficheront automatiquement.</p>
+                    </div>
+
                 </div>
             </div>
 
