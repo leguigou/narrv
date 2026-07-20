@@ -216,7 +216,7 @@
                     <h2 class="mb-3 text-sm font-semibold text-gray-700 dark:text-gray-200">Transcript</h2>
                     <!-- Transcript complet si dispo -->
                     <div x-show="hasTranscript && hasSegmentTranscript" class="space-y-2">
-                        <template x-for="block in transcriptBlocks" :key="block.index">
+                        <template x-for="block in visibleTranscriptBlocks" :key="block.index">
                             <div @click="playVideo(block.start)"
                                  :data-transcript-block="block.index"
                                  :class="transcriptBlockClasses(block.index)"
@@ -230,7 +230,7 @@
                         </template>
                     </div>
                     <!-- Fallback si transcript mais pas de segments -->
-                    <div x-show="hasTranscript && !hasSegmentTranscript && transcriptText"
+                    <div x-show="hasTranscript && !hasSegmentTranscript && transcriptText && (!hasTranscriptSearch || transcriptSearchResults.length > 0)"
                          data-transcript-block="0"
                          :class="transcriptBlockClasses(0)"
                          class="prose dark:prose-invert max-w-none whitespace-pre-wrap rounded-lg px-3 py-2 -mx-3 text-sm leading-relaxed transition duration-200"
@@ -552,6 +552,12 @@
                 const position = Math.max(0, this.activeTranscriptSearchResult) + 1;
                 return `${position} / ${count}`;
             },
+            get visibleTranscriptBlocks() {
+                if (!this.hasTranscriptSearch) return this.transcriptBlocks;
+
+                const matchingBlocks = new Set(this.transcriptSearchResults);
+                return this.transcriptBlocks.filter((block) => matchingBlocks.has(block.index));
+            },
             get transcriptBlocks() {
                 const segments = this.transcriptSegments;
                 if (!segments || !segments.length) return [];
@@ -660,7 +666,7 @@
             transcriptBlockClasses(blockIndex) {
                 const resultPosition = this.transcriptSearchResults.indexOf(blockIndex);
                 if (resultPosition === -1) {
-                    return this.hasTranscriptSearch ? 'opacity-55' : '';
+                    return '';
                 }
 
                 if (resultPosition === this.activeTranscriptSearchResult) {
