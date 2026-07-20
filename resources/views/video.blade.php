@@ -216,7 +216,7 @@
                     <h2 class="mb-3 text-sm font-semibold text-gray-700 dark:text-gray-200">Transcript</h2>
                     <!-- Transcript complet si dispo -->
                     <div x-show="hasTranscript && hasSegmentTranscript" class="space-y-2">
-                        <template x-for="block in visibleTranscriptBlocks" :key="block.index">
+                        <template x-for="block in displayedTranscriptBlocks" :key="block.index">
                             <div @click="playVideo(block.start)"
                                  :data-transcript-block="block.index"
                                  :class="transcriptBlockClasses(block.index)"
@@ -224,17 +224,37 @@
                                 <p class="text-sm leading-7 text-gray-900 dark:text-gray-100">
                                     <span class="mr-3 inline-flex align-baseline font-mono text-xs text-gray-400 dark:text-gray-500 group-hover:text-narrv-500"
                                           x-text="formatTime(block.start)"></span>
-                                    <span x-html="highlightTranscriptText(block.text)"></span>
+                                    <template x-if="!hasTranscriptSearch">
+                                        <span x-text="block.text"></span>
+                                    </template>
+                                    <template x-if="hasTranscriptSearch">
+                                        <span x-html="highlightTranscriptText(block.text)"></span>
+                                    </template>
                                 </p>
                             </div>
                         </template>
+                    </div>
+                    <div x-show="hasSegmentTranscript && visibleTranscriptBlocks.length > transcriptRenderLimit"
+                         x-cloak
+                         class="mt-5 text-center">
+                        <button @click="loadMoreTranscriptBlocks()"
+                                type="button"
+                                class="rounded-full bg-gray-100 px-5 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700">
+                            <span x-text="`Afficher ${Math.min(transcriptRenderBatch, visibleTranscriptBlocks.length - transcriptRenderLimit)} paragraphes supplémentaires`"></span>
+                        </button>
                     </div>
                     <!-- Fallback si transcript mais pas de segments -->
                     <div x-show="hasTranscript && !hasSegmentTranscript && transcriptText && (!hasTranscriptSearch || transcriptSearchResults.length > 0)"
                          data-transcript-block="0"
                          :class="transcriptBlockClasses(0)"
-                         class="prose dark:prose-invert max-w-none whitespace-pre-wrap rounded-lg px-3 py-2 -mx-3 text-sm leading-relaxed transition duration-200"
-                         x-html="highlightTranscriptText(transcriptText)"></div>
+                         class="prose dark:prose-invert max-w-none whitespace-pre-wrap rounded-lg px-3 py-2 -mx-3 text-sm leading-relaxed transition duration-200">
+                        <template x-if="!hasTranscriptSearch">
+                            <span x-text="transcriptText"></span>
+                        </template>
+                        <template x-if="hasTranscriptSearch">
+                            <span x-html="highlightTranscriptText(transcriptText)"></span>
+                        </template>
+                    </div>
                     <!-- Message si pas de transcript du tout -->
                     <div x-show="!hasTranscript"
                          class="rounded-xl border border-dashed border-gray-300 bg-amber-50 p-8 text-center text-sm text-gray-600 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400">
@@ -491,7 +511,16 @@
             tab: 'transcript',
             chaptersOpen: false,
             transcriptSearch: '',
+            transcriptSearchPattern: '',
+            transcriptSearchTimer: null,
+            hasTranscriptSearch: false,
             activeTranscriptSearchResult: -1,
+            transcriptSegments: [],
+            transcriptBlocks: [],
+            visibleTranscriptBlocks: [],
+            transcriptSearchResults: [],
+            transcriptRenderBatch: 200,
+            transcriptRenderLimit: 200,
             init() {
                 this.adminToken = localStorage.getItem('narrv_admin_token') || null;
                 const id = window.location.pathname.split('/').pop();
@@ -499,9 +528,6 @@
             },
             get hasThumbnail() {
                 return Boolean(this.video?.thumbnail_url && !this.thumbnailFailed);
-            },
-            get transcriptSegments() {
-                return this.asArray(this.video?.transcript?.segments_json);
             },
             get videoChapters() {
                 return this.asArray(this.video?.chapters_json);
@@ -527,24 +553,6 @@
                         .filter(Boolean)
                 )];
             },
-            get hasTranscriptSearch() {
-                return this.transcriptSearchTerms.length > 0;
-            },
-            get transcriptSearchResults() {
-                if (!this.hasTranscriptSearch) return [];
-
-                if (!this.hasSegmentTranscript) {
-                    const text = this.transcriptText.toLocaleLowerCase();
-                    return this.transcriptSearchTerms.every((term) => text.includes(term)) ? [0] : [];
-                }
-
-                return this.transcriptBlocks
-                    .filter((block) => {
-                        const text = block.text.toLocaleLowerCase();
-                        return this.transcriptSearchTerms.every((term) => text.includes(term));
-                    })
-                    .map((block) => block.index);
-            },
             get transcriptSearchStatus() {
                 const count = this.transcriptSearchResults.length;
                 if (count === 0) return 'Aucun résultat';
@@ -552,13 +560,10 @@
                 const position = Math.max(0, this.activeTranscriptSearchResult) + 1;
                 return `${position} / ${count}`;
             },
-            get visibleTranscriptBlocks() {
-                if (!this.hasTranscriptSearch) return this.transcriptBlocks;
-
-                const matchingBlocks = new Set(this.transcriptSearchResults);
-                return this.transcriptBlocks.filter((block) => matchingBlocks.has(block.index));
+            get displayedTranscriptBlocks() {
+                return this.visibleTranscriptBlocks.slice(0, this.transcriptRenderLimit);
             },
-            get transcriptBlocks() {
+            buildTranscriptBlocks() {
                 const segments = this.transcriptSegments;
                 if (!segments || !segments.length) return [];
 
@@ -639,12 +644,56 @@
                 }));
             },
             handleTranscriptSearch() {
-                this.activeTranscriptSearchResult = this.transcriptSearchResults.length ? 0 : -1;
-                this.scrollToActiveTranscriptResult();
+                window.clearTimeout(this.transcriptSearchTimer);
+                this.transcriptSearchTimer = window.setTimeout(() => {
+                    this.refreshTranscriptSearch(true);
+                }, 120);
             },
             clearTranscriptSearch() {
+                window.clearTimeout(this.transcriptSearchTimer);
                 this.transcriptSearch = '';
-                this.activeTranscriptSearchResult = -1;
+                this.refreshTranscriptSearch(false);
+            },
+            refreshTranscriptSearch(shouldScroll = false) {
+                const terms = this.transcriptSearchTerms;
+                this.hasTranscriptSearch = terms.length > 0;
+                this.transcriptSearchPattern = terms
+                    .sort((first, second) => second.length - first.length)
+                    .map((term) => this.escapeRegExp(term))
+                    .join('|');
+
+                if (!this.hasTranscriptSearch) {
+                    this.transcriptSearchResults = [];
+                    this.visibleTranscriptBlocks = this.transcriptBlocks;
+                    this.activeTranscriptSearchResult = -1;
+                    this.transcriptRenderLimit = this.transcriptRenderBatch;
+                    return;
+                }
+
+                if (!this.hasSegmentTranscript) {
+                    const text = this.transcriptText.toLocaleLowerCase();
+                    this.transcriptSearchResults = terms.every((term) => text.includes(term)) ? [0] : [];
+                    this.visibleTranscriptBlocks = [];
+                } else {
+                    const matchingBlocks = [];
+
+                    for (const block of this.transcriptBlocks) {
+                        const text = block.text.toLocaleLowerCase();
+                        if (terms.every((term) => text.includes(term))) {
+                            matchingBlocks.push(block);
+                        }
+                    }
+
+                    this.visibleTranscriptBlocks = matchingBlocks;
+                    this.transcriptSearchResults = matchingBlocks.map((block) => block.index);
+                }
+
+                this.activeTranscriptSearchResult = this.transcriptSearchResults.length ? 0 : -1;
+                this.transcriptRenderLimit = this.transcriptRenderBatch;
+                if (shouldScroll) this.scrollToActiveTranscriptResult();
+            },
+            loadMoreTranscriptBlocks() {
+                this.transcriptRenderLimit += this.transcriptRenderBatch;
             },
             goToSearchResult(direction = 1) {
                 const results = this.transcriptSearchResults;
@@ -652,7 +701,14 @@
 
                 const current = this.activeTranscriptSearchResult < 0 ? 0 : this.activeTranscriptSearchResult;
                 this.activeTranscriptSearchResult = (current + direction + results.length) % results.length;
+                this.ensureActiveTranscriptResultIsRendered();
                 this.scrollToActiveTranscriptResult();
+            },
+            ensureActiveTranscriptResultIsRendered() {
+                const requiredCount = this.activeTranscriptSearchResult + 1;
+                if (requiredCount <= this.transcriptRenderLimit) return;
+
+                this.transcriptRenderLimit = Math.ceil(requiredCount / this.transcriptRenderBatch) * this.transcriptRenderBatch;
             },
             scrollToActiveTranscriptResult() {
                 this.$nextTick(() => {
@@ -664,12 +720,9 @@
                 });
             },
             transcriptBlockClasses(blockIndex) {
-                const resultPosition = this.transcriptSearchResults.indexOf(blockIndex);
-                if (resultPosition === -1) {
-                    return '';
-                }
+                if (!this.hasTranscriptSearch) return '';
 
-                if (resultPosition === this.activeTranscriptSearchResult) {
+                if (blockIndex === this.transcriptSearchResults[this.activeTranscriptSearchResult]) {
                     return 'bg-yellow-100 ring-2 ring-yellow-400 shadow-sm dark:bg-yellow-900/35 dark:ring-yellow-500';
                 }
 
@@ -679,14 +732,9 @@
                 const sourceText = String(text || '');
                 if (!this.hasTranscriptSearch) return this.escapeHtml(sourceText);
 
-                const pattern = this.transcriptSearchTerms
-                    .sort((first, second) => second.length - first.length)
-                    .map((term) => this.escapeRegExp(term))
-                    .join('|');
+                if (!this.transcriptSearchPattern) return this.escapeHtml(sourceText);
 
-                if (!pattern) return this.escapeHtml(sourceText);
-
-                const expression = new RegExp(pattern, 'giu');
+                const expression = new RegExp(this.transcriptSearchPattern, 'giu');
                 let highlightedText = '';
                 let lastIndex = 0;
                 let match;
@@ -885,6 +933,9 @@
                     }
                     Alpine.store('app').currentVideo = video;
                     this.video = video;
+                    this.transcriptSegments = this.asArray(video?.transcript?.segments_json);
+                    this.transcriptBlocks = this.buildTranscriptBlocks();
+                    this.refreshTranscriptSearch(false);
                     if (this.video.status === 'pending' || this.video.status === 'processing') {
                         setTimeout(() => this.loadVideo(id), 3000);
                     }

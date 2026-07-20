@@ -63,7 +63,8 @@
 
         <!-- Footer -->
         <footer class="border-t border-gray-200 dark:border-gray-800 py-6 text-center text-sm text-gray-500">
-            Narrv &mdash; Comprendre les vidéos YouTube avec IA
+            <div>Narrv &mdash; Comprendre les vidéos YouTube avec IA</div>
+            <div class="mt-1 font-mono text-xs opacity-60">v{{ config('app.version') }}</div>
         </footer>
     </div>
 
