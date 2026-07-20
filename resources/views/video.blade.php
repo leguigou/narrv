@@ -158,22 +158,83 @@
                         </div>
                     </div>
 
+                    <div x-show="hasTranscript" class="mb-5">
+                        <label for="transcript-search" class="mb-2 block text-sm font-semibold text-gray-700 dark:text-gray-200">
+                            Rechercher dans le transcript
+                        </label>
+                        <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
+                            <div class="relative min-w-0 flex-1">
+                                <svg viewBox="0 0 24 24" aria-hidden="true" class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 fill-none stroke-gray-400 stroke-2">
+                                    <circle cx="11" cy="11" r="7"></circle>
+                                    <path d="m16 16 4 4"></path>
+                                </svg>
+                                <input id="transcript-search"
+                                       type="search"
+                                       x-model="transcriptSearch"
+                                       @input="handleTranscriptSearch()"
+                                       @keydown.enter.prevent="goToSearchResult($event.shiftKey ? -1 : 1)"
+                                       placeholder="Rechercher un mot ou une expression..."
+                                       autocomplete="off"
+                                       class="w-full rounded-xl border border-gray-200 bg-white py-2.5 pl-10 pr-10 text-sm text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-yellow-400 focus:ring-2 focus:ring-yellow-200 dark:border-gray-700 dark:bg-gray-900 dark:text-white dark:focus:border-yellow-500 dark:focus:ring-yellow-900/50">
+                                <button x-show="transcriptSearch"
+                                        @click="clearTranscriptSearch()"
+                                        type="button"
+                                        aria-label="Effacer la recherche"
+                                        class="absolute right-2 top-1/2 inline-flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full text-gray-400 transition hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-gray-800 dark:hover:text-gray-200">
+                                    <span aria-hidden="true">&times;</span>
+                                </button>
+                            </div>
+
+                            <div x-show="hasTranscriptSearch" x-cloak class="flex shrink-0 items-center gap-2">
+                                <span class="min-w-20 text-center text-xs font-medium text-gray-500 dark:text-gray-400"
+                                      role="status"
+                                      aria-live="polite"
+                                      x-text="transcriptSearchStatus"></span>
+                                <div class="flex overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700">
+                                    <button @click="goToSearchResult(-1)"
+                                            type="button"
+                                            :disabled="transcriptSearchResults.length === 0"
+                                            aria-label="Résultat précédent"
+                                            class="inline-flex h-9 w-9 items-center justify-center bg-white text-gray-600 transition hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-40 dark:bg-gray-900 dark:text-gray-300 dark:hover:bg-gray-800">
+                                        <span aria-hidden="true">&uarr;</span>
+                                    </button>
+                                    <button @click="goToSearchResult(1)"
+                                            type="button"
+                                            :disabled="transcriptSearchResults.length === 0"
+                                            aria-label="Résultat suivant"
+                                            class="inline-flex h-9 w-9 items-center justify-center border-l border-gray-200 bg-white text-gray-600 transition hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-40 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 dark:hover:bg-gray-800">
+                                        <span aria-hidden="true">&darr;</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <p x-show="hasTranscriptSearch" x-cloak class="mt-1.5 text-xs text-gray-400 dark:text-gray-500">
+                            Entrée pour avancer, Maj + Entrée pour revenir au résultat précédent.
+                        </p>
+                    </div>
+
                     <h2 class="mb-3 text-sm font-semibold text-gray-700 dark:text-gray-200">Transcript</h2>
                     <!-- Transcript complet si dispo -->
                     <div x-show="hasTranscript && hasSegmentTranscript" class="space-y-2">
                         <template x-for="block in transcriptBlocks" :key="block.index">
                             <div @click="playVideo(block.start)"
-                                 class="group cursor-pointer rounded-lg px-3 py-2 -mx-3 transition hover:bg-gray-100 dark:hover:bg-gray-800">
+                                 :data-transcript-block="block.index"
+                                 :class="transcriptBlockClasses(block.index)"
+                                 class="group cursor-pointer rounded-lg px-3 py-2 -mx-3 transition duration-200 hover:bg-gray-100 dark:hover:bg-gray-800">
                                 <p class="text-sm leading-7 text-gray-900 dark:text-gray-100">
                                     <span class="mr-3 inline-flex align-baseline font-mono text-xs text-gray-400 dark:text-gray-500 group-hover:text-narrv-500"
                                           x-text="formatTime(block.start)"></span>
-                                    <span x-text="block.text"></span>
+                                    <span x-html="highlightTranscriptText(block.text)"></span>
                                 </p>
                             </div>
                         </template>
                     </div>
                     <!-- Fallback si transcript mais pas de segments -->
-                    <div x-show="hasTranscript && !hasSegmentTranscript && transcriptText" class="prose dark:prose-invert max-w-none whitespace-pre-wrap text-sm leading-relaxed" x-text="transcriptText"></div>
+                    <div x-show="hasTranscript && !hasSegmentTranscript && transcriptText"
+                         data-transcript-block="0"
+                         :class="transcriptBlockClasses(0)"
+                         class="prose dark:prose-invert max-w-none whitespace-pre-wrap rounded-lg px-3 py-2 -mx-3 text-sm leading-relaxed transition duration-200"
+                         x-html="highlightTranscriptText(transcriptText)"></div>
                     <!-- Message si pas de transcript du tout -->
                     <div x-show="!hasTranscript"
                          class="rounded-xl border border-dashed border-gray-300 bg-amber-50 p-8 text-center text-sm text-gray-600 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400">
@@ -429,6 +490,8 @@
             adminToken: null,
             tab: 'transcript',
             chaptersOpen: false,
+            transcriptSearch: '',
+            activeTranscriptSearchResult: -1,
             init() {
                 this.adminToken = localStorage.getItem('narrv_admin_token') || null;
                 const id = window.location.pathname.split('/').pop();
@@ -454,6 +517,40 @@
             },
             get transcriptText() {
                 return (this.video?.transcript?.full_text || '').trim();
+            },
+            get transcriptSearchTerms() {
+                return [...new Set(
+                    this.transcriptSearch
+                        .trim()
+                        .split(/\s+/u)
+                        .map((term) => term.toLocaleLowerCase())
+                        .filter(Boolean)
+                )];
+            },
+            get hasTranscriptSearch() {
+                return this.transcriptSearchTerms.length > 0;
+            },
+            get transcriptSearchResults() {
+                if (!this.hasTranscriptSearch) return [];
+
+                if (!this.hasSegmentTranscript) {
+                    const text = this.transcriptText.toLocaleLowerCase();
+                    return this.transcriptSearchTerms.every((term) => text.includes(term)) ? [0] : [];
+                }
+
+                return this.transcriptBlocks
+                    .filter((block) => {
+                        const text = block.text.toLocaleLowerCase();
+                        return this.transcriptSearchTerms.every((term) => text.includes(term));
+                    })
+                    .map((block) => block.index);
+            },
+            get transcriptSearchStatus() {
+                const count = this.transcriptSearchResults.length;
+                if (count === 0) return 'Aucun résultat';
+
+                const position = Math.max(0, this.activeTranscriptSearchResult) + 1;
+                return `${position} / ${count}`;
             },
             get transcriptBlocks() {
                 const segments = this.transcriptSegments;
@@ -534,6 +631,79 @@
                     ...block,
                     index
                 }));
+            },
+            handleTranscriptSearch() {
+                this.activeTranscriptSearchResult = this.transcriptSearchResults.length ? 0 : -1;
+                this.scrollToActiveTranscriptResult();
+            },
+            clearTranscriptSearch() {
+                this.transcriptSearch = '';
+                this.activeTranscriptSearchResult = -1;
+            },
+            goToSearchResult(direction = 1) {
+                const results = this.transcriptSearchResults;
+                if (!results.length) return;
+
+                const current = this.activeTranscriptSearchResult < 0 ? 0 : this.activeTranscriptSearchResult;
+                this.activeTranscriptSearchResult = (current + direction + results.length) % results.length;
+                this.scrollToActiveTranscriptResult();
+            },
+            scrollToActiveTranscriptResult() {
+                this.$nextTick(() => {
+                    const blockIndex = this.transcriptSearchResults[this.activeTranscriptSearchResult];
+                    if (blockIndex === undefined) return;
+
+                    const element = this.$root.querySelector(`[data-transcript-block="${blockIndex}"]`);
+                    element?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                });
+            },
+            transcriptBlockClasses(blockIndex) {
+                const resultPosition = this.transcriptSearchResults.indexOf(blockIndex);
+                if (resultPosition === -1) {
+                    return this.hasTranscriptSearch ? 'opacity-55' : '';
+                }
+
+                if (resultPosition === this.activeTranscriptSearchResult) {
+                    return 'bg-yellow-100 ring-2 ring-yellow-400 shadow-sm dark:bg-yellow-900/35 dark:ring-yellow-500';
+                }
+
+                return 'bg-yellow-50 ring-1 ring-yellow-200 dark:bg-yellow-900/15 dark:ring-yellow-800';
+            },
+            highlightTranscriptText(text) {
+                const sourceText = String(text || '');
+                if (!this.hasTranscriptSearch) return this.escapeHtml(sourceText);
+
+                const pattern = this.transcriptSearchTerms
+                    .sort((first, second) => second.length - first.length)
+                    .map((term) => this.escapeRegExp(term))
+                    .join('|');
+
+                if (!pattern) return this.escapeHtml(sourceText);
+
+                const expression = new RegExp(pattern, 'giu');
+                let highlightedText = '';
+                let lastIndex = 0;
+                let match;
+
+                while ((match = expression.exec(sourceText)) !== null) {
+                    highlightedText += this.escapeHtml(sourceText.slice(lastIndex, match.index));
+                    highlightedText += `<mark class="rounded bg-yellow-300 px-0.5 text-gray-950 dark:bg-yellow-400 dark:text-gray-950">${this.escapeHtml(match[0])}</mark>`;
+                    lastIndex = match.index + match[0].length;
+                }
+
+                return highlightedText + this.escapeHtml(sourceText.slice(lastIndex));
+            },
+            escapeHtml(text) {
+                return text.replace(/[&<>"']/g, (character) => ({
+                    '&': '&amp;',
+                    '<': '&lt;',
+                    '>': '&gt;',
+                    '"': '&quot;',
+                    "'": '&#039;'
+                })[character]);
+            },
+            escapeRegExp(text) {
+                return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
             },
             transcriptSentences(segments) {
                 const sentences = [];
