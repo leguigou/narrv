@@ -25,7 +25,10 @@ class ProcessYoutubeVideo implements ShouldQueue
 
     public function handle(YoutubeService $service): void
     {
-        $this->video->update(['status' => 'processing']);
+        $this->video->update([
+            'status' => 'processing',
+            'chapter_thumbnails_status' => null,
+        ]);
 
         try {
             // 1. Toujours récupérer les métadonnées (titre, miniature, chapitres, etc.)
@@ -40,17 +43,18 @@ class ProcessYoutubeVideo implements ShouldQueue
                 'thumbnail_url' => $metadata['thumbnail'] ?? null,
                 'chapters_json' => $service->extractChapters($metadata),
                 'language' => $this->normalizeLanguageCode($metadata['language'] ?? null) ?? 'en',
-                'status' => 'ready',
                 'error_message' => null,
             ];
+
+            // Les métadonnées sont disponibles, mais l'analyse reste en cours
+            // jusqu'à la fin de la récupération du transcript.
+            $this->video->update($videoData);
 
             // 2. Essayer de récupérer les sous-titres
             try {
                 $transcriptData = $service->transcriptFromMetadata($this->video, $metadata);
 
-                // Sauvegarder les métadonnées avec la langue du transcript
-                $videoData['language'] = $transcriptData['language'];
-                $this->video->update($videoData);
+                $this->video->update(['language' => $transcriptData['language']]);
 
                 // Créer le transcript
                 Transcript::updateOrCreate(
@@ -77,7 +81,28 @@ class ProcessYoutubeVideo implements ShouldQueue
                     'error' => $e->getMessage(),
                 ]);
 
-                $this->video->update($videoData);
+            }
+
+            $hasChapters = !empty($videoData['chapters_json']);
+            $this->video->update([
+                'status' => 'ready',
+                'chapter_thumbnails_status' => $hasChapters ? 'pending' : null,
+            ]);
+
+            // Ce job séparé démarre seulement une fois l'analyse utilisable.
+            // Le téléchargement vidéo et FFmpeg ne retardent donc jamais le transcript.
+            if ($hasChapters) {
+                try {
+                    GenerateChapterThumbnails::dispatch($this->video->fresh())
+                        ->onConnection('database');
+                } catch (Throwable $e) {
+                    $this->video->update(['chapter_thumbnails_status' => 'error']);
+                    logger()->warning('Unable to queue chapter thumbnails', [
+                        'source' => 'youtube',
+                        'video_id' => $this->video->id,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
             }
         } catch (Throwable $e) {
             // Échec complet (même les métadonnées YouTube)

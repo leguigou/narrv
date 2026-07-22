@@ -279,6 +279,7 @@ class AdminController extends Controller
         $transcriptsPath = storage_path('app/transcripts');
         File::deleteDirectory($transcriptsPath);
         File::ensureDirectoryExists($transcriptsPath);
+        File::deleteDirectory(storage_path('app/chapter-thumbnails'));
 
         return response()->json(['message' => 'Toutes les donnees ont ete supprimees']);
     }
@@ -287,6 +288,7 @@ class AdminController extends Controller
     {
         $video = Video::with('transcript')->findOrFail($id);
         $this->deleteTranscriptFile($video);
+        File::deleteDirectory(storage_path('app/chapter-thumbnails/' . $video->id));
         $video->delete();
 
         return response()->json(['message' => 'Video supprimee']);
@@ -300,7 +302,12 @@ class AdminController extends Controller
             $this->deleteTranscriptFile($video);
             $video->transcript?->delete();
 
-            $video->update(['status' => 'pending', 'error_message' => null]);
+            $video->update([
+                'status' => 'pending',
+                'error_message' => null,
+                'chapter_thumbnails_status' => null,
+            ]);
+            File::deleteDirectory(storage_path('app/chapter-thumbnails/' . $video->id));
         });
 
         ProcessYoutubeVideo::dispatch($video);

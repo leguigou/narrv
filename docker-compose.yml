@@ -12,6 +12,7 @@ services:
       - APP_URL=${APP_URL:-https://narrv.deloffre.fr}
       - DB_CONNECTION=sqlite
       - DB_DATABASE=/var/www/database/narrv.sqlite
+      - DB_QUEUE_RETRY_AFTER=${DB_QUEUE_RETRY_AFTER:-1500}
       - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
       - DEEPSEEK_BASE_URL=${DEEPSEEK_BASE_URL:-https://api.deepseek.com}
       - DEEPSEEK_MODEL=${DEEPSEEK_MODEL:-deepseek-chat}

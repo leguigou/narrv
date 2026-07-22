@@ -3,11 +3,13 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Jobs\GenerateChapterThumbnails;
 use App\Jobs\ProcessYoutubeVideo;
 use App\Models\AdminSession;
 use App\Models\Translation;
 use App\Models\Video;
 use Illuminate\Http\Request;
+use Throwable;
 
 class VideoController extends Controller
 {
@@ -103,7 +105,57 @@ class VideoController extends Controller
             return response()->json(['error' => 'Cette video n\'est pas disponible'], 404);
         }
 
-        return response()->json($video);
+        $this->ensureChapterThumbnailsQueued($video);
+
+        return response()->json($video->fresh('transcript'));
+    }
+
+    public function chapterThumbnail(int $id, int $chapter)
+    {
+        $video = Video::where('is_visible', true)->findOrFail($id);
+        $chapters = is_array($video->chapters_json) ? $video->chapters_json : [];
+
+        if (!isset($chapters[$chapter]['thumbnail_url'])) {
+            abort(404);
+        }
+
+        $path = storage_path('app/chapter-thumbnails/' . $video->id . '/' . sprintf('%03d.jpg', $chapter));
+        if (!is_file($path)) {
+            abort(404);
+        }
+
+        return response()->file($path, [
+            'Cache-Control' => 'public, max-age=31536000, immutable',
+        ]);
+    }
+
+    private function ensureChapterThumbnailsQueued(Video $video): void
+    {
+        if ($video->status !== 'ready' || empty($video->chapters_json) || $video->chapter_thumbnails_status !== null) {
+            return;
+        }
+
+        $claimed = Video::whereKey($video->id)
+            ->whereNull('chapter_thumbnails_status')
+            ->update(['chapter_thumbnails_status' => 'pending']);
+
+        if ($claimed === 0) {
+            return;
+        }
+
+        $video->chapter_thumbnails_status = 'pending';
+
+        try {
+            GenerateChapterThumbnails::dispatch($video)
+                ->onConnection('database');
+        } catch (Throwable $e) {
+            $video->update(['chapter_thumbnails_status' => 'error']);
+            logger()->warning('Unable to queue legacy chapter thumbnails', [
+                'source' => 'youtube',
+                'video_id' => $video->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
 
     private function isValidAdminToken(string $token): bool
