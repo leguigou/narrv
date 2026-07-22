@@ -179,7 +179,7 @@
                                              :src="chapter.thumbnail_url"
                                              :alt="`Aperçu du chapitre ${chapter.title}`"
                                              loading="lazy"
-                                             @error="$el.style.display = 'none'"
+                                             x-on:error="$el.style.display = 'none'"
                                              class="absolute inset-0 h-full w-full object-cover transition duration-300 group-hover:scale-105">
                                         <span class="absolute bottom-2 left-2 rounded bg-black/75 px-2 py-0.5 font-mono text-[11px] font-semibold text-white"
                                               x-text="formatTime(chapter.start_time)"></span>
