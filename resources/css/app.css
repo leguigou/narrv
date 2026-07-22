@@ -10,3 +10,23 @@
 .scrollbar-hide::-webkit-scrollbar {
     display: none;
 }
+
+@keyframes narrv-indeterminate {
+    0% {
+        transform: translateX(-140%);
+    }
+    100% {
+        transform: translateX(340%);
+    }
+}
+
+.narrv-indeterminate {
+    width: 32%;
+    animation: narrv-indeterminate 1.35s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .narrv-indeterminate {
+        animation-duration: 2.7s;
+    }
+}

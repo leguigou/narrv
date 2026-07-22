@@ -55,13 +55,16 @@
                                       x-text="`Étape ${progressStep} sur 2`"></span>
                                 <span class="mt-0.5 block font-medium text-gray-700 dark:text-gray-200" x-text="progressMessage"></span>
                             </div>
-                            <span class="shrink-0 tabular-nums font-semibold text-cyan-700 dark:text-cyan-300" x-text="`${Math.round(progress)}%`"></span>
+                            <span class="shrink-0 tabular-nums font-semibold text-cyan-700 dark:text-cyan-300" x-text="progressLabel"></span>
                         </div>
                         <div class="h-2.5 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800"
-                             role="progressbar" aria-label="Progression de l’analyse" aria-valuemin="0" aria-valuemax="100" :aria-valuenow="Math.round(progress)">
-                            <div class="h-full rounded-full bg-cyan-600 transition-[width] ease-out"
+                             role="progressbar" aria-label="Progression de l’analyse" aria-valuemin="0" aria-valuemax="100"
+                             :aria-valuenow="progressWaiting ? null : Math.round(progress)"
+                             :aria-valuetext="progressWaiting ? `Traitement en cours depuis ${elapsedLabel}` : `${Math.round(progress)} %`">
+                            <div x-show="!progressWaiting" class="h-full rounded-full bg-cyan-600 transition-[width] ease-out"
                                  :class="progressCompleting ? 'duration-150' : 'duration-500'"
                                  :style="`width: ${progress}%`"></div>
+                            <div x-show="progressWaiting" x-cloak class="narrv-indeterminate h-full rounded-full bg-cyan-600"></div>
                         </div>
                         <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">Les résultats s’afficheront automatiquement dès qu’ils seront prêts.</p>
                     </div>

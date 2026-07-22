@@ -216,11 +216,14 @@
                          role="status" aria-live="polite">
                         <div class="mb-2 flex items-center justify-between gap-4 text-sm">
                             <span class="font-semibold" x-text="transcriptProgressMessage"></span>
-                            <span class="shrink-0 tabular-nums font-semibold" x-text="`${Math.round(transcriptProgress)}%`"></span>
+                            <span class="shrink-0 tabular-nums font-semibold" x-text="transcriptProgressLabel"></span>
                         </div>
                         <div class="h-2.5 overflow-hidden rounded-full bg-white dark:bg-gray-800"
-                             role="progressbar" aria-label="Progression du transcript" aria-valuemin="0" aria-valuemax="100" :aria-valuenow="Math.round(transcriptProgress)">
-                            <div class="h-full rounded-full bg-cyan-600 transition-[width] duration-500 ease-out" :style="`width: ${transcriptProgress}%`"></div>
+                             role="progressbar" aria-label="Progression du transcript" aria-valuemin="0" aria-valuemax="100"
+                             :aria-valuenow="transcriptProgressWaiting ? null : Math.round(transcriptProgress)"
+                             :aria-valuetext="transcriptProgressWaiting ? 'Traitement du transcript en cours' : `${Math.round(transcriptProgress)} %`">
+                            <div x-show="!transcriptProgressWaiting" class="h-full rounded-full bg-cyan-600 transition-[width] duration-500 ease-out" :style="`width: ${transcriptProgress}%`"></div>
+                            <div x-show="transcriptProgressWaiting" x-cloak class="narrv-indeterminate h-full rounded-full bg-cyan-600"></div>
                         </div>
                         <p class="mt-2 text-xs text-cyan-700/80 dark:text-cyan-300/80">La fiche vidéo est déjà utilisable pendant cette étape.</p>
                     </div>
@@ -718,6 +721,12 @@
                 if (this.transcriptProgress >= 70) return 'Structuration des paragraphes et horodatages…';
                 if (this.transcriptProgress >= 35) return 'Récupération des sous-titres YouTube…';
                 return 'Recherche du transcript disponible…';
+            },
+            get transcriptProgressWaiting() {
+                return this.transcriptProcessing && this.transcriptProgress >= 88 && this.transcriptProgress < 100;
+            },
+            get transcriptProgressLabel() {
+                return this.transcriptProgressWaiting ? 'En cours' : `${Math.round(this.transcriptProgress)}%`;
             },
             get hasSegmentTranscript() {
                 return this.transcriptSegments.length > 0;

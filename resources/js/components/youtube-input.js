@@ -7,8 +7,25 @@ export default function youtubeInput() {
         progress: 0,
         progressMessage: '',
         progressTimer: null,
+        elapsedTimer: null,
+        elapsedSeconds: 0,
         progressStep: 1,
         progressCompleting: false,
+        progressWaiting: false,
+
+        get progressLabel() {
+            if (this.progressWaiting && !this.progressCompleting) {
+                return `En cours · ${this.elapsedLabel}`;
+            }
+
+            return `${Math.round(this.progress)}%`;
+        },
+
+        get elapsedLabel() {
+            const minutes = Math.floor(this.elapsedSeconds / 60);
+            const seconds = this.elapsedSeconds % 60;
+            return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+        },
 
         examples: [
             'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
@@ -113,7 +130,18 @@ export default function youtubeInput() {
             this.progress = 4;
             this.progressStep = 1;
             this.progressCompleting = false;
+            this.progressWaiting = false;
+            this.elapsedSeconds = 0;
             this.progressMessage = 'Préparation de la vidéo...';
+
+            this.elapsedTimer = window.setInterval(() => {
+                this.elapsedSeconds++;
+                if (this.progressWaiting) {
+                    this.progressMessage = this.elapsedSeconds < 30
+                        ? 'YouTube prépare les informations de la vidéo...'
+                        : 'Toujours en cours chez YouTube, la page s’ouvrira automatiquement...';
+                }
+            }, 1000);
 
             this.progressTimer = window.setInterval(() => {
                 let increment;
@@ -126,17 +154,21 @@ export default function youtubeInput() {
                     increment = 1.5 + Math.random() * 2;
                     this.progressStep = 2;
                     this.progressMessage = 'Récupération des informations YouTube...';
-                } else if (this.progress < 92) {
+                } else if (this.progress < 88) {
                     increment = 0.35 + Math.random() * 0.45;
                     this.progressStep = 2;
                     this.progressMessage = 'Préparation de la fiche vidéo...';
                 } else {
-                    increment = 0.04 + Math.random() * 0.12;
+                    this.progress = 88;
                     this.progressStep = 2;
-                    this.progressMessage = 'Ouverture imminente...';
+                    this.progressWaiting = true;
+                    this.progressMessage = 'YouTube prépare les informations de la vidéo...';
+                    window.clearInterval(this.progressTimer);
+                    this.progressTimer = null;
+                    return;
                 }
 
-                this.progress = Math.min(97, this.progress + increment);
+                this.progress = Math.min(88, this.progress + increment);
             }, 450);
         },
 
@@ -145,12 +177,18 @@ export default function youtubeInput() {
                 window.clearInterval(this.progressTimer);
                 this.progressTimer = null;
             }
+            if (this.elapsedTimer) {
+                window.clearInterval(this.elapsedTimer);
+                this.elapsedTimer = null;
+            }
 
             if (reset) {
                 this.progress = 0;
                 this.progressMessage = '';
                 this.progressStep = 1;
                 this.progressCompleting = false;
+                this.progressWaiting = false;
+                this.elapsedSeconds = 0;
             }
         },
 
@@ -180,6 +218,7 @@ export default function youtubeInput() {
             this.stopProgress(false);
             this.progressStep = 2;
             this.progressCompleting = true;
+            this.progressWaiting = false;
             this.progressMessage = 'Vidéo prête, ouverture de la fiche...';
             this.progress = 100;
 
