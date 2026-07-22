@@ -30,7 +30,7 @@ class VideoController extends Controller
 
         $video = Video::firstOrCreate(
             ['youtube_id' => $youtubeId],
-            ['url' => $url, 'language' => $preferredLanguage, 'status' => 'pending']
+            ['url' => $url, 'language' => $preferredLanguage, 'status' => 'pending', 'transcript_status' => 'pending']
         );
 
         $alreadyImported = !$video->wasRecentlyCreated;

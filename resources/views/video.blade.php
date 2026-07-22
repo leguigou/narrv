@@ -210,12 +210,19 @@
                         </div>
                     </div>
 
-                    <div x-show="hasTranscript && transcriptLoading"
+                    <div x-show="transcriptProgressVisible || transcriptLoading"
                          x-cloak
-                         class="mb-5 flex items-center gap-3 rounded-2xl border border-cyan-100 bg-cyan-50/70 px-5 py-4 text-sm text-cyan-800 dark:border-cyan-900 dark:bg-cyan-950/30 dark:text-cyan-200"
+                         class="mb-5 rounded-2xl border border-cyan-100 bg-cyan-50/70 px-5 py-4 text-cyan-800 dark:border-cyan-900 dark:bg-cyan-950/30 dark:text-cyan-200"
                          role="status" aria-live="polite">
-                        <span class="h-5 w-5 shrink-0 animate-spin rounded-full border-2 border-cyan-200 border-t-cyan-600" aria-hidden="true"></span>
-                        Chargement du transcript enregistré…
+                        <div class="mb-2 flex items-center justify-between gap-4 text-sm">
+                            <span class="font-semibold" x-text="transcriptProgressMessage"></span>
+                            <span class="shrink-0 tabular-nums font-semibold" x-text="`${Math.round(transcriptProgress)}%`"></span>
+                        </div>
+                        <div class="h-2.5 overflow-hidden rounded-full bg-white dark:bg-gray-800"
+                             role="progressbar" aria-label="Progression du transcript" aria-valuemin="0" aria-valuemax="100" :aria-valuenow="Math.round(transcriptProgress)">
+                            <div class="h-full rounded-full bg-cyan-600 transition-[width] duration-500 ease-out" :style="`width: ${transcriptProgress}%`"></div>
+                        </div>
+                        <p class="mt-2 text-xs text-cyan-700/80 dark:text-cyan-300/80">La fiche vidéo est déjà utilisable pendant cette étape.</p>
                     </div>
 
                     <div x-show="transcriptError"
@@ -324,7 +331,7 @@
                         </template>
                     </div>
                     <!-- Message si pas de transcript du tout -->
-                    <div x-show="!hasTranscript"
+                    <div x-show="!hasTranscript && !transcriptProcessing"
                          class="rounded-xl border border-dashed border-gray-300 bg-amber-50 p-8 text-center text-sm text-gray-600 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400">
                         <div class="mb-3 text-3xl">📝</div>
                         <p class="font-medium text-gray-900 dark:text-white mb-1">Pas de transcript disponible</p>
@@ -677,6 +684,10 @@
             transcriptLoaded: false,
             transcriptError: null,
             transcriptRequest: null,
+            transcriptProgress: 0,
+            transcriptProgressTimer: null,
+            transcriptProgressHideTimer: null,
+            transcriptProgressVisible: false,
             chapterRefreshTimer: null,
             init() {
                 this.adminToken = localStorage.getItem('narrv_admin_token') || null;
@@ -697,6 +708,16 @@
             },
             get hasTranscript() {
                 return Boolean(this.video?.has_transcript || this.video?.transcript?.id);
+            },
+            get transcriptProcessing() {
+                return ['pending', 'processing'].includes(this.video?.transcript_status);
+            },
+            get transcriptProgressMessage() {
+                if (this.transcriptProgress >= 100) return 'Transcript prêt';
+                if (this.transcriptLoading || this.transcriptProgress >= 88) return 'Finalisation du transcript enregistré…';
+                if (this.transcriptProgress >= 70) return 'Structuration des paragraphes et horodatages…';
+                if (this.transcriptProgress >= 35) return 'Récupération des sous-titres YouTube…';
+                return 'Recherche du transcript disponible…';
             },
             get hasSegmentTranscript() {
                 return this.transcriptSegments.length > 0;
@@ -1137,7 +1158,60 @@
                 this.transcriptBlocks = this.buildTranscriptBlocks();
                 this.refreshTranscriptSearch(false);
                 this.transcriptLoaded = true;
+                this.completeTranscriptProgress();
                 this.$nextTick(() => this.setupTranscriptObserver());
+            },
+            startTranscriptProgress() {
+                window.clearTimeout(this.transcriptProgressHideTimer);
+                this.transcriptProgressVisible = true;
+                this.transcriptProgress = Math.max(6, Math.min(this.transcriptProgress || 0, 92));
+                if (this.transcriptProgressTimer) return;
+
+                this.transcriptProgressTimer = window.setInterval(() => {
+                    let increment;
+                    if (this.transcriptProgress < 35) {
+                        increment = 2 + Math.random() * 3;
+                    } else if (this.transcriptProgress < 70) {
+                        increment = 0.8 + Math.random() * 1.5;
+                    } else {
+                        increment = 0.12 + Math.random() * 0.4;
+                    }
+
+                    this.transcriptProgress = Math.min(92, this.transcriptProgress + increment);
+                }, 650);
+            },
+            completeTranscriptProgress() {
+                this.stopTranscriptProgress(false);
+                this.transcriptProgressVisible = true;
+                this.transcriptProgress = 100;
+                this.transcriptProgressHideTimer = window.setTimeout(() => {
+                    this.transcriptProgressVisible = false;
+                }, 700);
+            },
+            stopTranscriptProgress(reset = true) {
+                if (this.transcriptProgressTimer) {
+                    window.clearInterval(this.transcriptProgressTimer);
+                    this.transcriptProgressTimer = null;
+                }
+                if (reset) {
+                    this.transcriptProgress = 0;
+                    this.transcriptProgressVisible = false;
+                }
+            },
+            syncTranscriptState() {
+                if (this.transcriptProcessing) {
+                    this.startTranscriptProgress();
+                    return;
+                }
+
+                if (this.hasTranscript) {
+                    if (this.tab === 'transcript' && !this.transcriptLoaded) {
+                        this.loadTranscript();
+                    }
+                    return;
+                }
+
+                this.stopTranscriptProgress();
             },
             async loadTranscript() {
                 if (!this.hasTranscript || this.transcriptLoaded) return;
@@ -1149,6 +1223,8 @@
                     return;
                 }
 
+                this.startTranscriptProgress();
+                this.transcriptProgress = Math.max(this.transcriptProgress, 92);
                 this.transcriptLoading = true;
                 this.transcriptError = null;
                 this.transcriptRequest = (async () => {
@@ -1170,6 +1246,7 @@
                 } catch (error) {
                     console.error(error);
                     this.transcriptError = error.message;
+                    this.stopTranscriptProgress();
                 } finally {
                     this.transcriptLoading = false;
                     this.transcriptRequest = null;
@@ -1244,10 +1321,8 @@
                     if (this.video.status === 'pending' || this.video.status === 'processing') {
                         setTimeout(() => this.loadVideo(id), 3000);
                     } else {
+                        this.syncTranscriptState();
                         this.scheduleChapterRefresh(id);
-                        if (this.tab === 'transcript' && this.hasTranscript) {
-                            setTimeout(() => this.loadTranscript(), 0);
-                        }
                     }
                 } catch(e) { console.error(e); }
             },
@@ -1257,7 +1332,7 @@
                     this.chapterRefreshTimer = null;
                 }
 
-                if (this.chapterThumbnailsLoading) {
+                if (this.chapterThumbnailsLoading || this.transcriptProcessing) {
                     this.chapterRefreshTimer = setTimeout(() => this.refreshChapterThumbnails(id), 2500);
                 }
             },
@@ -1272,6 +1347,10 @@
                     const video = await res.json();
                     this.video.chapters_json = video.chapters_json;
                     this.video.chapter_thumbnails_status = video.chapter_thumbnails_status;
+                    this.video.has_transcript = video.has_transcript;
+                    this.video.transcript_status = video.transcript_status;
+                    this.video.transcript_updated_at = video.transcript_updated_at;
+                    this.syncTranscriptState();
                     this.scheduleChapterRefresh(id);
                 } catch (e) {
                     console.error(e);
@@ -1281,6 +1360,8 @@
             destroy() {
                 if (this.chapterRefreshTimer) clearTimeout(this.chapterRefreshTimer);
                 if (this.transcriptObserver) this.transcriptObserver.disconnect();
+                this.stopTranscriptProgress();
+                window.clearTimeout(this.transcriptProgressHideTimer);
             }
         }));
     });

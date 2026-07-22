@@ -500,6 +500,7 @@ export default function adminPanel() {
                 const data = await this.readApiResponse(res, 'Relance impossible.');
 
                 video.status = 'pending';
+                video.transcript_status = 'pending';
                 video.error_message = null;
                 this.trackAnalysisJob(video, 'pending');
                 this.videoActionMessage = data.message || 'Reanalyse du transcript lancee.';

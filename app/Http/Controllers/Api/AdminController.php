@@ -304,6 +304,7 @@ class AdminController extends Controller
 
             $video->update([
                 'status' => 'pending',
+                'transcript_status' => 'pending',
                 'error_message' => null,
                 'chapter_thumbnails_status' => null,
             ]);

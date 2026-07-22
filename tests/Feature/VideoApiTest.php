@@ -35,12 +35,14 @@ class VideoApiTest extends TestCase
             ->assertJsonPath('youtube_url', 'https://www.youtube.com/watch?v=dQw4w9WgXcQ')
             ->assertJsonPath('already_imported', false)
             ->assertJsonPath('status', 'pending')
+            ->assertJsonPath('transcript_status', 'pending')
             ->assertJsonPath('language', 'fr');
 
         $this->assertDatabaseHas('videos', [
             'youtube_id' => 'dQw4w9WgXcQ',
             'language' => 'fr',
             'status' => 'pending',
+            'transcript_status' => 'pending',
         ]);
 
         Queue::assertPushed(ProcessYoutubeVideo::class);

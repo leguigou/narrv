@@ -91,7 +91,7 @@ export default function youtubeInput() {
 
                 this.success = data.already_imported
                     ? 'Video deja importee. Ouverture de la fiche existante.'
-                    : 'Video ajoutee. Preparation du transcript en cours.';
+                    : 'Video ajoutee. Recuperation des informations essentielles.';
                 this.url = '';
                 window.dispatchEvent(new CustomEvent('video-added', { detail: data }));
 
@@ -118,26 +118,22 @@ export default function youtubeInput() {
             this.progressTimer = window.setInterval(() => {
                 let increment;
 
-                if (this.progress < 25) {
+                if (this.progress < 30) {
                     increment = 3 + Math.random() * 3;
                     this.progressStep = 1;
                     this.progressMessage = 'Préparation de la vidéo...';
                 } else if (this.progress < 70) {
                     increment = 1.5 + Math.random() * 2;
                     this.progressStep = 2;
-                    this.progressMessage = 'Récupération des informations et du transcript...';
-                } else if (this.progress < 76) {
-                    increment = 0.25 + Math.random() * 0.25;
-                    this.progressStep = 3;
-                    this.progressMessage = 'Analyse approfondie du contenu...';
-                } else if (this.progress < 91) {
-                    increment = 0.8 + Math.random() * 0.8;
-                    this.progressStep = 3;
-                    this.progressMessage = 'Structuration des résultats...';
+                    this.progressMessage = 'Récupération des informations YouTube...';
+                } else if (this.progress < 92) {
+                    increment = 0.35 + Math.random() * 0.45;
+                    this.progressStep = 2;
+                    this.progressMessage = 'Préparation de la fiche vidéo...';
                 } else {
                     increment = 0.04 + Math.random() * 0.12;
-                    this.progressStep = 3;
-                    this.progressMessage = 'Dernières vérifications en cours...';
+                    this.progressStep = 2;
+                    this.progressMessage = 'Ouverture imminente...';
                 }
 
                 this.progress = Math.min(97, this.progress + increment);
@@ -182,9 +178,9 @@ export default function youtubeInput() {
 
         async completeProgress() {
             this.stopProgress(false);
-            this.progressStep = 3;
+            this.progressStep = 2;
             this.progressCompleting = true;
-            this.progressMessage = 'Analyse terminée, affichage des résultats...';
+            this.progressMessage = 'Vidéo prête, ouverture de la fiche...';
             this.progress = 100;
 
             // La navigation ne dépend pas de l'animation : ce court délai laisse

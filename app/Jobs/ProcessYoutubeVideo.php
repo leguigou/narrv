@@ -14,7 +14,10 @@ class ProcessYoutubeVideo implements ShouldQueue
     use Queueable;
 
     public int $tries = 2;
+
     public int $timeout = 240;
+
+    public bool $failOnTimeout = true;
 
     protected Video $video;
 
@@ -27,6 +30,7 @@ class ProcessYoutubeVideo implements ShouldQueue
     {
         $this->video->update([
             'status' => 'processing',
+            'transcript_status' => 'pending',
             'chapter_thumbnails_status' => null,
         ]);
 
@@ -46,9 +50,28 @@ class ProcessYoutubeVideo implements ShouldQueue
                 'error_message' => null,
             ];
 
-            // Les métadonnées sont disponibles, mais l'analyse reste en cours
-            // jusqu'à la fin de la récupération du transcript.
-            $this->video->update($videoData);
+            $hasChapters = ! empty($videoData['chapters_json']);
+
+            // La fiche devient utilisable dès que les métadonnées essentielles
+            // sont disponibles. Le transcript continue ensuite en arrière-plan.
+            $this->video->update($videoData + [
+                'status' => 'ready',
+                'transcript_status' => 'processing',
+                'chapter_thumbnails_status' => $hasChapters ? 'pending' : null,
+            ]);
+
+            if ($hasChapters) {
+                try {
+                    GenerateChapterThumbnails::dispatch($this->video->fresh());
+                } catch (Throwable $e) {
+                    $this->video->update(['chapter_thumbnails_status' => 'error']);
+                    logger()->warning('Unable to queue chapter thumbnails', [
+                        'source' => 'youtube',
+                        'video_id' => $this->video->id,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            }
 
             // 2. Essayer de récupérer les sous-titres
             try {
@@ -68,6 +91,8 @@ class ProcessYoutubeVideo implements ShouldQueue
                     ]
                 );
 
+                $this->video->update(['transcript_status' => 'ready']);
+
                 logger()->info('Video processed with transcript', [
                     'video_id' => $this->video->id,
                     'youtube_id' => $this->video->youtube_id,
@@ -75,33 +100,12 @@ class ProcessYoutubeVideo implements ShouldQueue
                 ]);
             } catch (Throwable $e) {
                 // Pas de sous-titres → on sauvegarde juste les métadonnées
+                $this->video->update(['transcript_status' => 'unavailable']);
                 logger()->warning('No subtitles available, saving metadata only', [
                     'video_id' => $this->video->id,
                     'youtube_id' => $this->video->youtube_id,
                     'error' => $e->getMessage(),
                 ]);
-
-            }
-
-            $hasChapters = !empty($videoData['chapters_json']);
-            $this->video->update([
-                'status' => 'ready',
-                'chapter_thumbnails_status' => $hasChapters ? 'pending' : null,
-            ]);
-
-            // Ce job séparé démarre seulement une fois l'analyse utilisable.
-            // Le téléchargement vidéo et FFmpeg ne retardent donc jamais le transcript.
-            if ($hasChapters) {
-                try {
-                    GenerateChapterThumbnails::dispatch($this->video->fresh());
-                } catch (Throwable $e) {
-                    $this->video->update(['chapter_thumbnails_status' => 'error']);
-                    logger()->warning('Unable to queue chapter thumbnails', [
-                        'source' => 'youtube',
-                        'video_id' => $this->video->id,
-                        'error' => $e->getMessage(),
-                    ]);
-                }
             }
         } catch (Throwable $e) {
             // Échec complet (même les métadonnées YouTube)
@@ -115,9 +119,27 @@ class ProcessYoutubeVideo implements ShouldQueue
 
             $this->video->update([
                 'status' => 'error',
+                'transcript_status' => 'error',
                 'error_message' => $e->getMessage(),
             ]);
         }
+    }
+
+    public function failed(?Throwable $exception): void
+    {
+        $this->video->refresh();
+
+        if ($this->video->status === 'ready') {
+            $this->video->update(['transcript_status' => 'error']);
+
+            return;
+        }
+
+        $this->video->update([
+            'status' => 'error',
+            'transcript_status' => 'error',
+            'error_message' => $exception?->getMessage(),
+        ]);
     }
 
     private function publishedAtFromMetadata(array $metadata): ?string
@@ -130,7 +152,7 @@ class ProcessYoutubeVideo implements ShouldQueue
 
         foreach (['upload_date', 'release_date', 'modified_date'] as $key) {
             $value = $metadata[$key] ?? null;
-            if (!is_string($value) || !preg_match('/^\d{8}$/', $value)) {
+            if (! is_string($value) || ! preg_match('/^\d{8}$/', $value)) {
                 continue;
             }
 
@@ -145,14 +167,14 @@ class ProcessYoutubeVideo implements ShouldQueue
 
     private function normalizeLanguageCode(mixed $language): ?string
     {
-        if (!is_string($language) || trim($language) === '') {
+        if (! is_string($language) || trim($language) === '') {
             return null;
         }
 
         $language = strtolower(str_replace('_', '-', trim($language)));
         $language = explode(',', $language)[0];
 
-        if (!preg_match('/^[a-z]{2,3}(?:-[a-z0-9]{2,8})*$/', $language)) {
+        if (! preg_match('/^[a-z]{2,3}(?:-[a-z0-9]{2,8})*$/', $language)) {
             return null;
         }
 

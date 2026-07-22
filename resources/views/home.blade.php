@@ -52,7 +52,7 @@
                         <div class="mb-2 flex items-start justify-between gap-4 text-sm">
                             <div class="min-w-0">
                                 <span class="block text-xs font-semibold uppercase tracking-wide text-cyan-700 dark:text-cyan-300"
-                                      x-text="`Étape ${progressStep} sur 3`"></span>
+                                      x-text="`Étape ${progressStep} sur 2`"></span>
                                 <span class="mt-0.5 block font-medium text-gray-700 dark:text-gray-200" x-text="progressMessage"></span>
                             </div>
                             <span class="shrink-0 tabular-nums font-semibold text-cyan-700 dark:text-cyan-300" x-text="`${Math.round(progress)}%`"></span>
