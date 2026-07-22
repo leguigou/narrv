@@ -160,6 +160,12 @@
                             <span>
                                 <span class="block text-sm font-semibold text-gray-900 dark:text-white">Chapitrage</span>
                                 <span class="mt-0.5 block text-xs text-gray-500 dark:text-gray-400" x-text="chapterCount + ' repère' + (chapterCount > 1 ? 's' : '') + ' de navigation'"></span>
+                                <span x-show="chapterThumbnailsLoading"
+                                      x-cloak
+                                      class="mt-1.5 flex items-center gap-1.5 text-xs font-medium text-cyan-700 dark:text-cyan-300">
+                                    <span class="h-3.5 w-3.5 animate-spin rounded-full border-2 border-cyan-200 border-t-cyan-600" aria-hidden="true"></span>
+                                    <span>Génération des miniatures en cours…</span>
+                                </span>
                             </span>
                             <span class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white text-gray-500 ring-1 ring-gray-200 transition dark:bg-gray-950 dark:ring-gray-800"
                                   :class="chaptersOpen ? 'rotate-180 text-narrv-500' : ''">
@@ -169,11 +175,6 @@
                         <div x-show="chaptersOpen"
                              x-transition
                              class="border-t border-gray-200 px-4 py-4 dark:border-gray-800">
-                            <div x-show="chapterThumbnailsLoading"
-                                 class="mb-3 flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
-                                <span class="h-3.5 w-3.5 animate-spin rounded-full border-2 border-cyan-200 border-t-cyan-600" aria-hidden="true"></span>
-                                <span>Création des miniatures en arrière-plan…</span>
-                            </div>
                             <div class="grid gap-2 sm:grid-cols-2">
                             <template x-for="(chapter, chapterIndex) in videoChapters" :key="chapter.start_time + '-' + chapter.title">
                                 <button @click="playVideo(chapter.start_time)"
