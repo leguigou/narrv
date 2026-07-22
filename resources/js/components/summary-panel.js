@@ -61,6 +61,27 @@ export default function summaryPanel() {
             return this.languages.find((language) => language.code === code)?.label || code || 'Inconnue';
         },
 
+        toneLabel(tone) {
+            return {
+                neutral: 'Neutre',
+                formal: 'Formel',
+                casual: 'Décontracté',
+                bullet_points: 'Points clés'
+            }[tone] || tone || 'Neutre';
+        },
+
+        lengthLabel(length) {
+            return { short: 'Court', medium: 'Moyen', long: 'Long' }[length] || length || 'Moyen';
+        },
+
+        get creativityLabel() {
+            const value = Number(this.temperature);
+            if (value <= 0.3) return 'Très fidèle';
+            if (value <= 0.7) return 'Équilibré';
+            if (value <= 1.1) return 'Créatif';
+            return 'Très créatif';
+        },
+
         async readApiResponse(response, fallbackMessage) {
             const contentType = response.headers.get('content-type') || '';
             const body = await response.text();

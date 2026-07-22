@@ -106,4 +106,24 @@ VTT);
         $this->assertSame('Hello & welcome', $segments[0]['text']);
         $this->assertEqualsWithDelta(2.5, $segments[1]['end'], 0.001);
     }
+
+    public function test_it_adds_end_times_and_durations_to_chapters(): void
+    {
+        $service = new YoutubeService();
+
+        $chapters = $service->extractChapters([
+            'duration' => 95,
+            'chapters' => [
+                ['title' => 'Introduction', 'start_time' => 0],
+                ['title' => 'Démonstration', 'start_time' => 25, 'end_time' => 80],
+                ['title' => 'Conclusion', 'start_time' => 80],
+            ],
+        ]);
+
+        $this->assertSame(25.0, $chapters[0]['end_time']);
+        $this->assertSame(25.0, $chapters[0]['duration']);
+        $this->assertSame(55.0, $chapters[1]['duration']);
+        $this->assertSame(95.0, $chapters[2]['end_time']);
+        $this->assertSame(15.0, $chapters[2]['duration']);
+    }
 }

@@ -148,6 +148,113 @@ class YoutubeService
         ];
     }
 
+    public function generateChapterThumbnails(Video $video): array
+    {
+        $chapters = is_array($video->chapters_json) ? $video->chapters_json : [];
+        if ($chapters === []) {
+            return [];
+        }
+
+        foreach ($chapters as $index => &$chapter) {
+            $start = max(0, (float) ($chapter['start_time'] ?? 0));
+            $nextStart = isset($chapters[$index + 1]['start_time'])
+                ? (float) $chapters[$index + 1]['start_time']
+                : null;
+            $end = isset($chapter['end_time']) ? (float) $chapter['end_time'] : 0;
+
+            if ($end <= $start) {
+                $end = $nextStart ?? (float) ($video->duration ?? $start);
+            }
+
+            $chapter['start_time'] = $start;
+            $chapter['end_time'] = max($start, $end);
+            $chapter['duration'] = $chapter['end_time'] - $start;
+        }
+        unset($chapter);
+
+        $workDirectory = storage_path('app/chapter-thumbnail-work/' . uniqid('video-', true));
+        $outputDirectory = storage_path('app/chapter-thumbnails/' . $video->id);
+        $outputTemplate = $workDirectory . DIRECTORY_SEPARATOR . $video->youtube_id . '.%(ext)s';
+
+        if (!is_dir($workDirectory)) {
+            mkdir($workDirectory, 0755, true);
+        }
+        if (!is_dir($outputDirectory)) {
+            mkdir($outputDirectory, 0755, true);
+        }
+
+        try {
+            $download = $this->runYtDlp([
+                '--no-playlist',
+                '-f',
+                'bestvideo[height<=360]/worstvideo',
+                '--no-part',
+                '-o',
+                $outputTemplate,
+                $video->url,
+            ], 1200);
+
+            if (!$download->isSuccessful()) {
+                throw new RuntimeException($this->ytDlpErrorMessage('Unable to download video for chapter thumbnails', $download));
+            }
+
+            $source = $this->downloadedMediaFile($workDirectory, $video->youtube_id);
+            if ($source === null) {
+                throw new RuntimeException('The temporary chapter video could not be found.');
+            }
+
+            $generated = 0;
+            foreach ($chapters as $index => &$chapter) {
+                $start = max(0, (float) ($chapter['start_time'] ?? 0));
+                $duration = max(0, (float) ($chapter['duration'] ?? 0));
+                $seek = $start + min(1, $duration * 0.1);
+                $filename = sprintf('%03d.jpg', $index);
+                $output = $outputDirectory . DIRECTORY_SEPARATOR . $filename;
+
+                $ffmpeg = new Process([
+                    'ffmpeg',
+                    '-y',
+                    '-ss',
+                    number_format($seek, 3, '.', ''),
+                    '-i',
+                    $source,
+                    '-frames:v',
+                    '1',
+                    '-vf',
+                    'scale=480:-2',
+                    '-q:v',
+                    '3',
+                    $output,
+                ]);
+                $ffmpeg->setTimeout(90);
+                $ffmpeg->run();
+
+                if (!$ffmpeg->isSuccessful() || !is_file($output) || filesize($output) === 0) {
+                    logger()->warning('Unable to extract one chapter thumbnail', [
+                        'source' => 'youtube',
+                        'video_id' => $video->id,
+                        'chapter_index' => $index,
+                        'error' => trim($ffmpeg->getErrorOutput()),
+                    ]);
+                    continue;
+                }
+
+                $version = filemtime($output) ?: time();
+                $chapter['thumbnail_url'] = "/api/videos/{$video->id}/chapters/{$index}/thumbnail?v={$version}";
+                $generated++;
+            }
+            unset($chapter);
+
+            if ($generated === 0) {
+                throw new RuntimeException('No chapter thumbnail could be generated.');
+            }
+
+            return $chapters;
+        } finally {
+            $this->deleteDirectory($workDirectory);
+        }
+    }
+
     private function isVideoFormat(array $format): bool
     {
         $formatId = $format['format_id'] ?? null;
@@ -562,7 +669,7 @@ class YoutubeService
             return [];
         }
 
-        return array_values(array_filter(array_map(function ($chapter) {
+        $normalized = array_values(array_filter(array_map(function ($chapter) {
             if (!isset($chapter['title']) || !isset($chapter['start_time'])) {
                 return null;
             }
@@ -570,8 +677,30 @@ class YoutubeService
             return [
                 'title' => trim($chapter['title']),
                 'start_time' => (float) $chapter['start_time'],
+                'end_time' => isset($chapter['end_time']) && is_numeric($chapter['end_time'])
+                    ? (float) $chapter['end_time']
+                    : null,
             ];
         }, $chapters)));
+
+        $videoDuration = isset($metadata['duration']) && is_numeric($metadata['duration'])
+            ? (float) $metadata['duration']
+            : null;
+
+        foreach ($normalized as $index => &$chapter) {
+            $nextStart = $normalized[$index + 1]['start_time'] ?? null;
+            $end = $chapter['end_time'];
+
+            if ($end === null || $end <= $chapter['start_time']) {
+                $end = $nextStart ?? $videoDuration ?? $chapter['start_time'];
+            }
+
+            $chapter['end_time'] = max($chapter['start_time'], (float) $end);
+            $chapter['duration'] = $chapter['end_time'] - $chapter['start_time'];
+        }
+        unset($chapter);
+
+        return $normalized;
     }
 
     private function subtitleKeys(mixed $subtitles): array

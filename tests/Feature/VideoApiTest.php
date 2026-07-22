@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Jobs\ProcessYoutubeVideo;
+use App\Jobs\GenerateChapterThumbnails;
 use App\Models\AdminSession;
 use App\Models\Video;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -160,5 +161,61 @@ class VideoApiTest extends TestCase
             'id' => $video->id,
             'is_visible' => false,
         ]);
+    }
+
+    public function test_show_queues_missing_chapter_thumbnails_without_restarting_analysis(): void
+    {
+        Queue::fake();
+
+        $video = Video::create([
+            'youtube_id' => 'dQw4w9WgXcQ',
+            'url' => 'https://youtu.be/dQw4w9WgXcQ',
+            'status' => 'ready',
+            'chapters_json' => [
+                ['title' => 'Introduction', 'start_time' => 0, 'end_time' => 30, 'duration' => 30],
+            ],
+        ]);
+
+        $this->getJson("/api/videos/{$video->id}")
+            ->assertOk()
+            ->assertJsonPath('status', 'ready')
+            ->assertJsonPath('chapter_thumbnails_status', 'pending');
+
+        Queue::assertPushed(GenerateChapterThumbnails::class);
+        Queue::assertNotPushed(ProcessYoutubeVideo::class);
+    }
+
+    public function test_it_serves_a_generated_chapter_thumbnail(): void
+    {
+        $video = Video::create([
+            'youtube_id' => 'dQw4w9WgXcQ',
+            'url' => 'https://youtu.be/dQw4w9WgXcQ',
+            'status' => 'ready',
+            'chapter_thumbnails_status' => 'ready',
+            'chapters_json' => [[
+                'title' => 'Introduction',
+                'start_time' => 0,
+                'end_time' => 30,
+                'duration' => 30,
+                'thumbnail_url' => '/api/videos/1/chapters/0/thumbnail?v=1',
+            ]],
+        ]);
+
+        $directory = storage_path('app/chapter-thumbnails/' . $video->id);
+        if (!is_dir($directory)) {
+            mkdir($directory, 0755, true);
+        }
+        file_put_contents($directory . '/000.jpg', 'fake-jpeg');
+
+        try {
+            $response = $this->get("/api/videos/{$video->id}/chapters/0/thumbnail");
+
+            $response->assertOk();
+            $this->assertStringContainsString('max-age=31536000', $response->headers->get('cache-control'));
+            $this->assertStringContainsString('immutable', $response->headers->get('cache-control'));
+        } finally {
+            @unlink($directory . '/000.jpg');
+            @rmdir($directory);
+        }
     }
 }

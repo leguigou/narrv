@@ -126,13 +126,21 @@ export default function youtubeInput() {
                     increment = 1.5 + Math.random() * 2;
                     this.progressStep = 2;
                     this.progressMessage = 'Récupération des informations et du transcript...';
-                } else {
-                    increment = 0.08 + Math.random() * 0.22;
+                } else if (this.progress < 76) {
+                    increment = 0.25 + Math.random() * 0.25;
                     this.progressStep = 3;
-                    this.progressMessage = 'Analyse du contenu et finalisation...';
+                    this.progressMessage = 'Analyse approfondie du contenu...';
+                } else if (this.progress < 91) {
+                    increment = 0.8 + Math.random() * 0.8;
+                    this.progressStep = 3;
+                    this.progressMessage = 'Structuration des résultats...';
+                } else {
+                    increment = 0.04 + Math.random() * 0.12;
+                    this.progressStep = 3;
+                    this.progressMessage = 'Dernières vérifications en cours...';
                 }
 
-                this.progress = Math.min(90, this.progress + increment);
+                this.progress = Math.min(97, this.progress + increment);
             }, 450);
         },
 

@@ -83,18 +83,32 @@
                         <div class="text-xs text-gray-500 dark:text-gray-400">Duree</div>
                         <div class="mt-0.5 text-sm font-semibold text-gray-950 dark:text-white" x-text="formatDuration(video.duration) || '-'"></div>
                     </div>
-                    <div class="rounded-xl border border-gray-200 bg-gray-50 p-3 text-center dark:border-gray-800 dark:bg-gray-900">
+                    <a :href="video.channel_url || null"
+                       target="_blank"
+                       rel="noopener noreferrer"
+                       @click="if (!video.channel_url) $event.preventDefault()"
+                       :aria-disabled="(!video.channel_url).toString()"
+                       class="group rounded-xl border border-gray-200 bg-gray-50 p-3 text-center transition hover:border-cyan-300 hover:bg-cyan-50 focus:outline-none focus:ring-2 focus:ring-cyan-400/40 aria-disabled:cursor-default aria-disabled:hover:border-gray-200 aria-disabled:hover:bg-gray-50 dark:border-gray-800 dark:bg-gray-900 dark:hover:border-cyan-700 dark:hover:bg-cyan-950/30 dark:aria-disabled:hover:border-gray-800 dark:aria-disabled:hover:bg-gray-900">
                         <div class="text-xs text-gray-500 dark:text-gray-400">Chaine</div>
-                        <div class="mt-0.5 truncate text-sm font-semibold text-gray-950 dark:text-white" x-text="video.channel_name || '-'"></div>
-                    </div>
+                        <div class="mt-0.5 flex items-center justify-center gap-1 truncate text-sm font-semibold text-gray-950 group-hover:text-cyan-700 dark:text-white dark:group-hover:text-cyan-300">
+                            <span class="truncate" x-text="video.channel_name || '-'"></span>
+                            <x-icon x-show="video.channel_url" name="external-link" class="h-3.5 w-3.5 shrink-0" />
+                        </div>
+                    </a>
                     <div class="rounded-xl border border-gray-200 bg-gray-50 p-3 text-center dark:border-gray-800 dark:bg-gray-900">
                         <div class="text-xs text-gray-500 dark:text-gray-400">Publiée le</div>
                         <div class="mt-0.5 text-sm font-semibold text-gray-950 dark:text-white" x-text="formatPublicationDate(video.published_at) || 'Indisponible'"></div>
                     </div>
-                    <div class="rounded-xl border border-gray-200 bg-gray-50 p-3 text-center dark:border-gray-800 dark:bg-gray-900">
+                    <button type="button"
+                            @click="goToChapters()"
+                            :disabled="chapterCount === 0"
+                            class="group rounded-xl border border-gray-200 bg-gray-50 p-3 text-center transition hover:border-cyan-300 hover:bg-cyan-50 focus:outline-none focus:ring-2 focus:ring-cyan-400/40 disabled:cursor-default disabled:opacity-60 disabled:hover:border-gray-200 disabled:hover:bg-gray-50 dark:border-gray-800 dark:bg-gray-900 dark:hover:border-cyan-700 dark:hover:bg-cyan-950/30 dark:disabled:hover:border-gray-800 dark:disabled:hover:bg-gray-900">
                         <div class="text-xs text-gray-500 dark:text-gray-400">Chapitres</div>
-                        <div class="mt-0.5 text-sm font-semibold text-gray-950 dark:text-white" x-text="chapterCount + ' chapitre' + (chapterCount > 1 ? 's' : '')"></div>
-                    </div>
+                        <div class="mt-0.5 flex items-center justify-center gap-1 text-sm font-semibold text-gray-950 group-hover:text-cyan-700 dark:text-white dark:group-hover:text-cyan-300">
+                            <span x-text="chapterCount + ' chapitre' + (chapterCount > 1 ? 's' : '')"></span>
+                            <x-icon x-show="chapterCount > 0" name="chevron-down" class="h-3.5 w-3.5 shrink-0" />
+                        </div>
+                    </button>
                 </div>
 
                 <!-- Status badge -->
@@ -132,7 +146,7 @@
                     </div>
 
                     <!-- Chapitres (toujours affichés si présents) -->
-                    <div x-show="chapterCount > 0" class="mb-6 overflow-hidden rounded-xl border border-gray-200 bg-gray-50 dark:border-gray-800 dark:bg-gray-900">
+                    <div id="chapitrage" x-ref="chaptersSection" x-show="chapterCount > 0" class="mb-6 scroll-mt-4 overflow-hidden rounded-xl border border-gray-200 bg-gray-50 dark:border-gray-800 dark:bg-gray-900">
                         <button @click="chaptersOpen = !chaptersOpen"
                                 class="flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition hover:bg-gray-100 dark:hover:bg-gray-800"
                                 :aria-expanded="chaptersOpen.toString()">
@@ -147,14 +161,37 @@
                         </button>
                         <div x-show="chaptersOpen"
                              x-transition
-                             class="flex flex-wrap gap-2 border-t border-gray-200 px-4 py-4 dark:border-gray-800">
-                            <template x-for="chapter in videoChapters" :key="chapter.start_time + '-' + chapter.title">
+                             class="border-t border-gray-200 px-4 py-4 dark:border-gray-800">
+                            <div x-show="chapterThumbnailsLoading"
+                                 class="mb-3 flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+                                <span class="h-3.5 w-3.5 animate-spin rounded-full border-2 border-cyan-200 border-t-cyan-600" aria-hidden="true"></span>
+                                <span>Création des miniatures en arrière-plan…</span>
+                            </div>
+                            <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                            <template x-for="(chapter, chapterIndex) in videoChapters" :key="chapter.start_time + '-' + chapter.title">
                                 <button @click="playVideo(chapter.start_time)"
-                                        class="inline-flex items-center gap-2 rounded-full bg-white px-3 py-1.5 text-xs font-medium text-narrv-700 ring-1 ring-narrv-100 transition hover:bg-narrv-100 dark:bg-gray-950 dark:text-narrv-300 dark:ring-narrv-900 dark:hover:bg-narrv-950">
-                                    <span class="font-mono" x-text="formatTime(chapter.start_time)"></span>
-                                    <span x-text="chapter.title"></span>
+                                        class="group overflow-hidden rounded-lg bg-white text-left ring-1 ring-gray-200 transition hover:-translate-y-0.5 hover:ring-cyan-300 hover:shadow-md dark:bg-gray-950 dark:ring-gray-800 dark:hover:ring-cyan-700">
+                                    <span class="relative block aspect-video overflow-hidden bg-gray-200 dark:bg-gray-800">
+                                        <span class="absolute inset-0 flex items-center justify-center text-gray-400 dark:text-gray-600">
+                                            <x-icon name="image" class="h-7 w-7" />
+                                        </span>
+                                        <img x-show="chapter.thumbnail_url"
+                                             :src="chapter.thumbnail_url"
+                                             :alt="`Aperçu du chapitre ${chapter.title}`"
+                                             loading="lazy"
+                                             @error="$el.style.display = 'none'"
+                                             class="absolute inset-0 h-full w-full object-cover transition duration-300 group-hover:scale-105">
+                                        <span class="absolute bottom-2 left-2 rounded bg-black/75 px-2 py-0.5 font-mono text-[11px] font-semibold text-white"
+                                              x-text="formatTime(chapter.start_time)"></span>
+                                    </span>
+                                    <span class="block p-3">
+                                        <span class="block line-clamp-2 text-sm font-semibold text-gray-950 dark:text-white" x-text="chapter.title"></span>
+                                        <span class="mt-1 block text-xs text-gray-500 dark:text-gray-400"
+                                              x-text="`Durée : ${formatChapterDuration(chapter, chapterIndex)}`"></span>
+                                    </span>
                                 </button>
                             </template>
+                            </div>
                         </div>
                     </div>
 
@@ -267,42 +304,76 @@
 
                 <!-- Summary tab (masqué si pas de transcript) -->
                 <div x-show="hasTranscript && tab === 'summary'" x-data="summaryPanel()" x-init="loadSummaries()">
-                    <div class="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center mb-6">
-                        <select x-model="tone" class="w-full sm:w-auto px-4 py-2 rounded-full bg-gray-100 dark:bg-gray-800 text-sm border-0">
-                            <option value="neutral">Neutre</option>
-                            <option value="formal">Formel</option>
-                            <option value="casual">Décontracté</option>
-                            <option value="bullet_points">Points clés</option>
-                        </select>
-                        <select x-model="length" class="w-full sm:w-auto px-4 py-2 rounded-full bg-gray-100 dark:bg-gray-800 text-sm border-0">
-                            <option value="short">Court</option>
-                            <option value="medium">Moyen</option>
-                            <option value="long">Long</option>
-                        </select>
-                        <select x-model="language" class="w-full sm:w-auto px-4 py-2 rounded-full bg-gray-100 dark:bg-gray-800 text-sm border-0">
-                            <template x-for="option in languages" :key="option.code">
-                                <option :value="option.code" x-text="option.label"></option>
-                            </template>
-                        </select>
-                        <div class="flex items-center gap-2 text-sm">
-                            <span class="text-gray-500 shrink-0">Temp:</span>
-                            <input type="range" x-model="temperature" min="0" max="1.5" step="0.1" class="w-24 sm:w-20">
-                            <span x-text="temperature" class="text-narrv-500 font-mono w-6 text-right"></span>
+                    <div class="mb-6 overflow-hidden rounded-2xl border border-gray-200 bg-gray-50 dark:border-gray-800 dark:bg-gray-900">
+                        <div class="border-b border-gray-200 bg-white px-5 py-4 dark:border-gray-800 dark:bg-gray-950">
+                            <div class="flex items-center gap-3">
+                                <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-cyan-50 font-bold text-cyan-700 ring-1 ring-cyan-100 dark:bg-cyan-950 dark:text-cyan-300 dark:ring-cyan-900">R</div>
+                                <div>
+                                    <h2 class="text-base font-semibold text-gray-950 dark:text-white">Créer un résumé</h2>
+                                    <p class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">Adaptez le format du résumé à votre besoin.</p>
+                                </div>
+                            </div>
                         </div>
-                        <button @click="generate()" :disabled="loading"
-                                class="w-full sm:w-auto px-6 py-2 rounded-full bg-narrv-500 text-white text-sm font-medium disabled:opacity-50">
-                            <span x-show="!loading">Générer</span>
-                            <span x-show="loading">Génération...</span>
-                        </button>
+                        <div class="p-5">
+                            <div class="grid gap-4 sm:grid-cols-3">
+                                <label class="block">
+                                    <span class="mb-1.5 block text-xs font-semibold text-gray-600 dark:text-gray-300">Ton</span>
+                                    <select x-model="tone" :disabled="loading" class="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-900 outline-none transition focus:border-cyan-400 focus:ring-2 focus:ring-cyan-200 disabled:opacity-60 dark:border-gray-700 dark:bg-gray-950 dark:text-white dark:focus:ring-cyan-900/50">
+                                        <option value="neutral">Neutre</option>
+                                        <option value="formal">Formel</option>
+                                        <option value="casual">Décontracté</option>
+                                        <option value="bullet_points">Points clés</option>
+                                    </select>
+                                </label>
+                                <label class="block">
+                                    <span class="mb-1.5 block text-xs font-semibold text-gray-600 dark:text-gray-300">Longueur</span>
+                                    <select x-model="length" :disabled="loading" class="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-900 outline-none transition focus:border-cyan-400 focus:ring-2 focus:ring-cyan-200 disabled:opacity-60 dark:border-gray-700 dark:bg-gray-950 dark:text-white dark:focus:ring-cyan-900/50">
+                                        <option value="short">Court</option>
+                                        <option value="medium">Moyen</option>
+                                        <option value="long">Long</option>
+                                    </select>
+                                </label>
+                                <label class="block">
+                                    <span class="mb-1.5 block text-xs font-semibold text-gray-600 dark:text-gray-300">Langue</span>
+                                    <select x-model="language" :disabled="loading" class="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-900 outline-none transition focus:border-cyan-400 focus:ring-2 focus:ring-cyan-200 disabled:opacity-60 dark:border-gray-700 dark:bg-gray-950 dark:text-white dark:focus:ring-cyan-900/50">
+                                        <template x-for="option in languages" :key="option.code">
+                                            <option :value="option.code" x-text="option.label"></option>
+                                        </template>
+                                    </select>
+                                </label>
+                            </div>
+
+                            <div class="mt-5 rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-950">
+                                <div class="mb-2 flex items-center justify-between gap-3">
+                                    <label for="summary-creativity" class="text-xs font-semibold text-gray-600 dark:text-gray-300">Créativité</label>
+                                    <span class="rounded-full bg-cyan-50 px-2.5 py-1 text-xs font-medium text-cyan-700 dark:bg-cyan-950 dark:text-cyan-300" x-text="creativityLabel"></span>
+                                </div>
+                                <input id="summary-creativity" type="range" x-model="temperature" min="0" max="1.5" step="0.1" :disabled="loading" class="w-full accent-cyan-600 disabled:opacity-60">
+                                <div class="mt-1 flex justify-between text-[11px] text-gray-400"><span>Fidèle</span><span>Créatif</span></div>
+                            </div>
+
+                            <button @click="generate()" type="button" :disabled="loading" :aria-busy="loading.toString()"
+                                    class="mt-5 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-cyan-600 px-6 py-3 text-sm font-semibold text-white transition hover:bg-cyan-700 disabled:cursor-wait disabled:opacity-60 sm:w-auto">
+                                <span x-show="loading" class="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" aria-hidden="true"></span>
+                                <span x-text="loading ? 'Génération du résumé…' : 'Générer le résumé'"></span>
+                            </button>
+                        </div>
                     </div>
                     <div x-show="error" x-text="error"
                          class="mb-4 px-4 py-2 rounded-xl bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-sm">
                     </div>
+                    <div x-show="summaries.length === 0 && !loading" x-cloak
+                         class="rounded-2xl border border-dashed border-gray-300 bg-gray-50 px-6 py-10 text-center dark:border-gray-700 dark:bg-gray-900">
+                        <p class="text-sm font-semibold text-gray-800 dark:text-gray-200">Aucun résumé pour le moment</p>
+                        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Choisissez vos options puis lancez la génération.</p>
+                    </div>
                     <div class="space-y-4">
                         <template x-for="summary in summaries" :key="summary.id">
                             <div class="p-5 rounded-2xl bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800">
-                                <div class="text-xs text-gray-400 mb-2">
-                                    <span x-text="summary.tone"></span> · <span x-text="summary.length"></span> · <span x-text="languageLabel(summary.language || 'fr')"></span> · temp <span x-text="summary.temperature"></span>
+                                <div class="mb-3 flex flex-wrap gap-2 text-xs">
+                                    <span class="rounded-full bg-white px-2.5 py-1 font-medium text-gray-600 ring-1 ring-gray-200 dark:bg-gray-950 dark:text-gray-300 dark:ring-gray-700" x-text="toneLabel(summary.tone)"></span>
+                                    <span class="rounded-full bg-white px-2.5 py-1 font-medium text-gray-600 ring-1 ring-gray-200 dark:bg-gray-950 dark:text-gray-300 dark:ring-gray-700" x-text="lengthLabel(summary.length)"></span>
+                                    <span class="rounded-full bg-cyan-50 px-2.5 py-1 font-medium text-cyan-700 ring-1 ring-cyan-100 dark:bg-cyan-950 dark:text-cyan-300 dark:ring-cyan-900" x-text="languageLabel(summary.language || 'fr')"></span>
                                 </div>
                                 <div class="prose dark:prose-invert max-w-none text-sm" x-html="renderMarkdown(summary.content)"></div>
                             </div>
@@ -402,38 +473,62 @@
 
                 <!-- Translate tab (masqué si pas de transcript) -->
                 <div x-show="hasTranscript && tab === 'translate'" x-data="transcriptViewer(video.transcript)">
-                    <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:flex-wrap">
-                        <div class="rounded-full bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700 dark:bg-gray-800 dark:text-gray-200 text-center sm:text-left"
-                             x-text="translationPairLabel"></div>
-                        <select x-model="targetLang" class="w-full sm:w-auto px-4 py-2 rounded-full bg-gray-100 dark:bg-gray-800 text-sm border-0">
-                            <template x-for="language in availableTargetLanguages" :key="language.code">
-                                <option :value="language.code" x-text="language.label"></option>
-                            </template>
-                        </select>
-                        <button @click="translate()" :disabled="translating || isSameLanguage"
-                                class="w-full sm:w-auto px-6 py-2 rounded-full bg-narrv-500 text-white text-sm disabled:opacity-50">
-                            <span x-show="!translating">Traduire</span>
-                            <span x-show="translating">Traduction...</span>
-                        </button>
+                    <div class="mb-6 overflow-hidden rounded-2xl border border-gray-200 bg-gray-50 dark:border-gray-800 dark:bg-gray-900">
+                        <div class="border-b border-gray-200 bg-white px-5 py-4 dark:border-gray-800 dark:bg-gray-950">
+                            <div class="flex items-center gap-3">
+                                <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-50 font-bold text-indigo-700 ring-1 ring-indigo-100 dark:bg-indigo-950 dark:text-indigo-300 dark:ring-indigo-900">文</div>
+                                <div>
+                                    <h2 class="text-base font-semibold text-gray-950 dark:text-white">Traduire le transcript</h2>
+                                    <p class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">La traduction enregistrée sera réutilisée automatiquement.</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="p-5">
+                            <div class="grid items-end gap-3 sm:grid-cols-[1fr_auto_1fr]">
+                                <div class="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-950">
+                                    <span class="block text-xs font-semibold text-gray-500 dark:text-gray-400">Langue source</span>
+                                    <span class="mt-1 flex items-center gap-2 text-sm font-semibold text-gray-950 dark:text-white">
+                                        <span x-text="flagFor(sourceLang)"></span>
+                                        <span x-text="sourceLanguageLabel"></span>
+                                    </span>
+                                </div>
+                                <div class="hidden pb-4 text-gray-400 sm:block" aria-hidden="true">→</div>
+                                <label class="block rounded-xl border border-cyan-200 bg-cyan-50 p-4 dark:border-cyan-900 dark:bg-cyan-950/30">
+                                    <span class="mb-1 block text-xs font-semibold text-cyan-700 dark:text-cyan-300">Traduire vers</span>
+                                    <select x-model="targetLang" :disabled="translating" class="w-full rounded-lg border border-cyan-200 bg-white px-3 py-2 text-sm font-semibold text-gray-950 outline-none focus:border-cyan-400 focus:ring-2 focus:ring-cyan-200 disabled:opacity-60 dark:border-cyan-800 dark:bg-gray-950 dark:text-white dark:focus:ring-cyan-900/50">
+                                        <template x-for="language in availableTargetLanguages" :key="language.code">
+                                            <option :value="language.code" x-text="`${flagFor(language.code)} ${language.label}`"></option>
+                                        </template>
+                                    </select>
+                                </label>
+                            </div>
+
+                            <button @click="translate()" type="button" :disabled="translating || isSameLanguage" :aria-busy="translating.toString()"
+                                    class="mt-5 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-cyan-600 px-6 py-3 text-sm font-semibold text-white transition hover:bg-cyan-700 disabled:cursor-wait disabled:opacity-60 sm:w-auto">
+                                <span x-show="translating" class="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" aria-hidden="true"></span>
+                                <span x-text="translating ? 'Traduction en cours…' : (hasStoredTargetTranslation ? 'Afficher la traduction' : `Traduire en ${targetLanguageLabel}`)"></span>
+                            </button>
+                        </div>
                     </div>
                     <div x-show="error" x-text="error"
                          class="mb-4 px-4 py-2 rounded-xl bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-sm">
                     </div>
 
-                    <!-- Liste des traductions stockees -->
-                    <div class="space-y-4" x-show="translations.length > 0">
-                        <template x-for="t in translations" :key="t.id || t.target_language">
-                            <div class="rounded-2xl border border-gray-200 bg-gray-50 p-5 dark:border-gray-800 dark:bg-gray-900">
-                                <div class="mb-2 flex items-center justify-between gap-2">
-                                    <span class="inline-flex items-center gap-1.5 rounded-full bg-gray-200 px-3 py-1 text-xs font-medium text-gray-700 dark:bg-gray-700 dark:text-gray-200">
-                                        <span x-text="flagFor(t.target_language)"></span>
-                                        <span x-text="languageLabel(t.target_language)"></span>
-                                    </span>
-                                    <span class="text-xs text-gray-400" x-text="t.model || ''"></span>
-                                </div>
-                                <div class="text-sm whitespace-pre-wrap leading-relaxed text-gray-900 dark:text-gray-100" x-text="t.content"></div>
-                            </div>
-                        </template>
+                    <div x-show="translation" x-cloak class="rounded-2xl border border-gray-200 bg-gray-50 p-5 dark:border-gray-800 dark:bg-gray-900">
+                        <div class="mb-3 flex items-center justify-between gap-2">
+                            <span class="inline-flex items-center gap-1.5 rounded-full bg-cyan-50 px-3 py-1 text-xs font-medium text-cyan-700 ring-1 ring-cyan-100 dark:bg-cyan-950 dark:text-cyan-300 dark:ring-cyan-900">
+                                <span x-text="flagFor(targetLang)"></span>
+                                <span x-text="targetLanguageLabel"></span>
+                            </span>
+                            <span class="text-xs text-gray-400" x-text="selectedTranslationRecord?.model || ''"></span>
+                        </div>
+                        <div class="whitespace-pre-wrap text-sm leading-7 text-gray-900 dark:text-gray-100" x-text="translation"></div>
+                    </div>
+                    <div x-show="!translation && !translating" x-cloak
+                         class="rounded-2xl border border-dashed border-gray-300 bg-gray-50 px-6 py-10 text-center dark:border-gray-700 dark:bg-gray-900">
+                        <p class="text-sm font-semibold text-gray-800 dark:text-gray-200" x-text="`Aucune traduction en ${targetLanguageLabel}`"></p>
+                        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Lancez la traduction pour l’enregistrer et la retrouver ici.</p>
                     </div>
                 </div>
 
@@ -521,6 +616,7 @@
             transcriptSearchResults: [],
             transcriptRenderBatch: 200,
             transcriptRenderLimit: 200,
+            chapterRefreshTimer: null,
             init() {
                 this.adminToken = localStorage.getItem('narrv_admin_token') || null;
                 const id = window.location.pathname.split('/').pop();
@@ -534,6 +630,9 @@
             },
             get chapterCount() {
                 return this.videoChapters.length;
+            },
+            get chapterThumbnailsLoading() {
+                return ['pending', 'processing'].includes(this.video?.chapter_thumbnails_status);
             },
             get hasTranscript() {
                 return Boolean(this.video?.transcript?.id);
@@ -860,6 +959,18 @@
 
                 return 'Miniature indisponible';
             },
+            goToChapters() {
+                if (this.chapterCount === 0) return;
+
+                this.tab = 'transcript';
+                this.chaptersOpen = true;
+                this.$nextTick(() => {
+                    this.$refs.chaptersSection?.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                });
+            },
             playVideo(seconds) {
                 if (this.video?.youtube_id) {
                     this.seekTo = seconds != null ? seconds : null;
@@ -893,6 +1004,18 @@
                 if (h > 0) return h + 'h ' + m + 'm ' + s + 's';
                 if (m > 0) return m + 'min ' + s + 's';
                 return s + 's';
+            },
+            formatChapterDuration(chapter, index) {
+                let duration = Number(chapter?.duration);
+
+                if (!Number.isFinite(duration) || duration <= 0) {
+                    const start = Number(chapter?.start_time) || 0;
+                    const nextStart = Number(this.videoChapters[index + 1]?.start_time);
+                    const end = Number.isFinite(nextStart) ? nextStart : Number(this.video?.duration);
+                    duration = Number.isFinite(end) ? Math.max(0, end - start) : 0;
+                }
+
+                return this.formatDuration(duration) || 'indisponible';
             },
             formatDate(dateStr) {
                 if (!dateStr) return '';
@@ -938,8 +1061,40 @@
                     this.refreshTranscriptSearch(false);
                     if (this.video.status === 'pending' || this.video.status === 'processing') {
                         setTimeout(() => this.loadVideo(id), 3000);
+                    } else {
+                        this.scheduleChapterRefresh(id);
                     }
                 } catch(e) { console.error(e); }
+            },
+            scheduleChapterRefresh(id) {
+                if (this.chapterRefreshTimer) {
+                    clearTimeout(this.chapterRefreshTimer);
+                    this.chapterRefreshTimer = null;
+                }
+
+                if (this.chapterThumbnailsLoading) {
+                    this.chapterRefreshTimer = setTimeout(() => this.refreshChapterThumbnails(id), 2500);
+                }
+            },
+            async refreshChapterThumbnails(id) {
+                try {
+                    const headers = { 'Accept': 'application/json' };
+                    if (this.adminToken) headers.Authorization = `Bearer ${this.adminToken}`;
+
+                    const res = await fetch(`/api/videos/${id}`, { headers });
+                    if (!res.ok) return;
+
+                    const video = await res.json();
+                    this.video.chapters_json = video.chapters_json;
+                    this.video.chapter_thumbnails_status = video.chapter_thumbnails_status;
+                    this.scheduleChapterRefresh(id);
+                } catch (e) {
+                    console.error(e);
+                    this.chapterRefreshTimer = setTimeout(() => this.refreshChapterThumbnails(id), 5000);
+                }
+            },
+            destroy() {
+                if (this.chapterRefreshTimer) clearTimeout(this.chapterRefreshTimer);
             }
         }));
     });

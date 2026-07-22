@@ -49,6 +49,14 @@ export default function transcriptViewer(transcript) {
             return `${this.sourceLanguageLabel} -> ${this.targetLanguageLabel}`;
         },
 
+        get selectedTranslationRecord() {
+            return this.translations.find((translation) => translation.target_language === this.targetLang) || null;
+        },
+
+        get hasStoredTargetTranslation() {
+            return this.selectedTranslationRecord !== null;
+        },
+
         get isSameLanguage() {
             return Boolean(this.sourceLang && this.targetLang && this.sourceLang === this.targetLang);
         },
@@ -68,8 +76,9 @@ export default function transcriptViewer(transcript) {
         },
 
         showStoredTranslation() {
-            const stored = this.translations.find((t) => t.target_language === this.targetLang);
+            const stored = this.selectedTranslationRecord;
             this.translation = stored?.content || null;
+            this.error = null;
         },
 
         async download(format) {
