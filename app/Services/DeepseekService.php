@@ -9,6 +9,8 @@ class DeepseekService
     public string $model;
     private string $apiKey;
     private string $baseUrl;
+    private int $timeout;
+    private int $connectTimeout;
     private PromptService $prompts;
 
     public function __construct(?PromptService $prompts = null)
@@ -16,6 +18,11 @@ class DeepseekService
         $this->apiKey = (string) config('services.deepseek.api_key', '');
         $this->baseUrl = rtrim((string) config('services.deepseek.base_url', 'https://api.deepseek.com'), '/');
         $this->model = (string) config('services.deepseek.model', 'deepseek-chat');
+        $this->timeout = max(1, (int) config('services.deepseek.timeout', 180));
+        $this->connectTimeout = max(1, min(
+            $this->timeout,
+            (int) config('services.deepseek.connect_timeout', 10)
+        ));
         $this->prompts = $prompts ?? app(PromptService::class);
     }
 
@@ -34,17 +41,40 @@ class DeepseekService
         return $this->callApi($messages);
     }
 
-    public function translate(string $text, string $targetLanguage, ?string $sourceLanguage = null): string
+    public function translate(
+        string $text,
+        string $targetLanguage,
+        ?string $sourceLanguage = null,
+        ?callable $onChunk = null
+    ): string
     {
-        $messages = [
-            ['role' => 'system', 'content' => $this->prompts->render('translate_system', [
-                'source_language' => $this->languageName($sourceLanguage) ?? 'the detected source language',
-                'target_language' => $this->languageName($targetLanguage) ?? $targetLanguage,
-                'transcript' => $this->trimToBudget($text),
-            ])],
-        ];
+        $translations = [];
+        $chunks = $this->translationChunks($text);
+        $total = count($chunks);
 
-        return $this->callApi($messages);
+        foreach ($chunks as $index => $chunk) {
+            $messages = [
+                ['role' => 'system', 'content' => $this->prompts->render('translate_system', [
+                    'source_language' => $this->languageName($sourceLanguage) ?? 'the detected source language',
+                    'target_language' => $this->languageName($targetLanguage) ?? $targetLanguage,
+                    'transcript' => $chunk,
+                ])],
+            ];
+
+            $translation = trim((string) $this->callApi($messages));
+            $translations[] = $translation;
+
+            if ($onChunk !== null) {
+                $onChunk($translation, $index + 1, $total);
+            }
+        }
+
+        return implode("\n\n", $translations);
+    }
+
+    public function translationChunkCount(string $text): int
+    {
+        return count($this->translationChunks($text));
     }
 
     public function summarize(string $text, float $temperature, string $tone, string $length, string $language = 'fr'): string
@@ -78,7 +108,7 @@ class DeepseekService
         return $this->callApi($messages, $temperature);
     }
 
-    private function callApi(array $messages, float $temperature = 0.3): ?string
+    protected function callApi(array $messages, float $temperature = 0.3): ?string
     {
         if (empty($this->apiKey)) {
             logger()->error('DeepSeek API key is not configured.', [
@@ -111,8 +141,8 @@ class DeepseekService
                     'Authorization: Bearer ' . $this->apiKey,
                     'Content-Type: application/json',
                 ],
-                CURLOPT_TIMEOUT => 60,
-                CURLOPT_CONNECTTIMEOUT => 10,
+                CURLOPT_TIMEOUT => $this->timeout,
+                CURLOPT_CONNECTTIMEOUT => $this->connectTimeout,
                 CURLOPT_IPRESOLVE => CURL_IPRESOLVE_V4,
             ]);
 
@@ -122,7 +152,11 @@ class DeepseekService
             curl_close($ch);
 
             if ($error) {
-                logger()->error('DeepSeek API error: ' . $error);
+                logger()->error('DeepSeek API error: ' . $error, [
+                    'source' => 'deepseek',
+                    'timeout' => $this->timeout,
+                    'connect_timeout' => $this->connectTimeout,
+                ]);
                 throw new RuntimeException('DeepSeek API request failed: ' . $error);
             }
 
@@ -160,6 +194,48 @@ class DeepseekService
         return $this->limitString($text, $maxCharacters) . "\n\n[Transcript truncated for model context length.]";
     }
 
+    /**
+     * Split a transcript without losing content, preferring natural text boundaries.
+     *
+     * @return list<string>
+     */
+    private function translationChunks(string $text): array
+    {
+        $configuredLimit = max(1, (int) config('services.deepseek.translation_chunk_characters', 12000));
+        $inputLimit = max(1, (int) config('services.deepseek.max_input_characters', 45000));
+        $limit = min($configuredLimit, $inputLimit);
+        $remaining = trim($text);
+        $chunks = [];
+
+        while ($this->stringLength($remaining) > $limit) {
+            $candidate = $this->limitString($remaining, $limit);
+            $cut = $this->naturalCutPosition($candidate, $limit);
+            $chunks[] = trim($this->substring($remaining, 0, $cut));
+            $remaining = ltrim($this->substring($remaining, $cut));
+        }
+
+        if ($remaining !== '') {
+            $chunks[] = $remaining;
+        }
+
+        return $chunks;
+    }
+
+    private function naturalCutPosition(string $candidate, int $limit): int
+    {
+        $minimum = (int) floor($limit * 0.6);
+
+        foreach (["\n\n", "\n", '. ', '! ', '? ', '; ', ', ', ' '] as $separator) {
+            $position = $this->lastPosition($candidate, $separator);
+
+            if ($position !== false && $position >= $minimum) {
+                return $position + $this->stringLength($separator);
+            }
+        }
+
+        return $limit;
+    }
+
     private function languageName(?string $language): ?string
     {
         if (!$language) {
@@ -190,5 +266,21 @@ class DeepseekService
         }
 
         return function_exists('mb_substr') ? mb_substr($value, 0, $limit) : substr($value, 0, $limit);
+    }
+
+    private function substring(string $value, int $offset, ?int $length = null): string
+    {
+        if (function_exists('mb_substr')) {
+            return mb_substr($value, $offset, $length);
+        }
+
+        return $length === null ? substr($value, $offset) : substr($value, $offset, $length);
+    }
+
+    private function lastPosition(string $haystack, string $needle): int|false
+    {
+        return function_exists('mb_strrpos')
+            ? mb_strrpos($haystack, $needle)
+            : strrpos($haystack, $needle);
     }
 }

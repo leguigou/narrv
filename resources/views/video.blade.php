@@ -551,6 +551,17 @@
                                 </label>
                             </div>
 
+                            <div x-show="translating" x-cloak class="mt-4" role="status" aria-live="polite">
+                                <div class="mb-1.5 flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
+                                    <span x-text="totalTranslationChunks ? `Bloc ${translatedChunks} / ${totalTranslationChunks}` : 'Preparation des blocs…'"></span>
+                                    <span x-show="totalTranslationChunks" x-text="`${Math.round((translatedChunks / totalTranslationChunks) * 100)} %`"></span>
+                                </div>
+                                <div class="h-2 overflow-hidden rounded-full bg-gray-200 dark:bg-gray-800">
+                                    <div class="h-full rounded-full bg-cyan-500 transition-all duration-300"
+                                         :style="`width: ${totalTranslationChunks ? (translatedChunks / totalTranslationChunks) * 100 : 4}%`"></div>
+                                </div>
+                            </div>
+
                             <button @click="translate()" type="button" :disabled="translating || isSameLanguage" :aria-busy="translating.toString()"
                                     class="mt-5 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-cyan-600 px-6 py-3 text-sm font-semibold text-white transition hover:bg-cyan-700 disabled:cursor-wait disabled:opacity-60 sm:w-auto">
                                 <span x-show="translating" class="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" aria-hidden="true"></span>

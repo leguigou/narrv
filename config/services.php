@@ -40,6 +40,9 @@ return [
         'base_url' => env('DEEPSEEK_BASE_URL', 'https://api.deepseek.com'),
         'model' => env('DEEPSEEK_MODEL', 'deepseek-chat'),
         'max_input_characters' => env('DEEPSEEK_MAX_INPUT_CHARACTERS', 45000),
+        'translation_chunk_characters' => env('DEEPSEEK_TRANSLATION_CHUNK_CHARACTERS', 12000),
+        'timeout' => env('DEEPSEEK_TIMEOUT', 180),
+        'connect_timeout' => env('DEEPSEEK_CONNECT_TIMEOUT', 10),
     ],
 
     'youtube' => [

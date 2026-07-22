@@ -9,6 +9,8 @@ use App\Services\DeepseekService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use RuntimeException;
+use Symfony\Component\HttpFoundation\StreamedResponse;
+use Throwable;
 
 class TranscriptController extends Controller
 {
@@ -82,6 +84,10 @@ class TranscriptController extends Controller
             ], 422);
         }
 
+        if (str_contains((string) $request->header('Accept'), 'application/x-ndjson')) {
+            return $this->streamTranslation($transcript, $targetLanguage, $sourceLanguage);
+        }
+
         try {
             $deepseek = app(DeepseekService::class);
             $translated = $deepseek->translate($transcript->full_text, $targetLanguage, $sourceLanguage);
@@ -101,6 +107,70 @@ class TranscriptController extends Controller
         );
 
         return response()->json($translation);
+    }
+
+    private function streamTranslation($transcript, string $targetLanguage, ?string $sourceLanguage): StreamedResponse
+    {
+        return response()->stream(function () use ($transcript, $targetLanguage, $sourceLanguage): void {
+            $emit = static function (array $event): void {
+                echo json_encode($event, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) . "\n";
+
+                if (ob_get_level() > 0) {
+                    ob_flush();
+                }
+
+                flush();
+            };
+
+            try {
+                $deepseek = app(DeepseekService::class);
+                $emit([
+                    'type' => 'start',
+                    'total' => $deepseek->translationChunkCount($transcript->full_text),
+                ]);
+                $translated = $deepseek->translate(
+                    $transcript->full_text,
+                    $targetLanguage,
+                    $sourceLanguage,
+                    static function (string $content, int $index, int $total) use ($emit): void {
+                        $emit([
+                            'type' => 'chunk',
+                            'index' => $index,
+                            'total' => $total,
+                            'content' => $content,
+                        ]);
+                    }
+                );
+
+                $translation = Translation::updateOrCreate(
+                    [
+                        'transcript_id' => $transcript->id,
+                        'target_language' => $targetLanguage,
+                    ],
+                    [
+                        'content' => $translated,
+                        'model' => $deepseek->model,
+                    ]
+                );
+
+                $emit([
+                    'type' => 'complete',
+                    'translation' => $translation->only(['id', 'target_language', 'content', 'model']),
+                ]);
+            } catch (Throwable $e) {
+                report($e);
+                $emit([
+                    'type' => 'error',
+                    'error' => $e instanceof RuntimeException
+                        ? $e->getMessage()
+                        : 'Traduction impossible. Consultez les logs admin pour le detail.',
+                ]);
+            }
+        }, 200, [
+            'Content-Type' => 'application/x-ndjson; charset=UTF-8',
+            'Cache-Control' => 'no-cache, no-store, must-revalidate',
+            'X-Accel-Buffering' => 'no',
+        ]);
     }
 
     public function translations(string $id): JsonResponse

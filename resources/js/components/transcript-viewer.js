@@ -11,6 +11,8 @@ export default function transcriptViewer(transcript) {
             { code: 'de', label: 'Allemand' }
         ],
         translating: false,
+        translatedChunks: 0,
+        totalTranslationChunks: 0,
         translation: null,
         translations: [],
         translationsLoaded: false,
@@ -108,6 +110,9 @@ export default function transcriptViewer(transcript) {
             }
 
             this.translating = true;
+            this.translatedChunks = 0;
+            this.totalTranslationChunks = 0;
+            this.translation = '';
             this.error = null;
             try {
                 const videoId = this.transcript?.video_id || Alpine.store('app').currentVideo?.id;
@@ -115,29 +120,80 @@ export default function transcriptViewer(transcript) {
 
                 const res = await fetch(`/api/videos/${videoId}/translate`, {
                     method: 'POST',
-                    headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
+                    headers: { 'Accept': 'application/json, application/x-ndjson', 'Content-Type': 'application/json' },
                     body: JSON.stringify({ language: this.targetLang })
                 });
                 if (!res.ok) {
                     const payload = await res.json().catch(() => ({}));
                     throw new Error(payload.error || 'Erreur de traduction');
                 }
-                const data = await res.json();
-                this.translation = data.content;
+                if (!res.body) {
+                    throw new Error('Le navigateur ne permet pas de suivre la traduction.');
+                }
 
-                // Stocker localement pour eviter un re-fetch
-                this.translations.push({
-                    id: data.id,
-                    target_language: this.targetLang,
-                    content: data.content,
-                    model: data.model,
-                });
+                const reader = res.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = '';
+                let completed = false;
+
+                while (true) {
+                    const { value, done } = await reader.read();
+                    buffer += decoder.decode(value || new Uint8Array(), { stream: !done });
+
+                    const lines = buffer.split('\n');
+                    buffer = done ? '' : lines.pop();
+
+                    for (const line of lines) {
+                        if (!line.trim()) continue;
+                        completed = this.consumeTranslationEvent(JSON.parse(line)) || completed;
+                    }
+
+                    if (done) break;
+                }
+
+                if (buffer.trim()) {
+                    completed = this.consumeTranslationEvent(JSON.parse(buffer)) || completed;
+                }
+
+                if (!completed) {
+                    throw new Error('La traduction a ete interrompue avant la fin.');
+                }
             } catch (e) {
                 console.error('Translation error:', e);
                 this.error = e.message;
             } finally {
                 this.translating = false;
             }
+        },
+
+        consumeTranslationEvent(event) {
+            if (event.type === 'start') {
+                this.translatedChunks = 0;
+                this.totalTranslationChunks = event.total;
+                return false;
+            }
+
+            if (event.type === 'chunk') {
+                this.translatedChunks = event.index;
+                this.totalTranslationChunks = event.total;
+                this.translation += `${this.translation ? '\n\n' : ''}${event.content}`;
+                return false;
+            }
+
+            if (event.type === 'error') {
+                throw new Error(event.error || 'Erreur de traduction');
+            }
+
+            if (event.type === 'complete') {
+                const data = event.translation;
+                this.translation = data.content;
+                this.translations = this.translations
+                    .filter((translation) => translation.target_language !== data.target_language);
+                this.translations.push(data);
+                return true;
+            }
+
+            return false;
         },
 
         defaultTargetLanguage() {
