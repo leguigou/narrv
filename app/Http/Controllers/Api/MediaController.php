@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Video;
 use App\Services\YoutubeService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use RuntimeException;
 
 class MediaController extends Controller
@@ -15,7 +16,13 @@ class MediaController extends Controller
         $video = Video::findOrFail($id);
 
         try {
-            return response()->json($youtube->downloadFormats($video));
+            $formats = Cache::remember(
+                "videos:{$video->id}:download-formats",
+                now()->addMinutes(15),
+                fn () => $youtube->downloadFormats($video)
+            );
+
+            return response()->json($formats);
         } catch (RuntimeException $e) {
             logger()->error('YouTube media formats retrieval failed', [
                 'source' => 'youtube',

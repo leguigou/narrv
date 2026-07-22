@@ -122,11 +122,11 @@
                 <!-- Tabs navigation - scrollable on mobile -->
                 <div class="relative mb-6">
                     <div class="flex overflow-x-auto flex-nowrap gap-1 border-b border-gray-200 dark:border-gray-700 pb-px scrollbar-hide -mx-4 px-4 sm:mx-0 sm:px-0">
-                        <button @click="tab = 'transcript'" :class="tab === 'transcript' ? 'border-b-2 border-narrv-500 text-narrv-500' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 border-b-2 border-transparent'" class="shrink-0 px-3 py-3 text-sm font-medium whitespace-nowrap transition-colors">Transcript</button>
-                        <button x-show="hasTranscript" @click="tab = 'summary'" :class="tab === 'summary' ? 'border-b-2 border-narrv-500 text-narrv-500' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 border-b-2 border-transparent'" class="shrink-0 px-3 py-3 text-sm font-medium whitespace-nowrap transition-colors">Résumé</button>
-                        <button x-show="hasTranscript" @click="tab = 'chat'" :class="tab === 'chat' ? 'border-b-2 border-narrv-500 text-narrv-500' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 border-b-2 border-transparent'" class="shrink-0 px-3 py-3 text-sm font-medium whitespace-nowrap transition-colors">Chat IA</button>
-                        <button x-show="hasTranscript" @click="tab = 'translate'" :class="tab === 'translate' ? 'border-b-2 border-narrv-500 text-narrv-500' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 border-b-2 border-transparent'" class="shrink-0 px-3 py-3 text-sm font-medium whitespace-nowrap transition-colors">Traduire</button>
-                        <button @click="tab = 'download'" :class="tab === 'download' ? 'border-b-2 border-narrv-500 text-narrv-500' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 border-b-2 border-transparent'" class="shrink-0 px-3 py-3 text-sm font-medium whitespace-nowrap transition-colors">Télécharger</button>
+                        <button @click="tab = 'transcript'; loadTranscript()" :class="tab === 'transcript' ? 'border-b-2 border-narrv-500 text-narrv-500' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 border-b-2 border-transparent'" class="shrink-0 px-3 py-3 text-sm font-medium whitespace-nowrap transition-colors">Transcript</button>
+                        <button x-show="hasTranscript" @click="tab = 'summary'; $dispatch('load-video-summaries')" :class="tab === 'summary' ? 'border-b-2 border-narrv-500 text-narrv-500' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 border-b-2 border-transparent'" class="shrink-0 px-3 py-3 text-sm font-medium whitespace-nowrap transition-colors">Résumé</button>
+                        <button x-show="hasTranscript" @click="tab = 'chat'; $dispatch('load-video-chat')" :class="tab === 'chat' ? 'border-b-2 border-narrv-500 text-narrv-500' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 border-b-2 border-transparent'" class="shrink-0 px-3 py-3 text-sm font-medium whitespace-nowrap transition-colors">Chat IA</button>
+                        <button x-show="hasTranscript" @click="tab = 'translate'; $dispatch('load-video-translations')" :class="tab === 'translate' ? 'border-b-2 border-narrv-500 text-narrv-500' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 border-b-2 border-transparent'" class="shrink-0 px-3 py-3 text-sm font-medium whitespace-nowrap transition-colors">Traduire</button>
+                        <button @click="tab = 'download'; $dispatch('load-download-formats')" :class="tab === 'download' ? 'border-b-2 border-narrv-500 text-narrv-500' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 border-b-2 border-transparent'" class="shrink-0 px-3 py-3 text-sm font-medium whitespace-nowrap transition-colors">Télécharger</button>
                     </div>
                 </div>
 
@@ -183,6 +183,13 @@
                                         <span class="absolute inset-0 flex items-center justify-center text-gray-400 dark:text-gray-600">
                                             <x-icon name="image" class="h-5 w-5" />
                                         </span>
+                                        <span x-show="!chapter.thumbnail_url && chapterThumbnailsLoading"
+                                              x-cloak
+                                              class="absolute inset-0 flex flex-col items-center justify-center gap-1.5 bg-gray-100/95 px-2 text-center text-[10px] font-medium leading-tight text-cyan-700 dark:bg-gray-900/95 dark:text-cyan-300"
+                                              role="status">
+                                            <span class="h-4 w-4 animate-spin rounded-full border-2 border-cyan-200 border-t-cyan-600" aria-hidden="true"></span>
+                                            <span>Miniature en cours</span>
+                                        </span>
                                         <img x-show="chapter.thumbnail_url"
                                              :src="chapter.thumbnail_url"
                                              :alt="`Aperçu du chapitre ${chapter.title}`"
@@ -203,7 +210,22 @@
                         </div>
                     </div>
 
-                    <div x-show="hasTranscript" class="mb-5">
+                    <div x-show="hasTranscript && transcriptLoading"
+                         x-cloak
+                         class="mb-5 flex items-center gap-3 rounded-2xl border border-cyan-100 bg-cyan-50/70 px-5 py-4 text-sm text-cyan-800 dark:border-cyan-900 dark:bg-cyan-950/30 dark:text-cyan-200"
+                         role="status" aria-live="polite">
+                        <span class="h-5 w-5 shrink-0 animate-spin rounded-full border-2 border-cyan-200 border-t-cyan-600" aria-hidden="true"></span>
+                        Chargement du transcript enregistré…
+                    </div>
+
+                    <div x-show="transcriptError"
+                         x-cloak
+                         class="mb-5 flex flex-col gap-3 rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/30 dark:text-red-300 sm:flex-row sm:items-center sm:justify-between">
+                        <span x-text="transcriptError"></span>
+                        <button type="button" @click="loadTranscript()" class="shrink-0 rounded-lg bg-red-600 px-3 py-2 text-xs font-semibold text-white hover:bg-red-700">Réessayer</button>
+                    </div>
+
+                    <div x-show="transcriptLoaded" class="mb-5">
                         <label for="transcript-search" class="mb-2 block text-sm font-semibold text-gray-700 dark:text-gray-200">
                             Rechercher dans le transcript
                         </label>
@@ -260,7 +282,7 @@
 
                     <h2 class="mb-3 text-sm font-semibold text-gray-700 dark:text-gray-200">Transcript</h2>
                     <!-- Transcript complet si dispo -->
-                    <div x-show="hasTranscript && hasSegmentTranscript" class="space-y-2">
+                    <div x-show="transcriptLoaded && hasSegmentTranscript" class="space-y-2">
                         <template x-for="block in displayedTranscriptBlocks" :key="block.index">
                             <div @click="playVideo(block.start)"
                                  :data-transcript-block="block.index"
@@ -289,7 +311,7 @@
                         </button>
                     </div>
                     <!-- Fallback si transcript mais pas de segments -->
-                    <div x-show="hasTranscript && !hasSegmentTranscript && transcriptText && (!hasTranscriptSearch || transcriptSearchResults.length > 0)"
+                    <div x-show="transcriptLoaded && !hasSegmentTranscript && transcriptText && (!hasTranscriptSearch || transcriptSearchResults.length > 0)"
                          data-transcript-block="0"
                          :class="transcriptBlockClasses(0)"
                          class="prose dark:prose-invert max-w-none whitespace-pre-wrap rounded-lg px-3 py-2 -mx-3 text-sm leading-relaxed transition duration-200">
@@ -311,7 +333,9 @@
                 </div>
 
                 <!-- Summary tab (masqué si pas de transcript) -->
-                <div x-show="hasTranscript && tab === 'summary'" x-data="summaryPanel()" x-init="loadSummaries()">
+                <div x-show="hasTranscript && tab === 'summary'"
+                     x-data="summaryPanel()"
+                     @load-video-summaries.window="loadSummaries()">
                     <div class="mb-6 overflow-hidden rounded-2xl border border-gray-200 bg-gray-50 dark:border-gray-800 dark:bg-gray-900">
                         <div class="border-b border-gray-200 bg-white px-5 py-4 dark:border-gray-800 dark:bg-gray-950">
                             <div class="flex items-center gap-3">
@@ -390,7 +414,9 @@
                 </div>
 
                 <!-- Chat tab (masqué si pas de transcript) -->
-                <div x-show="hasTranscript && tab === 'chat'" x-data="chatInterface()" x-init="loadHistory()">
+                <div x-show="hasTranscript && tab === 'chat'"
+                     x-data="chatInterface()"
+                     @load-video-chat.window="loadHistory()">
                     <div class="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-950">
                         <div class="flex items-center justify-between gap-3 border-b border-gray-200 bg-white px-5 py-4 dark:border-gray-800 dark:bg-gray-950">
                             <div class="flex min-w-0 items-center gap-3">
@@ -480,7 +506,9 @@
                 </div>
 
                 <!-- Translate tab (masqué si pas de transcript) -->
-                <div x-show="hasTranscript && tab === 'translate'" x-data="transcriptViewer(video.transcript)">
+                <div x-show="hasTranscript && tab === 'translate'"
+                     x-data="transcriptViewer({ video_id: video.id, language: video.language })"
+                     @load-video-translations.window="loadTranslations()">
                     <div class="mb-6 overflow-hidden rounded-2xl border border-gray-200 bg-gray-50 dark:border-gray-800 dark:bg-gray-900">
                         <div class="border-b border-gray-200 bg-white px-5 py-4 dark:border-gray-800 dark:bg-gray-950">
                             <div class="flex items-center gap-3">
@@ -541,7 +569,9 @@
                 </div>
 
                 <!-- Download tab -->
-                <div x-show="tab === 'download'" x-data="mediaDownloader()" x-init="loadFormats()">
+                <div x-show="tab === 'download'"
+                     x-data="mediaDownloader()"
+                     @load-download-formats.window="loadFormats()">
                     <div class="overflow-hidden rounded-2xl border border-gray-200 bg-gray-50 dark:border-gray-800 dark:bg-gray-900">
                     <div class="border-b border-gray-200 bg-white px-5 py-4 dark:border-gray-800 dark:bg-gray-950">
                         <div class="flex items-center gap-3">
@@ -640,6 +670,10 @@
             transcriptSearchResults: [],
             transcriptRenderBatch: 200,
             transcriptRenderLimit: 200,
+            transcriptLoading: false,
+            transcriptLoaded: false,
+            transcriptError: null,
+            transcriptRequest: null,
             chapterRefreshTimer: null,
             init() {
                 this.adminToken = localStorage.getItem('narrv_admin_token') || null;
@@ -659,7 +693,7 @@
                 return ['pending', 'processing'].includes(this.video?.chapter_thumbnails_status);
             },
             get hasTranscript() {
-                return Boolean(this.video?.transcript?.id);
+                return Boolean(this.video?.has_transcript || this.video?.transcript?.id);
             },
             get hasSegmentTranscript() {
                 return this.transcriptSegments.length > 0;
@@ -1014,6 +1048,83 @@
                 if (!this.video?.id) return;
                 window.open(`/api/videos/${this.video.id}/transcript/download?format=${format}`, '_blank');
             },
+            transcriptCacheKey() {
+                if (!this.video?.id) return null;
+                return `narrv:transcript:${this.video.id}`;
+            },
+            cachedTranscript() {
+                const key = this.transcriptCacheKey();
+                if (!key) return null;
+
+                try {
+                    const cached = JSON.parse(sessionStorage.getItem(key) || 'null');
+                    const transcriptVersion = this.video?.transcript_updated_at || this.video?.updated_at;
+                    if (!cached?.transcript || cached.transcriptVersion !== transcriptVersion) {
+                        return null;
+                    }
+
+                    return cached.transcript;
+                } catch {
+                    return null;
+                }
+            },
+            storeTranscript(transcript) {
+                const key = this.transcriptCacheKey();
+                if (!key) return;
+
+                try {
+                    sessionStorage.setItem(key, JSON.stringify({
+                        transcriptVersion: this.video?.transcript_updated_at || this.video?.updated_at,
+                        transcript
+                    }));
+                } catch {
+                    // Le stockage navigateur peut être saturé pour les très longs transcripts.
+                }
+            },
+            applyTranscript(transcript) {
+                this.video.transcript = transcript;
+                Alpine.store('app').currentVideo.transcript = transcript;
+                this.transcriptSegments = this.asArray(transcript?.segments_json);
+                this.transcriptBlocks = this.buildTranscriptBlocks();
+                this.refreshTranscriptSearch(false);
+                this.transcriptLoaded = true;
+            },
+            async loadTranscript() {
+                if (!this.hasTranscript || this.transcriptLoaded) return;
+                if (this.transcriptRequest) return this.transcriptRequest;
+
+                const cached = this.cachedTranscript();
+                if (cached) {
+                    this.applyTranscript(cached);
+                    return;
+                }
+
+                this.transcriptLoading = true;
+                this.transcriptError = null;
+                this.transcriptRequest = (async () => {
+                    const headers = { 'Accept': 'application/json' };
+                    if (this.adminToken) headers.Authorization = `Bearer ${this.adminToken}`;
+
+                    const res = await fetch(`/api/videos/${this.video.id}/transcript`, { headers });
+                    const transcript = await res.json().catch(() => ({}));
+                    if (!res.ok) {
+                        throw new Error(transcript.error || 'Impossible de charger le transcript.');
+                    }
+
+                    this.storeTranscript(transcript);
+                    this.applyTranscript(transcript);
+                })();
+
+                try {
+                    await this.transcriptRequest;
+                } catch (error) {
+                    console.error(error);
+                    this.transcriptError = error.message;
+                } finally {
+                    this.transcriptLoading = false;
+                    this.transcriptRequest = null;
+                }
+            },
             formatTime(seconds) {
                 if (!seconds && seconds !== 0) return '';
                 const m = Math.floor(seconds / 60);
@@ -1080,13 +1191,13 @@
                     }
                     Alpine.store('app').currentVideo = video;
                     this.video = video;
-                    this.transcriptSegments = this.asArray(video?.transcript?.segments_json);
-                    this.transcriptBlocks = this.buildTranscriptBlocks();
-                    this.refreshTranscriptSearch(false);
                     if (this.video.status === 'pending' || this.video.status === 'processing') {
                         setTimeout(() => this.loadVideo(id), 3000);
                     } else {
                         this.scheduleChapterRefresh(id);
+                        if (this.tab === 'transcript' && this.hasTranscript) {
+                            setTimeout(() => this.loadTranscript(), 0);
+                        }
                     }
                 } catch(e) { console.error(e); }
             },

@@ -94,7 +94,7 @@ class VideoController extends Controller
 
     public function show(Request $request, $id)
     {
-        $video = Video::with('transcript')->findOrFail($id);
+        $video = Video::withExists(['transcript as has_transcript'])->findOrFail($id);
 
         if (!$video->is_visible) {
             $adminToken = $request->bearerToken();
@@ -107,7 +107,11 @@ class VideoController extends Controller
 
         $this->ensureChapterThumbnailsQueued($video);
 
-        return response()->json($video->fresh('transcript'));
+        $freshVideo = Video::withExists(['transcript as has_transcript'])
+            ->withMax(['transcript as transcript_updated_at'], 'updated_at')
+            ->findOrFail($video->id);
+
+        return response()->json($freshVideo);
     }
 
     public function chapterThumbnail(int $id, int $chapter)

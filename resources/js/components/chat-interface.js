@@ -3,6 +3,8 @@ import { renderMarkdown } from '../utils/markdown';
 export default function chatInterface() {
     return {
         messages: [],
+        historyLoaded: false,
+        historyLoading: false,
         input: '',
         loading: false,
         error: null,
@@ -62,13 +64,22 @@ export default function chatInterface() {
         },
 
         async loadHistory() {
+            if (this.historyLoaded || this.historyLoading) return;
+
             const videoId = Alpine.store('app').currentVideo?.id;
             if (!videoId) return;
 
-            const res = await fetch(`/api/videos/${videoId}/chat`);
-            const data = await res.json();
-            this.messages = data.data || data;
-            this.scrollToBottom();
+            this.historyLoading = true;
+            try {
+                const res = await fetch(`/api/videos/${videoId}/chat`);
+                if (!res.ok) return;
+                const data = await res.json();
+                this.messages = data.data || data;
+                this.historyLoaded = true;
+                this.scrollToBottom();
+            } finally {
+                this.historyLoading = false;
+            }
         },
 
         async copyToClipboard(message) {

@@ -5,11 +5,19 @@ namespace Tests\Feature;
 use App\Models\Video;
 use App\Services\YoutubeService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Cache;
 use Tests\TestCase;
 
 class MediaApiTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        Cache::flush();
+    }
 
     public function test_it_returns_available_download_formats(): void
     {
@@ -43,5 +51,29 @@ class MediaApiTest extends TestCase
             ->assertJsonPath('video.0.format_id', '137')
             ->assertJsonPath('audio.0.format_id', '140')
             ->assertJsonPath('defaults.video', 'best');
+    }
+
+    public function test_it_temporarily_caches_download_formats(): void
+    {
+        $video = Video::create([
+            'youtube_id' => 'dQw4w9WgXcQ',
+            'url' => 'https://youtu.be/dQw4w9WgXcQ',
+            'status' => 'ready',
+        ]);
+
+        $this->mock(YoutubeService::class, function ($mock) use ($video) {
+            $mock->shouldReceive('downloadFormats')
+                ->once()
+                ->withArgs(fn ($arg) => $arg instanceof Video && $arg->id === $video->id)
+                ->andReturn([
+                    'title' => 'Test video',
+                    'video' => [],
+                    'audio' => [],
+                    'defaults' => ['video' => 'best', 'audio' => 'bestaudio'],
+                ]);
+        });
+
+        $this->getJson("/api/videos/{$video->id}/formats")->assertOk();
+        $this->getJson("/api/videos/{$video->id}/formats")->assertOk();
     }
 }

@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Jobs\ProcessYoutubeVideo;
 use App\Jobs\GenerateChapterThumbnails;
 use App\Models\AdminSession;
+use App\Models\Transcript;
 use App\Models\Video;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
@@ -135,6 +136,40 @@ class VideoApiTest extends TestCase
             ->getJson("/api/videos/{$video->id}")
             ->assertOk()
             ->assertJsonPath('youtube_id', '9bZkp7q19f0');
+    }
+
+    public function test_show_defers_the_stored_transcript_to_its_dedicated_endpoint(): void
+    {
+        $video = Video::create([
+            'youtube_id' => 'dQw4w9WgXcQ',
+            'url' => 'https://youtu.be/dQw4w9WgXcQ',
+            'status' => 'ready',
+        ]);
+
+        Transcript::create([
+            'video_id' => $video->id,
+            'full_text' => 'Un long transcript enregistré.',
+            'language' => 'fr',
+            'word_count' => 4,
+            'segments_json' => [
+                ['start' => 0, 'end' => 3, 'text' => 'Un long transcript enregistré.'],
+            ],
+        ]);
+
+        $this->getJson("/api/videos/{$video->id}")
+            ->assertOk()
+            ->assertJsonPath('has_transcript', true)
+            ->assertJsonPath('transcript_updated_at', $video->transcript->updated_at->format('Y-m-d H:i:s'))
+            ->assertJsonMissing(['full_text' => 'Un long transcript enregistré.']);
+
+        $response = $this->getJson("/api/videos/{$video->id}/transcript");
+
+        $response
+            ->assertOk()
+            ->assertJsonPath('full_text', 'Un long transcript enregistré.');
+
+        $this->assertStringContainsString('private', $response->headers->get('Cache-Control'));
+        $this->assertStringContainsString('max-age=300', $response->headers->get('Cache-Control'));
     }
 
     public function test_admin_can_toggle_video_visibility(): void

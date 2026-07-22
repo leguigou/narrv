@@ -3,6 +3,8 @@ import { renderMarkdown } from '../utils/markdown';
 export default function summaryPanel() {
     return {
         summaries: [],
+        summariesLoaded: false,
+        summariesLoading: false,
         loading: false,
         temperature: 0.3,
         tone: 'neutral',
@@ -49,12 +51,21 @@ export default function summaryPanel() {
         },
 
         async loadSummaries() {
+            if (this.summariesLoaded || this.summariesLoading) return;
+
             const videoId = Alpine.store('app').currentVideo?.id;
             if (!videoId) return;
 
-            const res = await fetch(`/api/videos/${videoId}/summaries`);
-            const data = await res.json();
-            this.summaries = data.data || data;
+            this.summariesLoading = true;
+            try {
+                const res = await fetch(`/api/videos/${videoId}/summaries`);
+                if (!res.ok) return;
+                const data = await res.json();
+                this.summaries = data.data || data;
+                this.summariesLoaded = true;
+            } finally {
+                this.summariesLoading = false;
+            }
         },
 
         languageLabel(code) {

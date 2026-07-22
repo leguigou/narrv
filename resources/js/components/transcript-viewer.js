@@ -13,11 +13,12 @@ export default function transcriptViewer(transcript) {
         translating: false,
         translation: null,
         translations: [],
+        translationsLoaded: false,
+        translationsLoading: false,
         error: null,
 
         init() {
             this.targetLang = this.defaultTargetLanguage();
-            this.loadTranslations();
 
             // Reafficher la trad stockee quand on change de langue
             this.$watch('targetLang', () => {
@@ -62,16 +63,22 @@ export default function transcriptViewer(transcript) {
         },
 
         async loadTranslations() {
+            if (this.translationsLoaded || this.translationsLoading) return;
+
             const videoId = this.transcript?.video_id || Alpine.store('app').currentVideo?.id;
             if (!videoId) return;
 
+            this.translationsLoading = true;
             try {
                 const res = await fetch(`/api/videos/${videoId}/translations`);
                 if (!res.ok) return;
                 this.translations = await res.json();
+                this.translationsLoaded = true;
                 this.showStoredTranslation();
             } catch (e) {
                 // Silently fail, translations are not critical
+            } finally {
+                this.translationsLoading = false;
             }
         },
 

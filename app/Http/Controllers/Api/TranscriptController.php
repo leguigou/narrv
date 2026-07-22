@@ -20,7 +20,9 @@ class TranscriptController extends Controller
             return response()->json(['error' => 'Transcript pas encore pret'], 404);
         }
 
-        return response()->json($video->transcript);
+        return response()
+            ->json($video->transcript)
+            ->header('Cache-Control', 'private, max-age=300');
     }
 
     public function download(Request $request, $id)
