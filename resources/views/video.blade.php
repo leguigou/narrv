@@ -236,7 +236,9 @@
                                     <path d="m16 16 4 4"></path>
                                 </svg>
                                 <input id="transcript-search"
-                                       type="search"
+                                       type="text"
+                                       inputmode="search"
+                                       role="searchbox"
                                        x-model="transcriptSearch"
                                        @input="handleTranscriptSearch()"
                                        @keydown.enter.prevent="goToSearchResult($event.shiftKey ? -1 : 1)"
@@ -302,13 +304,12 @@
                         </template>
                     </div>
                     <div x-show="hasSegmentTranscript && visibleTranscriptBlocks.length > transcriptRenderLimit"
+                         x-ref="transcriptLoadSentinel"
                          x-cloak
-                         class="mt-5 text-center">
-                        <button @click="loadMoreTranscriptBlocks()"
-                                type="button"
-                                class="rounded-full bg-gray-100 px-5 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700">
-                            <span x-text="`Afficher ${Math.min(transcriptRenderBatch, visibleTranscriptBlocks.length - transcriptRenderLimit)} paragraphes supplémentaires`"></span>
-                        </button>
+                         class="mt-5 flex min-h-12 items-center justify-center gap-2 text-center text-xs font-medium text-gray-500 dark:text-gray-400"
+                         role="status" aria-live="polite">
+                        <span class="h-4 w-4 animate-spin rounded-full border-2 border-cyan-200 border-t-cyan-600" aria-hidden="true"></span>
+                        <span>Chargement de la suite du transcript…</span>
                     </div>
                     <!-- Fallback si transcript mais pas de segments -->
                     <div x-show="transcriptLoaded && !hasSegmentTranscript && transcriptText && (!hasTranscriptSearch || transcriptSearchResults.length > 0)"
@@ -668,8 +669,10 @@
             transcriptBlocks: [],
             visibleTranscriptBlocks: [],
             transcriptSearchResults: [],
-            transcriptRenderBatch: 200,
-            transcriptRenderLimit: 200,
+            transcriptRenderBatch: 24,
+            transcriptRenderLimit: 24,
+            transcriptObserver: null,
+            transcriptAppending: false,
             transcriptLoading: false,
             transcriptLoaded: false,
             transcriptError: null,
@@ -850,7 +853,53 @@
                 if (shouldScroll) this.scrollToActiveTranscriptResult();
             },
             loadMoreTranscriptBlocks() {
-                this.transcriptRenderLimit += this.transcriptRenderBatch;
+                if (this.transcriptAppending || this.transcriptRenderLimit >= this.visibleTranscriptBlocks.length) {
+                    return;
+                }
+
+                this.transcriptAppending = true;
+                if (this.transcriptObserver && this.$refs.transcriptLoadSentinel) {
+                    this.transcriptObserver.unobserve(this.$refs.transcriptLoadSentinel);
+                }
+
+                window.requestAnimationFrame(() => {
+                    this.transcriptRenderLimit = Math.min(
+                        this.visibleTranscriptBlocks.length,
+                        this.transcriptRenderLimit + this.transcriptRenderBatch
+                    );
+
+                    this.$nextTick(() => {
+                        this.transcriptAppending = false;
+                        this.observeTranscriptSentinel();
+                    });
+                });
+            },
+            setupTranscriptObserver() {
+                if (this.transcriptObserver) {
+                    this.transcriptObserver.disconnect();
+                }
+
+                if (!('IntersectionObserver' in window)) {
+                    this.transcriptRenderLimit = this.visibleTranscriptBlocks.length;
+                    return;
+                }
+
+                this.transcriptObserver = new IntersectionObserver((entries) => {
+                    if (entries.some((entry) => entry.isIntersecting)) {
+                        this.loadMoreTranscriptBlocks();
+                    }
+                }, {
+                    rootMargin: '240px 0px',
+                    threshold: 0.01
+                });
+
+                this.observeTranscriptSentinel();
+            },
+            observeTranscriptSentinel() {
+                if (!this.transcriptObserver || !this.$refs.transcriptLoadSentinel) return;
+                if (this.transcriptRenderLimit >= this.visibleTranscriptBlocks.length) return;
+
+                this.transcriptObserver.observe(this.$refs.transcriptLoadSentinel);
             },
             goToSearchResult(direction = 1) {
                 const results = this.transcriptSearchResults;
@@ -1088,6 +1137,7 @@
                 this.transcriptBlocks = this.buildTranscriptBlocks();
                 this.refreshTranscriptSearch(false);
                 this.transcriptLoaded = true;
+                this.$nextTick(() => this.setupTranscriptObserver());
             },
             async loadTranscript() {
                 if (!this.hasTranscript || this.transcriptLoaded) return;
@@ -1230,6 +1280,7 @@
             },
             destroy() {
                 if (this.chapterRefreshTimer) clearTimeout(this.chapterRefreshTimer);
+                if (this.transcriptObserver) this.transcriptObserver.disconnect();
             }
         }));
     });
