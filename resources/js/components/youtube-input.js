@@ -7,6 +7,8 @@ export default function youtubeInput() {
         progress: 0,
         progressMessage: '',
         progressTimer: null,
+        progressStep: 1,
+        progressCompleting: false,
 
         examples: [
             'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
@@ -70,6 +72,10 @@ export default function youtubeInput() {
             this.success = null;
             this.startProgress();
 
+            this.$nextTick(() => {
+                this.$refs.analysisProgress?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            });
+
             try {
                 const res = await fetch('/api/videos', {
                     method: 'POST',
@@ -105,23 +111,28 @@ export default function youtubeInput() {
         startProgress() {
             this.stopProgress(false);
             this.progress = 4;
+            this.progressStep = 1;
+            this.progressCompleting = false;
             this.progressMessage = 'Préparation de la vidéo...';
 
             this.progressTimer = window.setInterval(() => {
                 let increment;
 
-                if (this.progress < 35) {
-                    increment = 4 + Math.random() * 4;
-                    this.progressMessage = 'Récupération des informations...';
-                } else if (this.progress < 80) {
-                    increment = 1.5 + Math.random() * 2.5;
-                    this.progressMessage = 'Extraction et analyse du transcript...';
+                if (this.progress < 25) {
+                    increment = 3 + Math.random() * 3;
+                    this.progressStep = 1;
+                    this.progressMessage = 'Préparation de la vidéo...';
+                } else if (this.progress < 70) {
+                    increment = 1.5 + Math.random() * 2;
+                    this.progressStep = 2;
+                    this.progressMessage = 'Récupération des informations et du transcript...';
                 } else {
-                    increment = 0.15 + Math.random() * 0.55;
-                    this.progressMessage = 'Finalisation de l’analyse...';
+                    increment = 0.08 + Math.random() * 0.22;
+                    this.progressStep = 3;
+                    this.progressMessage = 'Analyse du contenu et finalisation...';
                 }
 
-                this.progress = Math.min(94, this.progress + increment);
+                this.progress = Math.min(90, this.progress + increment);
             }, 450);
         },
 
@@ -134,6 +145,8 @@ export default function youtubeInput() {
             if (reset) {
                 this.progress = 0;
                 this.progressMessage = '';
+                this.progressStep = 1;
+                this.progressCompleting = false;
             }
         },
 
@@ -142,7 +155,7 @@ export default function youtubeInput() {
             if (initialStatus === 'error') throw new Error('L’analyse de cette vidéo a échoué.');
 
             while (true) {
-                await new Promise((resolve) => window.setTimeout(resolve, 2500));
+                await new Promise((resolve) => window.setTimeout(resolve, 1200));
 
                 const res = await fetch(`/api/videos/${videoId}`, {
                     headers: { 'Accept': 'application/json' }
@@ -161,14 +174,14 @@ export default function youtubeInput() {
 
         async completeProgress() {
             this.stopProgress(false);
+            this.progressStep = 3;
+            this.progressCompleting = true;
             this.progressMessage = 'Analyse terminée, affichage des résultats...';
+            this.progress = 100;
 
-            while (this.progress < 100) {
-                this.progress = Math.min(100, this.progress + 3);
-                await new Promise((resolve) => window.setTimeout(resolve, 25));
-            }
-
-            await new Promise((resolve) => window.setTimeout(resolve, 250));
+            // La navigation ne dépend pas de l'animation : ce court délai laisse
+            // seulement le navigateur peindre la fin de la barre.
+            await new Promise((resolve) => window.setTimeout(resolve, 160));
         },
 
         preferredLanguage() {

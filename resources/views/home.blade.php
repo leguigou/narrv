@@ -46,6 +46,26 @@
                         </button>
                     </div>
 
+                    <div x-show="loading" x-cloak x-ref="analysisProgress"
+                         class="mt-3 rounded-lg border border-cyan-200 bg-white/95 p-4 shadow-lg shadow-cyan-900/5 dark:border-cyan-800 dark:bg-gray-900/95"
+                         role="status" aria-live="polite">
+                        <div class="mb-2 flex items-start justify-between gap-4 text-sm">
+                            <div class="min-w-0">
+                                <span class="block text-xs font-semibold uppercase tracking-wide text-cyan-700 dark:text-cyan-300"
+                                      x-text="`Étape ${progressStep} sur 3`"></span>
+                                <span class="mt-0.5 block font-medium text-gray-700 dark:text-gray-200" x-text="progressMessage"></span>
+                            </div>
+                            <span class="shrink-0 tabular-nums font-semibold text-cyan-700 dark:text-cyan-300" x-text="`${Math.round(progress)}%`"></span>
+                        </div>
+                        <div class="h-2.5 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800"
+                             role="progressbar" aria-label="Progression de l’analyse" aria-valuemin="0" aria-valuemax="100" :aria-valuenow="Math.round(progress)">
+                            <div class="h-full rounded-full bg-cyan-600 transition-[width] ease-out"
+                                 :class="progressCompleting ? 'duration-150' : 'duration-500'"
+                                 :style="`width: ${progress}%`"></div>
+                        </div>
+                        <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">Les résultats s’afficheront automatiquement dès qu’ils seront prêts.</p>
+                    </div>
+
                     <div class="mt-3 flex flex-wrap items-center gap-3 text-sm" x-cloak>
                         <span x-show="detectedId" class="rounded-md border border-green-200 bg-green-50 px-3 py-1 font-medium text-green-800 dark:border-green-800 dark:bg-green-950 dark:text-green-200">
                             ID detecte : <span x-text="detectedId"></span>
@@ -67,20 +87,6 @@
                     </div>
                     <div x-show="success" x-text="success" x-cloak
                          class="mt-4 rounded-md bg-green-50 px-4 py-3 text-sm text-green-700 ring-1 ring-green-200 dark:bg-green-950 dark:text-green-200 dark:ring-green-800">
-                    </div>
-
-                    <div x-show="loading" x-cloak class="mt-4 rounded-lg border border-cyan-200 bg-white/90 p-4 shadow-lg shadow-cyan-900/5 dark:border-cyan-800 dark:bg-gray-900/90"
-                         role="status" aria-live="polite">
-                        <div class="mb-2 flex items-center justify-between gap-4 text-sm">
-                            <span class="font-medium text-gray-700 dark:text-gray-200" x-text="progressMessage"></span>
-                            <span class="tabular-nums font-semibold text-cyan-700 dark:text-cyan-300" x-text="`${Math.round(progress)}%`"></span>
-                        </div>
-                        <div class="h-2.5 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800"
-                             role="progressbar" aria-label="Progression de l’analyse" aria-valuemin="0" aria-valuemax="100" :aria-valuenow="Math.round(progress)">
-                            <div class="h-full rounded-full bg-cyan-600 transition-[width] duration-500 ease-out"
-                                 :style="`width: ${progress}%`"></div>
-                        </div>
-                        <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">Vous pouvez laisser cette page ouverte, les résultats s’afficheront automatiquement.</p>
                     </div>
 
                 </div>
