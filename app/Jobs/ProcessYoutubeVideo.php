@@ -93,8 +93,7 @@ class ProcessYoutubeVideo implements ShouldQueue
             // Le téléchargement vidéo et FFmpeg ne retardent donc jamais le transcript.
             if ($hasChapters) {
                 try {
-                    GenerateChapterThumbnails::dispatch($this->video->fresh())
-                        ->onConnection('database');
+                    GenerateChapterThumbnails::dispatch($this->video->fresh());
                 } catch (Throwable $e) {
                     $this->video->update(['chapter_thumbnails_status' => 'error']);
                     logger()->warning('Unable to queue chapter thumbnails', [

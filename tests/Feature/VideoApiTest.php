@@ -181,8 +181,39 @@ class VideoApiTest extends TestCase
             ->assertJsonPath('status', 'ready')
             ->assertJsonPath('chapter_thumbnails_status', 'pending');
 
-        Queue::assertPushed(GenerateChapterThumbnails::class);
+        Queue::assertPushed(
+            GenerateChapterThumbnails::class,
+            fn (GenerateChapterThumbnails $job) => $job->connection === null
+        );
         Queue::assertNotPushed(ProcessYoutubeVideo::class);
+    }
+
+    public function test_show_requeues_a_stale_pending_chapter_thumbnail_job(): void
+    {
+        Queue::fake();
+
+        $video = Video::create([
+            'youtube_id' => 'dQw4w9WgXcQ',
+            'url' => 'https://youtu.be/dQw4w9WgXcQ',
+            'status' => 'ready',
+            'chapter_thumbnails_status' => 'pending',
+            'chapters_json' => [
+                ['title' => 'Introduction', 'start_time' => 0, 'end_time' => 30, 'duration' => 30],
+            ],
+        ]);
+
+        Video::withoutTimestamps(fn () => Video::whereKey($video->id)->update([
+            'updated_at' => now()->subMinutes(5),
+        ]));
+
+        $this->getJson("/api/videos/{$video->id}")
+            ->assertOk()
+            ->assertJsonPath('chapter_thumbnails_status', 'pending');
+
+        Queue::assertPushed(
+            GenerateChapterThumbnails::class,
+            fn (GenerateChapterThumbnails $job) => $job->connection === null
+        );
     }
 
     public function test_it_serves_a_generated_chapter_thumbnail(): void

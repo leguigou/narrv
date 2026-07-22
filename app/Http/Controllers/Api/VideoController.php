@@ -131,13 +131,28 @@ class VideoController extends Controller
 
     private function ensureChapterThumbnailsQueued(Video $video): void
     {
-        if ($video->status !== 'ready' || empty($video->chapters_json) || $video->chapter_thumbnails_status !== null) {
+        if ($video->status !== 'ready' || empty($video->chapters_json)) {
             return;
         }
 
-        $claimed = Video::whereKey($video->id)
-            ->whereNull('chapter_thumbnails_status')
-            ->update(['chapter_thumbnails_status' => 'pending']);
+        $status = $video->chapter_thumbnails_status;
+        $isNew = $status === null;
+        $isStalePending = $status === 'pending' && $video->updated_at?->lt(now()->subMinutes(2));
+        $isStaleProcessing = $status === 'processing' && $video->updated_at?->lt(now()->subMinutes(25));
+
+        if (!$isNew && !$isStalePending && !$isStaleProcessing) {
+            return;
+        }
+
+        $query = Video::whereKey($video->id);
+        $status === null
+            ? $query->whereNull('chapter_thumbnails_status')
+            : $query->where('chapter_thumbnails_status', $status);
+
+        $claimed = $query->update([
+            'chapter_thumbnails_status' => 'pending',
+            'updated_at' => now(),
+        ]);
 
         if ($claimed === 0) {
             return;
@@ -146,8 +161,9 @@ class VideoController extends Controller
         $video->chapter_thumbnails_status = 'pending';
 
         try {
-            GenerateChapterThumbnails::dispatch($video)
-                ->onConnection('database');
+            // Respecte la connexion par défaut du déploiement (database, Redis,
+            // etc.) afin que le worker actif consomme réellement ce job.
+            GenerateChapterThumbnails::dispatch($video);
         } catch (Throwable $e) {
             $video->update(['chapter_thumbnails_status' => 'error']);
             logger()->warning('Unable to queue legacy chapter thumbnails', [

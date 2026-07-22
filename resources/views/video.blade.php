@@ -69,12 +69,6 @@
                     <span x-show="video.duration"
                           class="rounded-md bg-gray-100 px-2.5 py-1 font-mono text-gray-600 dark:bg-gray-800 dark:text-gray-300"
                           x-text="formatDuration(video.duration)"></span>
-                    <a :href="video.youtube_url || video.url"
-                       target="_blank"
-                       rel="noopener noreferrer"
-                       class="rounded-md border border-gray-200 px-2.5 py-1 font-medium text-gray-600 transition hover:border-cyan-300 hover:text-cyan-700 dark:border-gray-700 dark:text-gray-300 dark:hover:border-cyan-600 dark:hover:text-cyan-200">
-                        Ouvrir sur YouTube
-                    </a>
                 </div>
 
                 <!-- Infos detaillees -->
@@ -167,13 +161,13 @@
                                 <span class="h-3.5 w-3.5 animate-spin rounded-full border-2 border-cyan-200 border-t-cyan-600" aria-hidden="true"></span>
                                 <span>Création des miniatures en arrière-plan…</span>
                             </div>
-                            <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                            <div class="grid gap-2 sm:grid-cols-2">
                             <template x-for="(chapter, chapterIndex) in videoChapters" :key="chapter.start_time + '-' + chapter.title">
                                 <button @click="playVideo(chapter.start_time)"
-                                        class="group overflow-hidden rounded-lg bg-white text-left ring-1 ring-gray-200 transition hover:-translate-y-0.5 hover:ring-cyan-300 hover:shadow-md dark:bg-gray-950 dark:ring-gray-800 dark:hover:ring-cyan-700">
-                                    <span class="relative block aspect-video overflow-hidden bg-gray-200 dark:bg-gray-800">
+                                        class="group flex min-w-0 items-stretch overflow-hidden rounded-lg bg-white text-left ring-1 ring-gray-200 transition hover:ring-cyan-300 hover:shadow-sm dark:bg-gray-950 dark:ring-gray-800 dark:hover:ring-cyan-700">
+                                    <span class="relative block aspect-video w-28 shrink-0 overflow-hidden bg-gray-200 sm:w-32 dark:bg-gray-800">
                                         <span class="absolute inset-0 flex items-center justify-center text-gray-400 dark:text-gray-600">
-                                            <x-icon name="image" class="h-7 w-7" />
+                                            <x-icon name="image" class="h-5 w-5" />
                                         </span>
                                         <img x-show="chapter.thumbnail_url"
                                              :src="chapter.thumbnail_url"
@@ -184,7 +178,7 @@
                                         <span class="absolute bottom-2 left-2 rounded bg-black/75 px-2 py-0.5 font-mono text-[11px] font-semibold text-white"
                                               x-text="formatTime(chapter.start_time)"></span>
                                     </span>
-                                    <span class="block p-3">
+                                    <span class="flex min-w-0 flex-1 flex-col justify-center p-3">
                                         <span class="block line-clamp-2 text-sm font-semibold text-gray-950 dark:text-white" x-text="chapter.title"></span>
                                         <span class="mt-1 block text-xs text-gray-500 dark:text-gray-400"
                                               x-text="`Durée : ${formatChapterDuration(chapter, chapterIndex)}`"></span>
