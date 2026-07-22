@@ -132,11 +132,24 @@
 
                 <!-- Transcript tab -->
                 <div x-show="tab === 'transcript'">
-                    <!-- Boutons de téléchargement seulement si transcript dispo -->
-                    <div x-show="hasTranscript" class="flex flex-wrap gap-2 mb-4">
-                        <button @click="downloadTranscript('txt')" class="px-4 py-2 rounded-full bg-gray-100 dark:bg-gray-800 text-sm hover:bg-gray-200 dark:hover:bg-gray-700">📥 .txt</button>
-                        <button @click="downloadTranscript('vtt')" class="px-4 py-2 rounded-full bg-gray-100 dark:bg-gray-800 text-sm hover:bg-gray-200 dark:hover:bg-gray-700">📥 .vtt</button>
-                        <button @click="downloadTranscript('srt')" class="px-4 py-2 rounded-full bg-gray-100 dark:bg-gray-800 text-sm hover:bg-gray-200 dark:hover:bg-gray-700">📥 .srt</button>
+                    <div class="mb-6 overflow-hidden rounded-2xl border border-gray-200 bg-gray-50 dark:border-gray-800 dark:bg-gray-900">
+                        <div class="border-b border-gray-200 bg-white px-5 py-4 dark:border-gray-800 dark:bg-gray-950">
+                            <div class="flex items-center gap-3">
+                                <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-cyan-50 font-bold text-cyan-700 ring-1 ring-cyan-100 dark:bg-cyan-950 dark:text-cyan-300 dark:ring-cyan-900">T</div>
+                                <div>
+                                    <h2 class="text-base font-semibold text-gray-950 dark:text-white">Explorer le transcript</h2>
+                                    <p class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">Recherchez un passage, naviguez par chapitre ou exportez les sous-titres.</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div x-show="hasTranscript" class="p-5">
+                            <p class="mb-2 text-xs font-semibold text-gray-600 dark:text-gray-300">Exporter le transcript</p>
+                            <div class="grid grid-cols-3 gap-2 sm:flex sm:flex-wrap">
+                                <button @click="downloadTranscript('txt')" type="button" class="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 transition hover:border-cyan-300 hover:text-cyan-700 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-200 dark:hover:border-cyan-700 dark:hover:text-cyan-300">TXT</button>
+                                <button @click="downloadTranscript('vtt')" type="button" class="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 transition hover:border-cyan-300 hover:text-cyan-700 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-200 dark:hover:border-cyan-700 dark:hover:text-cyan-300">VTT</button>
+                                <button @click="downloadTranscript('srt')" type="button" class="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 transition hover:border-cyan-300 hover:text-cyan-700 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-200 dark:hover:border-cyan-700 dark:hover:text-cyan-300">SRT</button>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- Chapitres (toujours affichés si présents) -->
@@ -378,15 +391,15 @@
                 <!-- Chat tab (masqué si pas de transcript) -->
                 <div x-show="hasTranscript && tab === 'chat'" x-data="chatInterface()" x-init="loadHistory()">
                     <div class="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-950">
-                        <div class="flex items-center justify-between gap-3 border-b border-gray-200 bg-gray-50 px-4 py-3 dark:border-gray-800 dark:bg-gray-900">
+                        <div class="flex items-center justify-between gap-3 border-b border-gray-200 bg-white px-5 py-4 dark:border-gray-800 dark:bg-gray-950">
                             <div class="flex min-w-0 items-center gap-3">
-                                <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-narrv-500 text-sm font-bold text-white">IA</div>
+                                <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-cyan-50 text-sm font-bold text-cyan-700 ring-1 ring-cyan-100 dark:bg-cyan-950 dark:text-cyan-300 dark:ring-cyan-900">IA</div>
                                 <div class="min-w-0">
-                                    <h2 class="truncate text-sm font-semibold text-gray-950 dark:text-white">Chat IA</h2>
-                                    <p class="truncate text-xs text-gray-500 dark:text-gray-400" x-text="video.title || 'Video en analyse'"></p>
+                                    <h2 class="truncate text-base font-semibold text-gray-950 dark:text-white">Interroger la vidéo</h2>
+                                    <p class="truncate text-xs text-gray-500 dark:text-gray-400">Posez vos questions à partir du transcript.</p>
                                 </div>
                             </div>
-                            <span class="shrink-0 rounded-full bg-green-50 px-3 py-1 text-xs font-medium text-green-700 ring-1 ring-green-200 dark:bg-green-950 dark:text-green-300 dark:ring-green-800">Transcript prêt</span>
+                            <span class="hidden shrink-0 rounded-full bg-green-50 px-3 py-1 text-xs font-medium text-green-700 ring-1 ring-green-200 dark:bg-green-950 dark:text-green-300 dark:ring-green-800 sm:inline-flex">Transcript prêt</span>
                         </div>
 
                         <div class="h-[28rem] overflow-y-auto bg-white p-4 dark:bg-gray-950 sm:p-5" x-ref="chatbox">
@@ -528,13 +541,27 @@
 
                 <!-- Download tab -->
                 <div x-show="tab === 'download'" x-data="mediaDownloader()" x-init="loadFormats()">
-                    <div x-show="loading" class="py-8 text-sm text-gray-500 dark:text-gray-400">Chargement des formats...</div>
+                    <div class="overflow-hidden rounded-2xl border border-gray-200 bg-gray-50 dark:border-gray-800 dark:bg-gray-900">
+                    <div class="border-b border-gray-200 bg-white px-5 py-4 dark:border-gray-800 dark:bg-gray-950">
+                        <div class="flex items-center gap-3">
+                            <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-cyan-50 font-bold text-cyan-700 ring-1 ring-cyan-100 dark:bg-cyan-950 dark:text-cyan-300 dark:ring-cyan-900">↓</div>
+                            <div>
+                                <h2 class="text-base font-semibold text-gray-950 dark:text-white">Télécharger la vidéo</h2>
+                                <p class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">Choisissez le format vidéo ou récupérez uniquement la piste audio.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="p-5">
+                    <div x-show="loading" class="flex items-center gap-2 py-8 text-sm text-gray-500 dark:text-gray-400">
+                        <span class="h-4 w-4 animate-spin rounded-full border-2 border-cyan-200 border-t-cyan-600" aria-hidden="true"></span>
+                        Chargement des formats…
+                    </div>
                     <div x-show="error" x-text="error"
                          class="mb-4 px-4 py-2 rounded-xl bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-sm">
                     </div>
 
                     <div x-show="formats" class="flex flex-col gap-4 sm:grid sm:grid-cols-2">
-                        <div class="rounded-2xl border border-gray-200 bg-gray-50 p-5 dark:border-gray-800 dark:bg-gray-900">
+                        <div class="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-950">
                             <h2 class="text-lg font-semibold">Video complète</h2>
                             <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Télécharge la vidéo avec audio.</p>
 
@@ -550,7 +577,7 @@
                             </button>
                         </div>
 
-                        <div class="rounded-2xl border border-gray-200 bg-gray-50 p-5 dark:border-gray-800 dark:bg-gray-900">
+                        <div class="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-950">
                             <h2 class="text-lg font-semibold">Audio seul</h2>
                             <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Extrait la piste audio en MP3.</p>
 
@@ -582,6 +609,8 @@
 
                     <div x-show="success" x-text="success" x-cloak
                          class="mt-4 rounded-xl bg-green-50 px-4 py-3 text-sm text-green-700 dark:bg-green-900/20 dark:text-green-300"></div>
+                    </div>
+                    </div>
                 </div>
             </div>
         </div>
