@@ -28,7 +28,20 @@ class GenerateChapterThumbnails implements ShouldQueue
             return;
         }
 
-        $this->video->update(['chapter_thumbnails_status' => 'processing']);
+        // Un seul job peut prendre la vidéo. Une ancienne tâche restée dans une
+        // autre connexion de queue devient ainsi inoffensive si elle réapparaît.
+        $claimed = Video::whereKey($this->video->id)
+            ->where('chapter_thumbnails_status', 'pending')
+            ->update([
+                'chapter_thumbnails_status' => 'processing',
+                'updated_at' => now(),
+            ]);
+
+        if ($claimed === 0) {
+            return;
+        }
+
+        $this->video->refresh();
 
         try {
             $chapters = $service->generateChapterThumbnails($this->video);
@@ -38,7 +51,9 @@ class GenerateChapterThumbnails implements ShouldQueue
                 'chapter_thumbnails_status' => 'ready',
             ]);
         } catch (Throwable $e) {
-            $this->video->update(['chapter_thumbnails_status' => 'error']);
+            Video::whereKey($this->video->id)
+                ->where('chapter_thumbnails_status', 'processing')
+                ->update(['chapter_thumbnails_status' => 'error']);
 
             logger()->warning('Chapter thumbnail generation failed', [
                 'source' => 'youtube',
@@ -51,6 +66,8 @@ class GenerateChapterThumbnails implements ShouldQueue
 
     public function failed(?Throwable $exception): void
     {
-        $this->video->update(['chapter_thumbnails_status' => 'error']);
+        Video::whereKey($this->video->id)
+            ->where('chapter_thumbnails_status', 'processing')
+            ->update(['chapter_thumbnails_status' => 'error']);
     }
 }

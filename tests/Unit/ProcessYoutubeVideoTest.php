@@ -48,6 +48,9 @@ class ProcessYoutubeVideoTest extends TestCase
         $video->refresh();
         $this->assertSame('ready', $video->status);
         $this->assertSame('pending', $video->chapter_thumbnails_status);
-        Queue::assertPushed(GenerateChapterThumbnails::class);
+        Queue::assertPushed(
+            GenerateChapterThumbnails::class,
+            fn (GenerateChapterThumbnails $job) => $job->connection === null
+        );
     }
 }
