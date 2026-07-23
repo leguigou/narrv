@@ -125,7 +125,6 @@
                         <button @click="tab = 'transcript'; loadTranscript()" :class="tab === 'transcript' ? 'border-b-2 border-narrv-500 text-narrv-500' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 border-b-2 border-transparent'" class="shrink-0 px-3 py-3 text-sm font-medium whitespace-nowrap transition-colors">Transcript</button>
                         <button x-show="hasTranscript" @click="tab = 'summary'; $dispatch('load-video-summaries')" :class="tab === 'summary' ? 'border-b-2 border-narrv-500 text-narrv-500' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 border-b-2 border-transparent'" class="shrink-0 px-3 py-3 text-sm font-medium whitespace-nowrap transition-colors">Résumé</button>
                         <button x-show="hasTranscript" @click="tab = 'chat'; $dispatch('load-video-chat')" :class="tab === 'chat' ? 'border-b-2 border-narrv-500 text-narrv-500' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 border-b-2 border-transparent'" class="shrink-0 px-3 py-3 text-sm font-medium whitespace-nowrap transition-colors">Chat IA</button>
-                        <button x-show="hasTranscript" @click="tab = 'translate'; $dispatch('load-video-translations')" :class="tab === 'translate' ? 'border-b-2 border-narrv-500 text-narrv-500' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 border-b-2 border-transparent'" class="shrink-0 px-3 py-3 text-sm font-medium whitespace-nowrap transition-colors">Traduire</button>
                         <button @click="tab = 'download'; $dispatch('load-download-formats')" :class="tab === 'download' ? 'border-b-2 border-narrv-500 text-narrv-500' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 border-b-2 border-transparent'" class="shrink-0 px-3 py-3 text-sm font-medium whitespace-nowrap transition-colors">Télécharger</button>
                     </div>
                 </div>
@@ -143,11 +142,80 @@
                             </div>
                         </div>
                         <div x-show="hasTranscript" class="p-5">
-                            <p class="mb-2 text-xs font-semibold text-gray-600 dark:text-gray-300">Exporter le transcript</p>
-                            <div class="grid grid-cols-3 gap-2 sm:flex sm:flex-wrap">
-                                <button @click="downloadTranscript('txt')" type="button" class="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 transition hover:border-cyan-300 hover:text-cyan-700 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-200 dark:hover:border-cyan-700 dark:hover:text-cyan-300">TXT</button>
-                                <button @click="downloadTranscript('vtt')" type="button" class="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 transition hover:border-cyan-300 hover:text-cyan-700 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-200 dark:hover:border-cyan-700 dark:hover:text-cyan-300">VTT</button>
-                                <button @click="downloadTranscript('srt')" type="button" class="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 transition hover:border-cyan-300 hover:text-cyan-700 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-200 dark:hover:border-cyan-700 dark:hover:text-cyan-300">SRT</button>
+                            <div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+                                <div class="min-w-0">
+                                    <p class="mb-2 text-xs font-semibold text-gray-600 dark:text-gray-300">Version du transcript</p>
+                                    <div class="flex max-w-full gap-1 overflow-x-auto pb-1" role="tablist" aria-label="Langue du transcript">
+                                        <button type="button"
+                                                @click="selectTranscriptLanguage('original')"
+                                                :class="selectedTranscriptLanguage === 'original' ? 'bg-cyan-600 text-white ring-cyan-600' : 'bg-white text-gray-700 ring-gray-200 hover:ring-cyan-300 dark:bg-gray-950 dark:text-gray-200 dark:ring-gray-700'"
+                                                class="shrink-0 rounded-full px-3.5 py-2 text-xs font-semibold ring-1 transition"
+                                                role="tab"
+                                                :aria-selected="(selectedTranscriptLanguage === 'original').toString()">
+                                            Original
+                                        </button>
+                                        <template x-for="translation in timedTranslations" :key="translation.target_language">
+                                            <button type="button"
+                                                    @click="selectTranscriptLanguage(translation.target_language)"
+                                                    :class="selectedTranscriptLanguage === translation.target_language ? 'bg-cyan-600 text-white ring-cyan-600' : 'bg-white text-gray-700 ring-gray-200 hover:ring-cyan-300 dark:bg-gray-950 dark:text-gray-200 dark:ring-gray-700'"
+                                                    class="shrink-0 rounded-full px-3.5 py-2 text-xs font-semibold ring-1 transition"
+                                                    role="tab"
+                                                    :aria-selected="(selectedTranscriptLanguage === translation.target_language).toString()"
+                                                    x-text="languageLabel(translation.target_language)"></button>
+                                        </template>
+                                    </div>
+                                </div>
+                                <button type="button"
+                                        @click="toggleTranslationPanel()"
+                                        :aria-expanded="translationPanelOpen.toString()"
+                                        class="inline-flex min-h-10 shrink-0 items-center justify-center gap-2 rounded-xl border border-cyan-200 bg-cyan-50 px-4 py-2 text-sm font-semibold text-cyan-700 transition hover:bg-cyan-100 dark:border-cyan-800 dark:bg-cyan-950/40 dark:text-cyan-300 dark:hover:bg-cyan-950">
+                                    <span aria-hidden="true">文</span>
+                                    <span>Traduire</span>
+                                    <x-icon name="chevron-down" class="h-4 w-4 transition" ::class="translationPanelOpen ? 'rotate-180' : ''" />
+                                </button>
+                            </div>
+
+                            <div x-show="translationPanelOpen" x-transition x-cloak class="mt-4 border-t border-gray-200 pt-4 dark:border-gray-800">
+                                <div class="flex flex-col gap-3 sm:flex-row sm:items-end">
+                                    <label class="block flex-1">
+                                        <span class="mb-1.5 block text-xs font-semibold text-gray-600 dark:text-gray-300">Traduire vers</span>
+                                        <select x-model="translationTargetLanguage" :disabled="translatingTranscript"
+                                                class="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm font-semibold text-gray-900 outline-none focus:border-cyan-400 focus:ring-2 focus:ring-cyan-200 disabled:opacity-60 dark:border-gray-700 dark:bg-gray-950 dark:text-white dark:focus:ring-cyan-900/50">
+                                            <template x-for="language in availableTranslationLanguages" :key="language.code">
+                                                <option :value="language.code" x-text="language.label"></option>
+                                            </template>
+                                        </select>
+                                    </label>
+                                    <button type="button"
+                                            @click="translateTranscript()"
+                                            :disabled="translatingTranscript || !translationTargetLanguage"
+                                            class="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-cyan-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-cyan-700 disabled:cursor-wait disabled:opacity-60">
+                                        <span x-show="translatingTranscript" class="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" aria-hidden="true"></span>
+                                        <span x-text="translatingTranscript ? 'Traduction en cours…' : `Traduire en ${languageLabel(translationTargetLanguage)}`"></span>
+                                    </button>
+                                </div>
+                                <div x-show="translatingTranscript" x-cloak class="mt-3" role="status" aria-live="polite">
+                                    <div class="mb-1 flex justify-between text-xs text-gray-500 dark:text-gray-400">
+                                        <span x-text="translationTotalChunks ? `Bloc ${translationTranslatedChunks} / ${translationTotalChunks}` : 'Préparation…'"></span>
+                                        <span x-show="translationTotalChunks" x-text="`${Math.round((translationTranslatedChunks / translationTotalChunks) * 100)} %`"></span>
+                                    </div>
+                                    <div class="h-2 overflow-hidden rounded-full bg-gray-200 dark:bg-gray-800">
+                                        <div class="h-full rounded-full bg-cyan-500 transition-all duration-300"
+                                             :style="`width: ${translationTotalChunks ? (translationTranslatedChunks / translationTotalChunks) * 100 : 4}%`"></div>
+                                    </div>
+                                </div>
+                                <p x-show="translationError" x-text="translationError" x-cloak
+                                   class="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600 dark:bg-red-950/30 dark:text-red-300"></p>
+                                <p class="mt-3 text-xs text-gray-500 dark:text-gray-400">L’original reste intact. La nouvelle langue apparaîtra dans un onglet avec les mêmes horodatages.</p>
+                            </div>
+
+                            <div class="mt-4">
+                                <p class="mb-2 text-xs font-semibold text-gray-600 dark:text-gray-300">Exporter l’original</p>
+                                <div class="grid grid-cols-3 gap-2 sm:flex sm:flex-wrap">
+                                    <button @click="downloadTranscript('txt')" type="button" class="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 transition hover:border-cyan-300 hover:text-cyan-700 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-200 dark:hover:border-cyan-700 dark:hover:text-cyan-300">TXT</button>
+                                    <button @click="downloadTranscript('vtt')" type="button" class="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 transition hover:border-cyan-300 hover:text-cyan-700 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-200 dark:hover:border-cyan-700 dark:hover:text-cyan-300">VTT</button>
+                                    <button @click="downloadTranscript('srt')" type="button" class="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 transition hover:border-cyan-300 hover:text-cyan-700 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-200 dark:hover:border-cyan-700 dark:hover:text-cyan-300">SRT</button>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -516,80 +584,6 @@
                     </div>
                 </div>
 
-                <!-- Translate tab (masqué si pas de transcript) -->
-                <div x-show="hasTranscript && tab === 'translate'"
-                     x-data="transcriptViewer({ video_id: video.id, language: video.language })"
-                     @load-video-translations.window="loadTranslations()">
-                    <div class="mb-6 overflow-hidden rounded-2xl border border-gray-200 bg-gray-50 dark:border-gray-800 dark:bg-gray-900">
-                        <div class="border-b border-gray-200 bg-white px-5 py-4 dark:border-gray-800 dark:bg-gray-950">
-                            <div class="flex items-center gap-3">
-                                <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-50 font-bold text-indigo-700 ring-1 ring-indigo-100 dark:bg-indigo-950 dark:text-indigo-300 dark:ring-indigo-900">文</div>
-                                <div>
-                                    <h2 class="text-base font-semibold text-gray-950 dark:text-white">Traduire le transcript</h2>
-                                    <p class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">La traduction enregistrée sera réutilisée automatiquement.</p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="p-5">
-                            <div class="grid items-end gap-3 sm:grid-cols-[1fr_auto_1fr]">
-                                <div class="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-950">
-                                    <span class="block text-xs font-semibold text-gray-500 dark:text-gray-400">Langue source</span>
-                                    <span class="mt-1 flex items-center gap-2 text-sm font-semibold text-gray-950 dark:text-white">
-                                        <span x-text="flagFor(sourceLang)"></span>
-                                        <span x-text="sourceLanguageLabel"></span>
-                                    </span>
-                                </div>
-                                <div class="hidden pb-4 text-gray-400 sm:block" aria-hidden="true">→</div>
-                                <label class="block rounded-xl border border-cyan-200 bg-cyan-50 p-4 dark:border-cyan-900 dark:bg-cyan-950/30">
-                                    <span class="mb-1 block text-xs font-semibold text-cyan-700 dark:text-cyan-300">Traduire vers</span>
-                                    <select x-model="targetLang" :disabled="translating" class="w-full rounded-lg border border-cyan-200 bg-white px-3 py-2 text-sm font-semibold text-gray-950 outline-none focus:border-cyan-400 focus:ring-2 focus:ring-cyan-200 disabled:opacity-60 dark:border-cyan-800 dark:bg-gray-950 dark:text-white dark:focus:ring-cyan-900/50">
-                                        <template x-for="language in availableTargetLanguages" :key="language.code">
-                                            <option :value="language.code" x-text="`${flagFor(language.code)} ${language.label}`"></option>
-                                        </template>
-                                    </select>
-                                </label>
-                            </div>
-
-                            <div x-show="translating" x-cloak class="mt-4" role="status" aria-live="polite">
-                                <div class="mb-1.5 flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
-                                    <span x-text="totalTranslationChunks ? `Bloc ${translatedChunks} / ${totalTranslationChunks}` : 'Preparation des blocs…'"></span>
-                                    <span x-show="totalTranslationChunks" x-text="`${Math.round((translatedChunks / totalTranslationChunks) * 100)} %`"></span>
-                                </div>
-                                <div class="h-2 overflow-hidden rounded-full bg-gray-200 dark:bg-gray-800">
-                                    <div class="h-full rounded-full bg-cyan-500 transition-all duration-300"
-                                         :style="`width: ${totalTranslationChunks ? (translatedChunks / totalTranslationChunks) * 100 : 4}%`"></div>
-                                </div>
-                            </div>
-
-                            <button @click="translate()" type="button" :disabled="translating || isSameLanguage" :aria-busy="translating.toString()"
-                                    class="mt-5 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-cyan-600 px-6 py-3 text-sm font-semibold text-white transition hover:bg-cyan-700 disabled:cursor-wait disabled:opacity-60 sm:w-auto">
-                                <span x-show="translating" class="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" aria-hidden="true"></span>
-                                <span x-text="translating ? 'Traduction en cours…' : (hasStoredTargetTranslation ? 'Afficher la traduction' : `Traduire en ${targetLanguageLabel}`)"></span>
-                            </button>
-                        </div>
-                    </div>
-                    <div x-show="error" x-text="error"
-                         class="mb-4 px-4 py-2 rounded-xl bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-sm">
-                    </div>
-
-                    <div x-show="translation" x-cloak class="rounded-2xl border border-gray-200 bg-gray-50 p-5 dark:border-gray-800 dark:bg-gray-900">
-                        <div class="mb-3 flex items-center justify-between gap-2">
-                            <span class="inline-flex items-center gap-1.5 rounded-full bg-cyan-50 px-3 py-1 text-xs font-medium text-cyan-700 ring-1 ring-cyan-100 dark:bg-cyan-950 dark:text-cyan-300 dark:ring-cyan-900">
-                                <span x-text="flagFor(targetLang)"></span>
-                                <span x-text="targetLanguageLabel"></span>
-                            </span>
-                            <span class="text-xs text-gray-400" x-text="selectedTranslationRecord?.model || ''"></span>
-                        </div>
-                        <div class="whitespace-pre-wrap text-sm leading-7 text-gray-900 dark:text-gray-100" x-text="translation"></div>
-                    </div>
-                    <div x-show="!translation && !translating" x-cloak
-                         class="rounded-2xl border border-dashed border-gray-300 bg-gray-50 px-6 py-10 text-center dark:border-gray-700 dark:bg-gray-900">
-                        <p class="text-sm font-semibold text-gray-800 dark:text-gray-200" x-text="`Aucune traduction en ${targetLanguageLabel}`"></p>
-                        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Lancez la traduction pour l’enregistrer et la retrouver ici.</p>
-                    </div>
-                </div>
-
                 <!-- Download tab -->
                 <div x-show="tab === 'download'"
                      x-data="mediaDownloader()"
@@ -690,6 +684,18 @@
             transcriptBlocks: [],
             visibleTranscriptBlocks: [],
             transcriptSearchResults: [],
+            originalTranscriptSegments: [],
+            selectedTranscriptContent: '',
+            selectedTranscriptLanguage: 'original',
+            transcriptTranslations: [],
+            translationsLoaded: false,
+            translationsLoading: false,
+            translationPanelOpen: false,
+            translationTargetLanguage: 'fr',
+            translatingTranscript: false,
+            translationTranslatedChunks: 0,
+            translationTotalChunks: 0,
+            translationError: null,
             transcriptRenderBatch: 24,
             transcriptRenderLimit: 24,
             transcriptObserver: null,
@@ -743,7 +749,27 @@
                 return this.transcriptSegments.length > 0;
             },
             get transcriptText() {
-                return (this.video?.transcript?.full_text || '').trim();
+                return (this.selectedTranscriptContent || this.video?.transcript?.full_text || '').trim();
+            },
+            get translationLanguages() {
+                return [
+                    { code: 'en', label: 'Anglais' },
+                    { code: 'fr', label: 'Français' },
+                    { code: 'es', label: 'Espagnol' },
+                    { code: 'it', label: 'Italien' },
+                    { code: 'de', label: 'Allemand' }
+                ];
+            },
+            get sourceTranscriptLanguage() {
+                return this.normalizeLanguage(this.video?.transcript?.language || this.video?.language);
+            },
+            get availableTranslationLanguages() {
+                return this.translationLanguages.filter((language) => language.code !== this.sourceTranscriptLanguage);
+            },
+            get timedTranslations() {
+                return this.transcriptTranslations.filter(
+                    (translation) => this.asArray(translation?.segments_json).length > 0
+                );
             },
             get transcriptSearchTerms() {
                 return [...new Set(
@@ -1048,7 +1074,9 @@
             },
             splitTranscriptSentences(text) {
                 if (typeof Intl?.Segmenter === 'function') {
-                    const language = this.video?.transcript?.language || this.video?.language || 'fr';
+                    const language = this.selectedTranscriptLanguage === 'original'
+                        ? (this.video?.transcript?.language || this.video?.language || 'fr')
+                        : this.selectedTranscriptLanguage;
                     const segmenter = new Intl.Segmenter(language, { granularity: 'sentence' });
                     return Array.from(segmenter.segment(text), ({ segment }) => segment.trim()).filter(Boolean);
                 }
@@ -1134,6 +1162,144 @@
                     }
                 }
             },
+            normalizeLanguage(language) {
+                if (!language || typeof language !== 'string') return null;
+                return language.trim().toLowerCase().replace('_', '-').split('-')[0] || null;
+            },
+            languageLabel(code) {
+                return this.translationLanguages.find((language) => language.code === code)?.label || code || '';
+            },
+            async toggleTranslationPanel() {
+                this.translationPanelOpen = !this.translationPanelOpen;
+                if (!this.translationPanelOpen) return;
+
+                const availableCodes = this.availableTranslationLanguages.map((language) => language.code);
+                const browserLanguage = this.normalizeLanguage(navigator.language);
+                this.translationTargetLanguage = [browserLanguage, 'fr', 'en', 'es', 'it', 'de']
+                    .find((code) => availableCodes.includes(code)) || availableCodes[0] || '';
+                await this.loadTranscriptTranslations();
+            },
+            async loadTranscriptTranslations(force = false) {
+                if (!this.video?.id || this.translationsLoading || (this.translationsLoaded && !force)) return;
+
+                this.translationsLoading = true;
+                try {
+                    const response = await fetch(`/api/videos/${this.video.id}/translations`, {
+                        headers: { 'Accept': 'application/json' }
+                    });
+                    if (!response.ok) return;
+                    this.transcriptTranslations = await response.json();
+                    this.translationsLoaded = true;
+                } catch (error) {
+                    console.error('Translation loading error:', error);
+                } finally {
+                    this.translationsLoading = false;
+                }
+            },
+            selectTranscriptLanguage(language) {
+                let segments;
+                let content;
+
+                if (language === 'original') {
+                    segments = this.originalTranscriptSegments;
+                    content = this.video?.transcript?.full_text || '';
+                } else {
+                    const translation = this.transcriptTranslations.find(
+                        (item) => item.target_language === language
+                    );
+                    if (!translation) return;
+                    segments = this.asArray(translation.segments_json);
+                    content = translation.content || '';
+                }
+
+                this.selectedTranscriptLanguage = language;
+                this.selectedTranscriptContent = content;
+                this.transcriptSegments = segments;
+                this.transcriptBlocks = this.buildTranscriptBlocks();
+                this.transcriptSearch = '';
+                this.refreshTranscriptSearch(false);
+                this.$nextTick(() => this.setupTranscriptObserver());
+            },
+            async translateTranscript() {
+                if (!this.video?.id || !this.translationTargetLanguage || this.translatingTranscript) return;
+
+                this.translatingTranscript = true;
+                this.translationTranslatedChunks = 0;
+                this.translationTotalChunks = 0;
+                this.translationError = null;
+                try {
+                    const response = await fetch(`/api/videos/${this.video.id}/translate`, {
+                        method: 'POST',
+                        headers: {
+                            'Accept': 'application/json, application/x-ndjson',
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ language: this.translationTargetLanguage })
+                    });
+                    if (!response.ok) {
+                        const payload = await response.json().catch(() => ({}));
+                        throw new Error(payload.error || 'Erreur de traduction.');
+                    }
+                    if (!response.body) {
+                        throw new Error('Le navigateur ne permet pas de suivre la traduction.');
+                    }
+
+                    const reader = response.body.getReader();
+                    const decoder = new TextDecoder();
+                    let buffer = '';
+                    let completed = false;
+
+                    while (true) {
+                        const { value, done } = await reader.read();
+                        buffer += decoder.decode(value || new Uint8Array(), { stream: !done });
+                        const lines = buffer.split('\n');
+                        buffer = done ? '' : lines.pop();
+
+                        for (const line of lines) {
+                            if (!line.trim()) continue;
+                            completed = this.consumeTimedTranslationEvent(JSON.parse(line)) || completed;
+                        }
+                        if (done) break;
+                    }
+
+                    if (buffer.trim()) {
+                        completed = this.consumeTimedTranslationEvent(JSON.parse(buffer)) || completed;
+                    }
+                    if (!completed) {
+                        throw new Error('La traduction a été interrompue avant la fin.');
+                    }
+                } catch (error) {
+                    console.error('Translation error:', error);
+                    this.translationError = error.message;
+                } finally {
+                    this.translatingTranscript = false;
+                }
+            },
+            consumeTimedTranslationEvent(event) {
+                if (event.type === 'start') {
+                    this.translationTotalChunks = Number(event.total || 0);
+                    return false;
+                }
+                if (event.type === 'chunk') {
+                    this.translationTranslatedChunks = Number(event.index || 0);
+                    this.translationTotalChunks = Number(event.total || this.translationTotalChunks);
+                    return false;
+                }
+                if (event.type === 'error') {
+                    throw new Error(event.error || 'Erreur de traduction.');
+                }
+                if (event.type === 'complete') {
+                    const translation = event.translation;
+                    this.transcriptTranslations = this.transcriptTranslations
+                        .filter((item) => item.target_language !== translation.target_language);
+                    this.transcriptTranslations.push(translation);
+                    this.translationsLoaded = true;
+                    this.selectTranscriptLanguage(translation.target_language);
+                    this.translationPanelOpen = false;
+                    return true;
+                }
+                return false;
+            },
             downloadTranscript(format) {
                 if (!this.video?.id) return;
                 window.open(`/api/videos/${this.video.id}/transcript/download?format=${format}`, '_blank');
@@ -1174,12 +1340,16 @@
             applyTranscript(transcript) {
                 this.video.transcript = transcript;
                 Alpine.store('app').currentVideo.transcript = transcript;
-                this.transcriptSegments = this.asArray(transcript?.segments_json);
+                this.originalTranscriptSegments = this.asArray(transcript?.segments_json);
+                this.selectedTranscriptLanguage = 'original';
+                this.selectedTranscriptContent = transcript?.full_text || '';
+                this.transcriptSegments = this.originalTranscriptSegments;
                 this.transcriptBlocks = this.buildTranscriptBlocks();
                 this.refreshTranscriptSearch(false);
                 this.transcriptLoaded = true;
                 this.completeTranscriptProgress();
                 this.$nextTick(() => this.setupTranscriptObserver());
+                this.loadTranscriptTranslations();
             },
             startTranscriptProgress() {
                 window.clearTimeout(this.transcriptProgressHideTimer);

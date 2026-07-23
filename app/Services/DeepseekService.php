@@ -77,6 +77,63 @@ class DeepseekService
         return count($this->translationChunks($text));
     }
 
+    /**
+     * Translate timestamped transcript segments while preserving their exact order.
+     *
+     * @param  list<array{start?: mixed, end?: mixed, text?: mixed}>  $segments
+     * @return list<array{start: float, end: float, text: string}>
+     */
+    public function translateSegments(
+        array $segments,
+        string $targetLanguage,
+        ?string $sourceLanguage = null,
+        ?callable $onChunk = null
+    ): array {
+        $translatedSegments = [];
+        $chunks = $this->segmentTranslationChunks($segments);
+        $total = count($chunks);
+
+        foreach ($chunks as $chunkIndex => $chunk) {
+            $payload = array_map(
+                fn (array $item): array => ['id' => $item['id'], 'text' => $item['text']],
+                $chunk
+            );
+            $json = json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+            $source = $this->languageName($sourceLanguage) ?? 'the detected source language';
+            $target = $this->languageName($targetLanguage) ?? $targetLanguage;
+            $messages = [[
+                'role' => 'system',
+                'content' => "Translate each transcript item from {$source} to {$target}. "
+                    . "Return only a valid JSON array with exactly the same ids and order, using the shape "
+                    . "[{\"id\":0,\"text\":\"translated text\"}]. Do not merge, split, omit, or add items.\n\n{$json}",
+            ]];
+
+            $decoded = $this->decodeSegmentTranslation((string) $this->callApi($messages), $chunk);
+            foreach ($chunk as $position => $item) {
+                $translatedSegments[] = [
+                    'start' => $item['start'],
+                    'end' => $item['end'],
+                    'text' => $decoded[$position]['text'],
+                ];
+            }
+
+            if ($onChunk !== null) {
+                $onChunk(
+                    array_slice($translatedSegments, -count($chunk)),
+                    $chunkIndex + 1,
+                    $total
+                );
+            }
+        }
+
+        return $translatedSegments;
+    }
+
+    public function segmentTranslationChunkCount(array $segments): int
+    {
+        return count($this->segmentTranslationChunks($segments));
+    }
+
     public function summarize(string $text, float $temperature, string $tone, string $length, string $language = 'fr'): string
     {
         $toneDesc = match ($tone) {
@@ -219,6 +276,73 @@ class DeepseekService
         }
 
         return $chunks;
+    }
+
+    /**
+     * @return list<list<array{id: int, start: float, end: float, text: string}>>
+     */
+    private function segmentTranslationChunks(array $segments): array
+    {
+        $configuredLimit = max(500, (int) config('services.deepseek.translation_chunk_characters', 12000));
+        $inputLimit = max(500, (int) config('services.deepseek.max_input_characters', 45000));
+        $limit = min($configuredLimit, $inputLimit);
+        $chunks = [];
+        $chunk = [];
+        $length = 0;
+
+        foreach (array_values($segments) as $id => $segment) {
+            $text = trim((string) ($segment['text'] ?? ''));
+            if ($text === '') {
+                continue;
+            }
+
+            $item = [
+                'id' => $id,
+                'start' => (float) ($segment['start'] ?? 0),
+                'end' => (float) ($segment['end'] ?? (($segment['start'] ?? 0) + 5)),
+                'text' => $text,
+            ];
+            $itemLength = $this->stringLength($text) + 40;
+
+            if ($chunk !== [] && $length + $itemLength > $limit) {
+                $chunks[] = $chunk;
+                $chunk = [];
+                $length = 0;
+            }
+
+            $chunk[] = $item;
+            $length += $itemLength;
+        }
+
+        if ($chunk !== []) {
+            $chunks[] = $chunk;
+        }
+
+        return $chunks;
+    }
+
+    private function decodeSegmentTranslation(string $response, array $sourceChunk): array
+    {
+        $response = trim($response);
+        $response = preg_replace('/^```(?:json)?\s*|\s*```$/iu', '', $response) ?? $response;
+        $decoded = json_decode($response, true);
+
+        if (!is_array($decoded) || count($decoded) !== count($sourceChunk)) {
+            throw new RuntimeException('The translation service did not preserve transcript timing.');
+        }
+
+        foreach ($sourceChunk as $position => $source) {
+            $translated = $decoded[$position] ?? null;
+            if (
+                !is_array($translated)
+                || (int) ($translated['id'] ?? -1) !== $source['id']
+                || !is_string($translated['text'] ?? null)
+            ) {
+                throw new RuntimeException('The translation service did not preserve transcript timing.');
+            }
+        }
+
+        return $decoded;
     }
 
     private function naturalCutPosition(string $candidate, int $limit): int

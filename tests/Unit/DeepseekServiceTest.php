@@ -86,4 +86,35 @@ class DeepseekServiceTest extends TestCase
         $this->assertSame('Translated text', $service->translate('Texte court.', 'en', 'fr'));
         $this->assertSame(1, $service->calls);
     }
+
+    public function test_it_translates_segments_without_changing_their_timestamps(): void
+    {
+        config([
+            'services.deepseek.api_key' => 'test-key',
+            'services.deepseek.translation_chunk_characters' => 12000,
+        ]);
+
+        $service = new class($this->mock(PromptService::class)) extends DeepseekService
+        {
+            protected function callApi(array $messages, float $temperature = 0.3): ?string
+            {
+                return <<<'JSON'
+                ```json
+                [{"id":0,"text":"Hello."},{"id":1,"text":"How are you?"}]
+                ```
+                JSON;
+            }
+        };
+
+        $source = [
+            ['start' => 1.25, 'end' => 3.5, 'text' => 'Bonjour.'],
+            ['start' => 3.5, 'end' => 6.75, 'text' => 'Comment allez-vous ?'],
+        ];
+
+        $translated = $service->translateSegments($source, 'en', 'fr');
+
+        $this->assertSame([1.25, 3.5], array_column($translated, 'start'));
+        $this->assertSame([3.5, 6.75], array_column($translated, 'end'));
+        $this->assertSame(['Hello.', 'How are you?'], array_column($translated, 'text'));
+    }
 }
