@@ -90,7 +90,13 @@ class TranscriptController extends Controller
 
         try {
             $deepseek = app(DeepseekService::class);
-            $translated = $deepseek->translate($transcript->full_text, $targetLanguage, $sourceLanguage);
+            $segments = $transcript->segments_json ?? [];
+            $translatedSegments = $segments
+                ? $deepseek->translateSegments($segments, $targetLanguage, $sourceLanguage)
+                : [];
+            $translated = $translatedSegments
+                ? $this->segmentsToText($translatedSegments)
+                : $deepseek->translate($transcript->full_text, $targetLanguage, $sourceLanguage);
         } catch (RuntimeException $e) {
             return response()->json(['error' => $e->getMessage()], 502);
         }
@@ -102,6 +108,7 @@ class TranscriptController extends Controller
             ],
             [
                 'content' => $translated,
+                'segments_json' => $translatedSegments ?: null,
                 'model' => $deepseek->model,
             ]
         );
@@ -124,23 +131,44 @@ class TranscriptController extends Controller
 
             try {
                 $deepseek = app(DeepseekService::class);
+                $segments = $transcript->segments_json ?? [];
                 $emit([
                     'type' => 'start',
-                    'total' => $deepseek->translationChunkCount($transcript->full_text),
+                    'total' => $segments
+                        ? $deepseek->segmentTranslationChunkCount($segments)
+                        : $deepseek->translationChunkCount($transcript->full_text),
                 ]);
-                $translated = $deepseek->translate(
-                    $transcript->full_text,
-                    $targetLanguage,
-                    $sourceLanguage,
-                    static function (string $content, int $index, int $total) use ($emit): void {
-                        $emit([
-                            'type' => 'chunk',
-                            'index' => $index,
-                            'total' => $total,
-                            'content' => $content,
-                        ]);
-                    }
-                );
+                $translatedSegments = [];
+                if ($segments) {
+                    $translatedSegments = $deepseek->translateSegments(
+                        $segments,
+                        $targetLanguage,
+                        $sourceLanguage,
+                        static function (array $chunkSegments, int $index, int $total) use ($emit): void {
+                            $emit([
+                                'type' => 'chunk',
+                                'index' => $index,
+                                'total' => $total,
+                                'segments' => $chunkSegments,
+                            ]);
+                        }
+                    );
+                    $translated = $this->segmentsToText($translatedSegments);
+                } else {
+                    $translated = $deepseek->translate(
+                        $transcript->full_text,
+                        $targetLanguage,
+                        $sourceLanguage,
+                        static function (string $content, int $index, int $total) use ($emit): void {
+                            $emit([
+                                'type' => 'chunk',
+                                'index' => $index,
+                                'total' => $total,
+                                'content' => $content,
+                            ]);
+                        }
+                    );
+                }
 
                 $translation = Translation::updateOrCreate(
                     [
@@ -149,13 +177,14 @@ class TranscriptController extends Controller
                     ],
                     [
                         'content' => $translated,
+                        'segments_json' => $translatedSegments ?: null,
                         'model' => $deepseek->model,
                     ]
                 );
 
                 $emit([
                     'type' => 'complete',
-                    'translation' => $translation->only(['id', 'target_language', 'content', 'model']),
+                    'translation' => $translation->only(['id', 'target_language', 'content', 'segments_json', 'model']),
                 ]);
             } catch (Throwable $e) {
                 report($e);
@@ -183,8 +212,16 @@ class TranscriptController extends Controller
 
         return response()->json(
             Translation::where('transcript_id', $video->transcript->id)
-                ->get(['id', 'target_language', 'content', 'model', 'created_at'])
+                ->get(['id', 'target_language', 'content', 'segments_json', 'model', 'created_at'])
         );
+    }
+
+    private function segmentsToText(array $segments): string
+    {
+        return collect($segments)
+            ->pluck('text')
+            ->filter(fn ($text) => is_string($text) && trim($text) !== '')
+            ->implode(' ');
     }
 
     private function normalizeLanguage(?string $language): ?string
