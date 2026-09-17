@@ -165,6 +165,84 @@ class DeepseekService
         return $this->callApi($messages, $temperature);
     }
 
+    /**
+     * Ask the model to split a video into chapters from its timestamped transcript.
+     *
+     * @return list<array{title: string, start_time: float}>
+     */
+    public function generateChapters(string $timestampedTranscript, float $duration): array
+    {
+        $prompt = $this->prompts->render('chapters_system', [
+            'duration' => (int) round(max(0, $duration)),
+            'transcript' => $this->trimToBudget($timestampedTranscript),
+        ]);
+
+        return $this->decodeChapters((string) $this->callApi([
+            ['role' => 'system', 'content' => $prompt],
+        ], 0.2), $duration);
+    }
+
+    /**
+     * @return list<array{title: string, start_time: float}>
+     */
+    private function decodeChapters(string $response, float $duration): array
+    {
+        $decoded = json_decode($this->stripCodeFence($response), true);
+
+        if (!is_array($decoded) && preg_match('/\[.*\]/s', $response, $matches) === 1) {
+            $decoded = json_decode($matches[0], true);
+        }
+
+        if (!is_array($decoded)) {
+            throw new RuntimeException('Chapter generation did not return a valid JSON list.');
+        }
+
+        $chapters = [];
+        foreach ($decoded as $item) {
+            if (!is_array($item)) {
+                continue;
+            }
+
+            $title = trim((string) ($item['title'] ?? ''));
+            if ($title === '') {
+                continue;
+            }
+
+            $start = max(0.0, (float) ($item['start_time'] ?? 0));
+            if ($duration > 0) {
+                $start = min($start, $duration);
+            }
+
+            $chapters[] = [
+                'title' => $this->limitString($title, 120),
+                'start_time' => round($start, 2),
+            ];
+        }
+
+        if ($chapters === []) {
+            throw new RuntimeException('Chapter generation returned no usable chapter.');
+        }
+
+        usort($chapters, fn (array $a, array $b): int => $a['start_time'] <=> $b['start_time']);
+
+        $unique = [];
+        foreach ($chapters as $chapter) {
+            // Un seul chapitre par seconde de départ : on garde le premier.
+            $key = (string) (int) $chapter['start_time'];
+
+            if (!isset($unique[$key])) {
+                $unique[$key] = $chapter;
+            }
+        }
+
+        return array_values($unique);
+    }
+
+    private function stripCodeFence(string $response): string
+    {
+        return preg_replace('/^```(?:json)?\s*|\s*```$/iu', '', trim($response)) ?? trim($response);
+    }
+
     protected function callApi(array $messages, float $temperature = 0.3): ?string
     {
         if (empty($this->apiKey)) {
@@ -323,8 +401,7 @@ class DeepseekService
 
     private function decodeSegmentTranslation(string $response, array $sourceChunk): array
     {
-        $response = trim($response);
-        $response = preg_replace('/^```(?:json)?\s*|\s*```$/iu', '', $response) ?? $response;
+        $response = $this->stripCodeFence($response);
         $decoded = json_decode($response, true);
 
         if (!is_array($decoded) || count($decoded) !== count($sourceChunk)) {

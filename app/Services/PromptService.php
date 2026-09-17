@@ -24,6 +24,10 @@ class PromptService
             'label' => 'Traduction',
             'content' => "Translate the following transcript from {source_language} to {target_language}. Preserve the original meaning and structure. Return only the translated text.\n\nTranscript:\n{transcript}",
         ],
+        'chapters_system' => [
+            'label' => 'Chapitres IA',
+            'content' => "You structure YouTube video transcripts into chapters.\n\nSplit the video into logical parts by following the natural progression of the content: no fixed number of parts, no fixed duration. A part covers one single idea and never starts in the middle of a demonstration.\n\nRules:\n- Write every chapter title in French.\n- Titles are short and specific (60 characters maximum), without numbering and without trailing punctuation.\n- The first chapter starts at 0.\n- A chapter starts at the exact moment the new part begins in the video.\n- Use only whole seconds taken from the timestamps of the transcript below.\n\nReturn only a valid JSON array, without markdown and without any comment, using exactly this shape:\n[{\"title\":\"Introduction\",\"start_time\":0},{\"title\":\"Deuxieme partie\",\"start_time\":312}]\n\nVideo duration: {duration} seconds\nTranscript (timestamped):\n{transcript}",
+        ],
     ];
 
     public function all(): Collection
@@ -114,7 +118,8 @@ class PromptService
             'summary_system' => 1,
             'translate_system' => 2,
             'chat_system' => 3,
-        ][$key] ?? 4;
+            'chapters_system' => 4,
+        ][$key] ?? 5;
     }
 
     private function ensureDefaults(): void

@@ -4,6 +4,7 @@ namespace App\Jobs;
 
 use App\Models\Transcript;
 use App\Models\Video;
+use App\Services\ChapterGenerationLauncher;
 use App\Services\YoutubeService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -31,6 +32,8 @@ class ProcessYoutubeVideo implements ShouldQueue
         $this->video->update([
             'status' => 'processing',
             'transcript_status' => 'pending',
+            'chapters_status' => null,
+            'chapters_source' => null,
             'chapter_thumbnails_status' => null,
         ]);
 
@@ -57,6 +60,8 @@ class ProcessYoutubeVideo implements ShouldQueue
             $this->video->update($videoData + [
                 'status' => 'ready',
                 'transcript_status' => 'processing',
+                'chapters_source' => $hasChapters ? 'youtube' : null,
+                'chapters_status' => $hasChapters ? 'ready' : null,
                 'chapter_thumbnails_status' => $hasChapters ? 'pending' : null,
             ]);
 
@@ -92,6 +97,12 @@ class ProcessYoutubeVideo implements ShouldQueue
                 );
 
                 $this->video->update(['transcript_status' => 'ready']);
+
+                // La chaîne n'a pas fourni de chapitres : l'agent les propose
+                // à partir du transcript qui vient d'être récupéré.
+                if (! $hasChapters) {
+                    $this->launchChapterGeneration();
+                }
 
                 logger()->info('Video processed with transcript', [
                     'video_id' => $this->video->id,
@@ -140,6 +151,21 @@ class ProcessYoutubeVideo implements ShouldQueue
             'transcript_status' => 'error',
             'error_message' => $exception?->getMessage(),
         ]);
+    }
+
+    private function launchChapterGeneration(): void
+    {
+        try {
+            app(ChapterGenerationLauncher::class)->launch($this->video->fresh());
+        } catch (Throwable $e) {
+            $this->video->update(['chapters_status' => 'error']);
+
+            logger()->warning('Unable to start chapter generation', [
+                'source' => 'youtube',
+                'video_id' => $this->video->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
 
     private function publishedAtFromMetadata(array $metadata): ?string

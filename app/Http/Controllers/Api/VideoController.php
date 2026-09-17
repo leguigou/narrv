@@ -8,6 +8,7 @@ use App\Jobs\ProcessYoutubeVideo;
 use App\Models\AdminSession;
 use App\Models\Translation;
 use App\Models\Video;
+use App\Services\ChapterGenerationLauncher;
 use Illuminate\Http\Request;
 use Throwable;
 
@@ -112,6 +113,41 @@ class VideoController extends Controller
             ->findOrFail($video->id);
 
         return response()->json($freshVideo);
+    }
+
+    public function generateChapters(Request $request, int $id, ChapterGenerationLauncher $launcher)
+    {
+        $video = Video::withExists(['transcript as has_transcript'])->findOrFail($id);
+
+        if (!$video->is_visible) {
+            $adminToken = $request->bearerToken();
+            if ($adminToken === null || !$this->isValidAdminToken($adminToken)) {
+                return response()->json(['error' => 'Cette video n\'est pas disponible'], 404);
+            }
+        }
+
+        $chapters = is_array($video->chapters_json) ? $video->chapters_json : [];
+
+        if ($chapters !== []) {
+            return response()->json([
+                'started' => false,
+                'chapters_status' => $video->chapters_status ?? 'ready',
+                'chapters_count' => count($chapters),
+                'message' => 'Cette video a deja des chapitres.',
+            ]);
+        }
+
+        if (!$video->has_transcript) {
+            return response()->json(['error' => 'Aucun transcript disponible pour cette video.'], 422);
+        }
+
+        $started = $launcher->launch($video);
+
+        return response()->json([
+            'started' => $started,
+            'chapters_status' => Video::whereKey($video->id)->value('chapters_status'),
+            'chapters_count' => 0,
+        ], 202);
     }
 
     public function chapterThumbnail(int $id, int $chapter)

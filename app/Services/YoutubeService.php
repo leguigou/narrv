@@ -184,7 +184,7 @@ class YoutubeService
         }
 
         try {
-            $download = $this->runYtDlp([
+            $downloadArguments = [
                 '--no-playlist',
                 '-f',
                 'bestvideo[height<=360]/worstvideo',
@@ -192,7 +192,19 @@ class YoutubeService
                 '-o',
                 $outputTemplate,
                 $video->url,
-            ], 1200);
+            ];
+
+            // Sans session YouTube, seul le client « web_embedded » renvoie des
+            // URL média téléchargeables (les autres répondent 403).
+            $download = $this->runYtDlp(
+                array_merge(['--extractor-args', 'youtube:player_client=web_embedded'], $downloadArguments),
+                1200
+            );
+
+            if (!$download->isSuccessful()) {
+                // Repli sur le client par défaut si YouTube change encore.
+                $download = $this->runYtDlp($downloadArguments, 1200);
+            }
 
             if (!$download->isSuccessful()) {
                 throw new RuntimeException($this->ytDlpErrorMessage('Unable to download video for chapter thumbnails', $download));

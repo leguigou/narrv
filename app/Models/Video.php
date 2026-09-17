@@ -13,7 +13,8 @@ class Video extends Model
     protected $fillable = [
         'youtube_id', 'url', 'title', 'channel_name', 'channel_url',
         'duration', 'published_at', 'thumbnail_url', 'language', 'is_visible', 'status', 'transcript_status',
-        'error_message', 'formats_json', 'chapters_json', 'chapter_thumbnails_status',
+        'error_message', 'formats_json', 'chapters_json', 'chapters_status', 'chapters_source',
+        'chapter_thumbnails_status',
     ];
 
     protected $casts = [

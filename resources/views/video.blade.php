@@ -228,6 +228,7 @@
                             <span>
                                 <span class="block text-sm font-semibold text-gray-900 dark:text-white">Chapitrage</span>
                                 <span class="mt-0.5 block text-xs text-gray-500 dark:text-gray-400" x-text="chapterCount + ' repère' + (chapterCount > 1 ? 's' : '') + ' de navigation'"></span>
+                                <span x-show="video.chapters_source === 'ai'" x-cloak class="mt-0.5 block text-xs text-gray-400 dark:text-gray-500">Découpage proposé automatiquement à partir du transcript</span>
                                 <span x-show="chapterThumbnailsLoading"
                                       x-cloak
                                       class="mt-1.5 flex items-center gap-1.5 text-xs font-medium text-cyan-700 dark:text-cyan-300">
@@ -275,6 +276,32 @@
                                 </button>
                             </template>
                             </div>
+                        </div>
+                    </div>
+
+                    <!-- Chapitrage proposé par l'agent quand la chaîne n'en fournit aucun -->
+                    <div x-show="chapterCount === 0 && hasTranscript"
+                         x-cloak
+                         class="mb-6 rounded-xl border border-dashed border-gray-300 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-900">
+                        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            <div class="min-w-0">
+                                <div class="text-sm font-semibold text-gray-900 dark:text-white">Chapitrage</div>
+                                <p x-show="!chaptersGenerating && !chaptersFailed" class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                                    Cette vidéo n'a pas de chapitres. L'agent peut analyser le transcript et découper la vidéo en parties.
+                                </p>
+                                <p x-show="chaptersGenerating" class="mt-0.5 flex items-center gap-1.5 text-xs font-medium text-cyan-700 dark:text-cyan-300" role="status">
+                                    <span class="h-3.5 w-3.5 animate-spin rounded-full border-2 border-cyan-200 border-t-cyan-600" aria-hidden="true"></span>
+                                    <span>L'agent analyse la vidéo et prépare les chapitres…</span>
+                                </p>
+                                <p x-show="chaptersFailed" class="mt-0.5 text-xs font-medium text-red-600 dark:text-red-400" x-text="chaptersErrorMessage"></p>
+                            </div>
+                            <button type="button"
+                                    @click="generateChapters()"
+                                    :disabled="chaptersGenerating"
+                                    class="shrink-0 rounded-xl bg-narrv-500 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-narrv-600 focus:outline-none focus:ring-2 focus:ring-narrv-400/50 disabled:cursor-wait disabled:bg-narrv-400">
+                                <span x-show="!chaptersGenerating" x-text="chaptersFailed ? 'Réessayer' : 'Créer les chapitres'"></span>
+                                <span x-show="chaptersGenerating" x-cloak>Analyse en cours…</span>
+                            </button>
                         </div>
                     </div>
 
@@ -709,6 +736,9 @@
             transcriptProgressHideTimer: null,
             transcriptProgressVisible: false,
             chapterRefreshTimer: null,
+            chaptersRequesting: false,
+            chaptersFailed: false,
+            chaptersErrorMessage: null,
             init() {
                 this.adminToken = localStorage.getItem('narrv_admin_token') || null;
                 const id = window.location.pathname.split('/').pop();
@@ -725,6 +755,9 @@
             },
             get chapterThumbnailsLoading() {
                 return ['pending', 'processing'].includes(this.video?.chapter_thumbnails_status);
+            },
+            get chaptersGenerating() {
+                return this.chaptersRequesting || ['pending', 'processing'].includes(this.video?.chapters_status);
             },
             get hasTranscript() {
                 return Boolean(this.video?.has_transcript || this.video?.transcript?.id);
@@ -1147,6 +1180,38 @@
                     });
                 });
             },
+            async generateChapters() {
+                if (this.chaptersGenerating || !this.video?.id) return;
+
+                this.chaptersRequesting = true;
+                this.chaptersFailed = false;
+                this.chaptersErrorMessage = null;
+
+                try {
+                    const headers = { 'Accept': 'application/json' };
+                    if (this.adminToken) {
+                        headers.Authorization = `Bearer ${this.adminToken}`;
+                    }
+
+                    const res = await fetch(`/api/videos/${this.video.id}/chapters/generate`, {
+                        method: 'POST',
+                        headers,
+                    });
+                    const payload = await res.json().catch(() => ({}));
+
+                    if (!res.ok) {
+                        throw new Error(payload.error || 'Création des chapitres impossible.');
+                    }
+
+                    this.video.chapters_status = payload.chapters_status || 'pending';
+                    this.video.chapters_json = this.video.chapters_json || [];
+                    this.scheduleChapterRefresh(this.video.id);
+                } catch (e) {
+                    this.chaptersRequesting = false;
+                    this.chaptersFailed = true;
+                    this.chaptersErrorMessage = e.message || 'Création des chapitres impossible.';
+                }
+            },
             playVideo(seconds) {
                 if (this.video?.youtube_id) {
                     this.seekTo = seconds != null ? seconds : null;
@@ -1522,7 +1587,7 @@
                     this.chapterRefreshTimer = null;
                 }
 
-                if (this.chapterThumbnailsLoading || this.transcriptProcessing) {
+                if (this.chapterThumbnailsLoading || this.transcriptProcessing || this.chaptersGenerating) {
                     this.chapterRefreshTimer = setTimeout(() => this.refreshChapterThumbnails(id), 2500);
                 }
             },
@@ -1536,7 +1601,19 @@
 
                     const video = await res.json();
                     this.video.chapters_json = video.chapters_json;
+                    this.video.chapters_status = video.chapters_status;
+                    this.video.chapters_source = video.chapters_source;
                     this.video.chapter_thumbnails_status = video.chapter_thumbnails_status;
+
+                    if (video.chapters_status === 'ready') {
+                        this.chaptersRequesting = false;
+                        this.chaptersFailed = false;
+                        this.chaptersErrorMessage = null;
+                    } else if (video.chapters_status === 'error' && !this.chapterCount) {
+                        this.chaptersRequesting = false;
+                        this.chaptersFailed = true;
+                        this.chaptersErrorMessage = "L'agent n'a pas pu découper cette vidéo. Tu peux réessayer.";
+                    }
                     this.video.has_transcript = video.has_transcript;
                     this.video.transcript_status = video.transcript_status;
                     this.video.transcript_updated_at = video.transcript_updated_at;

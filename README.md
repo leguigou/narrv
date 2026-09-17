@@ -96,7 +96,7 @@ docker compose up -d
 | `YT_DLP_SLEEP_SUBTITLES` | `3` | Delai specifique entre les telechargements de sous-titres |
 | `YT_DLP_RETRIES` | `5` | Nombre de tentatives yt-dlp sur les erreurs reseau |
 | `YT_DLP_RETRY_SLEEP` | `http:exp=1:20` | Backoff yt-dlp entre les tentatives HTTP |
-| `YT_DLP_JS_RUNTIMES` | `node` | Runtime JavaScript utilise par yt-dlp pour resoudre les challenges YouTube |
+| `YT_DLP_JS_RUNTIMES` | `node` | Runtime JavaScript utilise par yt-dlp pour resoudre les challenges YouTube (Deno recommande, ou Node >= 22, ex. `deno:/chemin/vers/deno`) |
 | `YOUTUBE_COOKIES_BASE64` | - | Cookies YouTube exportes puis encodes en base64, utiles si YouTube demande une connexion |
 | `YOUTUBE_COOKIES_PATH` | `/var/www/storage/app/youtube-cookies.txt` | Chemin du fichier cookies utilise par `yt-dlp` |
 | `ADMIN_PASSWORD` | - | **Requis** - mot de passe zone admin |
@@ -138,6 +138,32 @@ YOUTUBE_COOKIES_BASE64=contenu_base64_du_fichier
 
 Au demarrage, le conteneur ecrit ces cookies dans `/var/www/storage/app/youtube-cookies.txt`, stocke dans le volume persistant `narrv_storage`, puis `yt-dlp` les utilise automatiquement.
 
+### Runtime JavaScript pour yt-dlp
+
+YouTube exige desormais un runtime JavaScript pour resoudre ses challenges. Sans lui, la recuperation des formats aboutit a `HTTP Error 403: Forbidden`.
+
+- **Deno** (recommande, rien a installer cote systeme) : installer le binaire puis renseigner `YT_DLP_JS_RUNTIMES=deno:/chemin/vers/deno`.
+- **Node** : version **22 minimum** (`node --version` ; une version 20 est ignoree par yt-dlp).
+
+Concerne le telechargement des medias et donc les **miniatures de chapitres** (une image extraite au debut de chaque chapitre). Les transcripts, eux, ne dependent pas de ce runtime.
+
+## 🗺️ Chapitres
+
+Les chapitres viennent de YouTube quand la chaine en fournit. Sinon, un agent IA peut decouper la video a partir du transcript :
+
+- Bouton **Creer les chapitres** sur la page video publique quand la video n'en a aucun.
+- Generation automatique a l'import quand YouTube n'en fournit pas.
+- Titres en francais, decoupage libre selon le contenu ; prompt editable dans l'admin (cle `chapters_system`).
+- Les miniatures de chapitres sont generees juste apres, via le meme pipeline que les chapitres YouTube.
+- Statuts suivis en base : `chapters_status` (`pending`, `processing`, `ready`, `error`) et `chapters_source` (`youtube` ou `ai`).
+
+Relance manuelle :
+
+```bash
+php artisan chapters:generate {id}          # genere si la video n'a pas de chapitres
+php artisan chapters:generate {id} --force  # regenere chapitres + miniatures
+```
+
 ## 🗺️ Routes API
 
 | Méthode | URL | Description |
@@ -146,6 +172,8 @@ Au demarrage, le conteneur ecrit ces cookies dans `/var/www/storage/app/youtube-
 | `POST` | `/api/videos` | Soumettre une URL YouTube |
 | `GET` | `/api/videos` | Liste des vidéos (paginated) |
 | `GET` | `/api/videos/{id}` | Détail vidéo + statut |
+| `POST` | `/api/videos/{id}/chapters/generate` | Genere les chapitres par l'IA (202) |
+| `GET` | `/api/videos/{id}/chapters/{index}/thumbnail` | Miniature d'un chapitre |
 | `GET` | `/api/videos/{id}/transcript` | Transcript complet |
 | `GET` | `/api/videos/{id}/transcript/download?format=txt` | Télécharger (.txt/.vtt/.srt) |
 | `POST` | `/api/videos/{id}/translate` | Traduire (`language: fr`) |

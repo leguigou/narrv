@@ -23,6 +23,9 @@ Route::get('/videos/search', [VideoController::class, 'search'])->middleware('th
 Route::get('/videos/{id}/chapters/{chapter}/thumbnail', [VideoController::class, 'chapterThumbnail'])
     ->whereNumber(['id', 'chapter'])
     ->middleware('throttle:120,1');
+Route::post('/videos/{id}/chapters/generate', [VideoController::class, 'generateChapters'])
+    ->whereNumber('id')
+    ->middleware('throttle:5,1');
 Route::get('/videos/{id}', [VideoController::class, 'show'])->middleware('throttle:60,1');
 Route::get('/videos/{id}/formats', [MediaController::class, 'formats'])->middleware('throttle:30,1');
 Route::get('/videos/{id}/download', [MediaController::class, 'download'])->middleware('throttle:10,1');

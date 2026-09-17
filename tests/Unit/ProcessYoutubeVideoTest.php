@@ -6,6 +6,7 @@ use App\Jobs\GenerateChapterThumbnails;
 use App\Jobs\ProcessYoutubeVideo;
 use App\Models\Transcript;
 use App\Models\Video;
+use App\Services\ChapterGenerationLauncher;
 use App\Services\YoutubeService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
@@ -56,12 +57,17 @@ class ProcessYoutubeVideoTest extends TestCase
             })
             ->andThrow(new RuntimeException('No subtitles'));
 
+        $launcher = $this->mock(ChapterGenerationLauncher::class);
+        $launcher->shouldNotReceive('launch');
+
         (new ProcessYoutubeVideo($video))->handle($service);
 
         $video->refresh();
         $this->assertSame('ready', $video->status);
         $this->assertSame('unavailable', $video->transcript_status);
         $this->assertSame('pending', $video->chapter_thumbnails_status);
+        $this->assertSame('youtube', $video->chapters_source);
+        $this->assertSame('ready', $video->chapters_status);
         Queue::assertPushed(
             GenerateChapterThumbnails::class,
             fn (GenerateChapterThumbnails $job) => $job->connection === null
@@ -98,11 +104,22 @@ class ProcessYoutubeVideoTest extends TestCase
             ],
         ]);
 
+        // La chaîne ne fournit aucun chapitre : l'agent est lancé pour les proposer.
+        $launcher = $this->mock(ChapterGenerationLauncher::class);
+        $launcher->shouldReceive('launch')
+            ->once()
+            ->andReturnUsing(function (Video $launched): bool {
+                $launched->update(['chapters_status' => 'pending']);
+
+                return true;
+            });
+
         (new ProcessYoutubeVideo($video))->handle($service);
 
         $video->refresh();
         $this->assertSame('ready', $video->status);
         $this->assertSame('ready', $video->transcript_status);
+        $this->assertSame('pending', $video->chapters_status);
         $this->assertDatabaseHas('transcripts', [
             'video_id' => $video->id,
             'language' => 'fr',
