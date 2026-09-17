@@ -59,7 +59,11 @@ class GenerateChapters implements ShouldQueue
 
         try {
             $segments = is_array($transcript->segments_json) ? $transcript->segments_json : [];
-            $chapters = $planner->plan($segments, (float) ($this->video->duration ?? 0));
+            $chapters = $planner->plan(
+                $segments,
+                (float) ($this->video->duration ?? 0),
+                (string) $this->video->title
+            );
 
             $this->video->update([
                 'chapters_json' => $chapters,

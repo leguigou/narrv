@@ -86,4 +86,34 @@ class DeepseekChapterGenerationTest extends TestCase
         $this->serviceReturning(fn (): string => 'Je ne peux pas découper cette vidéo.')
             ->generateChapters('[0:00] bla', 100.0);
     }
+
+    public function test_it_gives_the_video_title_to_the_prompt(): void
+    {
+        config(['services.deepseek.api_key' => 'test-key']);
+
+        $prompts = $this->mock(PromptService::class);
+        $prompts->shouldReceive('render')
+            ->once()
+            ->with('chapters_system', \Mockery::on(function (array $variables): bool {
+                // Le titre sert au modele a corriger les noms propres mal
+                // transcrits par les sous-titres automatiques.
+                $this->assertSame('Wan 3.0 vs Seedance 2.5', $variables['title']);
+                $this->assertSame(600, $variables['duration']);
+
+                return true;
+            }))
+            ->andReturn('prompt');
+
+        $service = new class($prompts) extends DeepseekService
+        {
+            protected function callApi(array $messages, float $temperature = 0.3): ?string
+            {
+                return '[{"title":"Comparaison Wan 3.0 et Seedance 2.5","start_time":0}]';
+            }
+        };
+
+        $chapters = $service->generateChapters('[0:00] bla', 600.0, 'Wan 3.0 vs Seedance 2.5');
+
+        $this->assertSame('Comparaison Wan 3.0 et Seedance 2.5', $chapters[0]['title']);
+    }
 }

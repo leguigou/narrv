@@ -170,9 +170,10 @@ class DeepseekService
      *
      * @return list<array{title: string, start_time: float}>
      */
-    public function generateChapters(string $timestampedTranscript, float $duration): array
+    public function generateChapters(string $timestampedTranscript, float $duration, ?string $videoTitle = null): array
     {
         $prompt = $this->prompts->render('chapters_system', [
+            'title' => trim((string) $videoTitle),
             'duration' => (int) round(max(0, $duration)),
             'transcript' => $this->trimToBudget($timestampedTranscript),
         ]);

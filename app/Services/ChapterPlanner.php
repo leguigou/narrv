@@ -35,7 +35,7 @@ class ChapterPlanner
      * @param  list<array{start?: mixed, end?: mixed, text?: mixed}>  $segments
      * @return list<array{title: string, start_time: float, end_time: float, duration: float}>
      */
-    public function plan(array $segments, float $duration): array
+    public function plan(array $segments, float $duration, ?string $videoTitle = null): array
     {
         $outline = $this->outline($segments);
 
@@ -43,7 +43,7 @@ class ChapterPlanner
             throw new RuntimeException('The transcript does not contain any usable text.');
         }
 
-        return $this->withDurations($this->ai->generateChapters($outline, $duration), $duration);
+        return $this->withDurations($this->ai->generateChapters($outline, $duration, $videoTitle), $duration);
     }
 
     /**

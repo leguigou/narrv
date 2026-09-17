@@ -94,9 +94,10 @@ class ChapterPlannerTest extends TestCase
         $ai = Mockery::mock(DeepseekService::class);
         $ai->shouldReceive('generateChapters')
             ->once()
-            ->withArgs(function (string $outline, float $duration): bool {
+            ->withArgs(function (string $outline, float $duration, ?string $title = null): bool {
                 $this->assertStringContainsString('[0:00] Bonjour tout le monde.', $outline);
                 $this->assertSame(600.0, $duration);
+                $this->assertSame('Wan 3.0 vs Seedance 2.5', $title);
 
                 return true;
             })
@@ -108,7 +109,7 @@ class ChapterPlannerTest extends TestCase
         $chapters = $this->planner($ai)->plan([
             ['start' => 0, 'end' => 10, 'text' => 'Bonjour tout le monde.'],
             ['start' => 10, 'end' => 20, 'text' => 'On commence.'],
-        ], 600.0);
+        ], 600.0, 'Wan 3.0 vs Seedance 2.5');
 
         $this->assertSame(['Introduction', 'Le sujet principal'], array_column($chapters, 'title'));
         $this->assertSame([0.0, 300.0], array_column($chapters, 'start_time'));

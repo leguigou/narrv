@@ -183,6 +183,12 @@ class YoutubeService
             mkdir($outputDirectory, 0755, true);
         }
 
+        // Une regeneration peut produire moins de chapitres : on repart d'un
+        // dossier vide pour ne pas laisser de miniatures orphelines.
+        foreach (glob($outputDirectory . DIRECTORY_SEPARATOR . '*.jpg') ?: [] as $staleThumbnail) {
+            @unlink($staleThumbnail);
+        }
+
         try {
             $downloadArguments = [
                 '--no-playlist',
