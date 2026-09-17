@@ -89,6 +89,34 @@ class ChapterPlannerTest extends TestCase
         $this->planner($ai)->plan([], 120.0);
     }
 
+    public function test_the_chapter_budget_follows_the_video_length(): void
+    {
+        // Une heure de video : 12 a 14 chapitres (un toutes les 4 a 5 minutes).
+        $this->assertSame(['min' => 12, 'max' => 14], DeepseekService::chapterBudget(3600.0));
+        $this->assertSame(['min' => 6, 'max' => 7], DeepseekService::chapterBudget(1680.0));
+        $this->assertSame(['min' => 2, 'max' => 3], DeepseekService::chapterBudget(600.0));
+        $this->assertSame(['min' => 0, 'max' => 0], DeepseekService::chapterBudget(0.0));
+    }
+
+    public function test_it_never_keeps_more_chapters_than_the_budget(): void
+    {
+        // 10 minutes de video : 3 chapitres maximum, meme si le modele en propose 12.
+        $ai = Mockery::mock(DeepseekService::class);
+        $ai->shouldReceive('generateChapters')->once()->andReturn(
+            collect(range(0, 11))
+                ->map(fn (int $index): array => ['title' => "Partie {$index}", 'start_time' => (float) ($index * 50)])
+                ->all()
+        );
+
+        $chapters = $this->planner($ai)->plan([
+            ['start' => 0, 'end' => 10, 'text' => 'Bonjour tout le monde.'],
+        ], 600.0);
+
+        $this->assertSame(['Partie 0', 'Partie 4', 'Partie 8'], array_column($chapters, 'title'));
+        $this->assertSame([0.0, 200.0, 400.0], array_column($chapters, 'start_time'));
+        $this->assertSame([200.0, 400.0, 600.0], array_column($chapters, 'end_time'));
+    }
+
     public function test_it_sends_the_outline_to_the_model_and_keeps_its_chapters(): void
     {
         $ai = Mockery::mock(DeepseekService::class);

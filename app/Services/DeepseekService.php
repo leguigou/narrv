@@ -166,15 +166,40 @@ class DeepseekService
     }
 
     /**
+     * Fourchette de chapitres visee pour une duree donnee : environ un chapitre
+     * toutes les 5 minutes, plafonne a un chapitre toutes les 4 min 30
+     * (soit 12 a 14 chapitres pour une video d'une heure).
+     *
+     * @return array{min: int, max: int}
+     */
+    public static function chapterBudget(float $duration): array
+    {
+        if ($duration <= 0) {
+            return ['min' => 0, 'max' => 0];
+        }
+
+        $minutes = $duration / 60;
+        $ideal = (int) max(1, round($minutes / 5));
+        $max = (int) max($ideal + 1, ceil($minutes / 4.5));
+
+        return ['min' => $ideal, 'max' => $max];
+    }
+
+    /**
      * Ask the model to split a video into chapters from its timestamped transcript.
      *
      * @return list<array{title: string, start_time: float}>
      */
     public function generateChapters(string $timestampedTranscript, float $duration, ?string $videoTitle = null): array
     {
+        $budget = self::chapterBudget($duration);
+
         $prompt = $this->prompts->render('chapters_system', [
             'title' => trim((string) $videoTitle),
             'duration' => (int) round(max(0, $duration)),
+            'chapter_guidance' => $budget['max'] > 0
+                ? "aim for {$budget['min']} to {$budget['max']} chapters"
+                : 'adapt the number of chapters to the content',
             'transcript' => $this->trimToBudget($timestampedTranscript),
         ]);
 

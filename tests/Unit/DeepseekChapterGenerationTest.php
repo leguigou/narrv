@@ -99,6 +99,7 @@ class DeepseekChapterGenerationTest extends TestCase
                 // transcrits par les sous-titres automatiques.
                 $this->assertSame('Wan 3.0 vs Seedance 2.5', $variables['title']);
                 $this->assertSame(600, $variables['duration']);
+                $this->assertSame('aim for 2 to 3 chapters', $variables['chapter_guidance']);
 
                 return true;
             }))

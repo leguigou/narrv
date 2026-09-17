@@ -43,7 +43,39 @@ class ChapterPlanner
             throw new RuntimeException('The transcript does not contain any usable text.');
         }
 
-        return $this->withDurations($this->ai->generateChapters($outline, $duration, $videoTitle), $duration);
+        $chapters = $this->limit(
+            $this->ai->generateChapters($outline, $duration, $videoTitle),
+            $duration
+        );
+
+        return $this->withDurations($chapters, $duration);
+    }
+
+    /**
+     * Le modele depasse parfois la fourchette demandee : on garde un chapitre sur
+     * k (le premier est toujours conserve) pour y revenir.
+     *
+     * @param  list<array{title: string, start_time: float}>  $chapters
+     * @return list<array{title: string, start_time: float}>
+     */
+    private function limit(array $chapters, float $duration): array
+    {
+        $max = DeepseekService::chapterBudget($duration)['max'];
+
+        if ($max <= 0 || count($chapters) <= $max) {
+            return $chapters;
+        }
+
+        $step = (int) ceil(count($chapters) / $max);
+        $kept = [];
+
+        foreach ($chapters as $index => $chapter) {
+            if ($index % $step === 0) {
+                $kept[] = $chapter;
+            }
+        }
+
+        return $kept;
     }
 
     /**
