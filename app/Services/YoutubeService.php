@@ -196,15 +196,7 @@ class YoutubeService
 
             // Sans session YouTube, seul le client « web_embedded » renvoie des
             // URL média téléchargeables (les autres répondent 403).
-            $download = $this->runYtDlp(
-                array_merge(['--extractor-args', 'youtube:player_client=web_embedded'], $downloadArguments),
-                1200
-            );
-
-            if (!$download->isSuccessful()) {
-                // Repli sur le client par défaut si YouTube change encore.
-                $download = $this->runYtDlp($downloadArguments, 1200);
-            }
+            $download = $this->downloadChapterSource($downloadArguments);
 
             if (!$download->isSuccessful()) {
                 throw new RuntimeException($this->ytDlpErrorMessage('Unable to download video for chapter thumbnails', $download));
@@ -734,6 +726,39 @@ class YoutubeService
         ));
     }
 
+    /**
+     * Télécharge une version basse définition de la vidéo servant à extraire les
+     * miniatures. YouTube résout le challenge JavaScript de façon capricieuse :
+     * le client « web_embedded » avec le solveur distant passe dans la majorité
+     * des cas, et on retente une fois avant de déclarer l'échec.
+     */
+    private function downloadChapterSource(array $arguments, int $attempts = 2): Process
+    {
+        $extras = [
+            '--extractor-args',
+            'youtube:player_client=web_embedded',
+            '--remote-components',
+            'ejs:github',
+        ];
+
+        $process = null;
+
+        for ($attempt = 1; $attempt <= $attempts; $attempt++) {
+            $process = $this->runYtDlp(array_merge($extras, $arguments), 1200);
+
+            if ($process->isSuccessful()) {
+                return $process;
+            }
+
+            if ($attempt < $attempts) {
+                sleep(5);
+            }
+        }
+
+        // Dernier essai avec le client par défaut si YouTube change encore.
+        return $this->runYtDlp($arguments, 1200);
+    }
+
     private function runYtDlp(array $arguments, int $timeout): Process
     {
         $temporaryCookiesPath = $this->temporaryCookiesPath();
@@ -860,8 +885,8 @@ class YoutubeService
             $message .= ' YouTube is rate-limiting this server right now. Wait a few minutes, keep cookies configured, then retry from the admin. If it persists, refresh the YouTube cookies from a logged-in browser.';
         }
 
-        if (str_contains($error, 'n challenge solving failed')) {
-            $message .= ' YouTube requires JavaScript challenge solving. The Docker image must include Node.js and yt-dlp EJS components; rebuild the app image after deploying this fix.';
+        if (str_contains($error, 'n challenge solving failed') || str_contains($error, 'No supported JavaScript runtime')) {
+            $message .= ' YouTube requires JavaScript challenge solving: YT_DLP_JS_RUNTIMES must point to Deno or Node 22+ (see YT_DLP_JS_RUNTIMES in .env).';
         }
 
         return $message;
