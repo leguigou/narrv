@@ -87,6 +87,38 @@ class DeepseekChapterGenerationTest extends TestCase
             ->generateChapters('[0:00] bla', 100.0);
     }
 
+    public function test_it_retries_once_when_the_api_answers_nothing(): void
+    {
+        config([
+            'services.deepseek.api_key' => 'test-key',
+            'services.deepseek.chapter_retry_delay' => 0,
+        ]);
+
+        $prompts = $this->mock(PromptService::class);
+        $prompts->shouldReceive('render')->andReturn('prompt');
+
+        $service = new class($prompts) extends DeepseekService
+        {
+            public int $calls = 0;
+
+            protected function callApi(array $messages, float $temperature = 0.3): ?string
+            {
+                $this->calls++;
+
+                if ($this->calls === 1) {
+                    throw new RuntimeException('DeepSeek API returned an empty response.');
+                }
+
+                return '[{"title":"Intro","start_time":0}]';
+            }
+        };
+
+        $chapters = $service->generateChapters('[0:00] bla', 600.0);
+
+        $this->assertSame(2, $service->calls);
+        $this->assertSame('Intro', $chapters[0]['title']);
+    }
+
     public function test_it_gives_the_video_title_to_the_prompt(): void
     {
         config(['services.deepseek.api_key' => 'test-key']);

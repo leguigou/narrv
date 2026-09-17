@@ -203,9 +203,40 @@ class DeepseekService
             'transcript' => $this->trimToBudget($timestampedTranscript),
         ]);
 
-        return $this->decodeChapters((string) $this->callApi([
-            ['role' => 'system', 'content' => $prompt],
-        ], 0.2), $duration);
+        return $this->decodeChapters($this->requestChapters($prompt), $duration);
+    }
+
+    /**
+     * DeepSeek renvoie parfois une reponse vide ou un 5xx passager : on retente
+     * une fois avant de declarer l'echec (le job tourne en arriere-plan).
+     */
+    private function requestChapters(string $prompt, int $attempts = 2): string
+    {
+        $messages = [['role' => 'system', 'content' => $prompt]];
+
+        for ($attempt = 1; $attempt <= $attempts; $attempt++) {
+            try {
+                return (string) $this->callApi($messages, 0.2);
+            } catch (RuntimeException $e) {
+                if ($attempt >= $attempts) {
+                    throw $e;
+                }
+
+                logger()->warning('DeepSeek chapter request failed, retrying', [
+                    'source' => 'deepseek',
+                    'attempt' => $attempt,
+                    'error' => $e->getMessage(),
+                ]);
+
+                $delay = max(0, (int) config('services.deepseek.chapter_retry_delay', 3));
+
+                if ($delay > 0) {
+                    sleep($delay);
+                }
+            }
+        }
+
+        throw new RuntimeException('Chapter generation request failed.');
     }
 
     /**
