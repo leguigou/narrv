@@ -22,8 +22,8 @@ class ChapterGenerationLauncher
         }
 
         $status = $video->chapters_status;
-        $isStalePending = $status === 'pending' && $video->updated_at?->lt(now()->subMinutes(2));
-        $isStaleProcessing = $status === 'processing' && $video->updated_at?->lt(now()->subMinutes(25));
+        $isStalePending = $status === 'pending' && $video->updated_at?->lt(now()->subMinutes(1));
+        $isStaleProcessing = $status === 'processing' && $video->updated_at?->lt(now()->subMinutes(5));
 
         if ($status !== null && $status !== 'error' && ! $isStalePending && ! $isStaleProcessing) {
             // Tâche fraîche déjà en cours : on ne relance pas.

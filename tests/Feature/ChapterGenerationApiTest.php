@@ -124,4 +124,28 @@ class ChapterGenerationApiTest extends TestCase
             'Authorization' => 'Bearer admin-token',
         ])->assertStatus(202)->assertJsonPath('started', true);
     }
+
+    public function test_show_requeues_a_chapters_generation_left_running(): void
+    {
+        $video = $this->video(['chapters_status' => 'pending']);
+        $this->addTranscript($video);
+        Video::whereKey($video->id)->update(['updated_at' => now()->subMinutes(5)]);
+
+        $launcher = $this->mock(ChapterGenerationLauncher::class);
+        $launcher->shouldReceive('launch')->once()->andReturn(true);
+
+        $this->getJson("/api/videos/{$video->id}")->assertOk();
+    }
+
+    public function test_show_does_not_start_a_generation_that_was_never_requested(): void
+    {
+        $video = $this->video(['chapters_status' => null]);
+        $this->addTranscript($video);
+
+        $launcher = $this->mock(ChapterGenerationLauncher::class);
+        $launcher->shouldNotReceive('launch');
+
+        // Sans demande explicite (bouton ou import), on ne genere rien.
+        $this->getJson("/api/videos/{$video->id}")->assertOk();
+    }
 }

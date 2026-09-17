@@ -44,7 +44,11 @@ class GenerateChapterThumbnails implements ShouldQueue
         $this->video->refresh();
 
         try {
-            $chapters = $service->generateChapterThumbnails($this->video);
+            // Chaque miniature est enregistrée dès qu'elle est extraite : le front
+            // affiche la progression (n/total) et voit les images arriver.
+            $chapters = $service->generateChapterThumbnails($this->video, function (array $partialChapters): void {
+                $this->video->update(['chapters_json' => $partialChapters]);
+            });
 
             $this->video->update([
                 'chapters_json' => $chapters,

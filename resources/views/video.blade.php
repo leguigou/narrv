@@ -233,7 +233,13 @@
                                       x-cloak
                                       class="mt-1.5 flex items-center gap-1.5 text-xs font-medium text-cyan-700 dark:text-cyan-300">
                                     <span class="h-3.5 w-3.5 animate-spin rounded-full border-2 border-cyan-200 border-t-cyan-600" aria-hidden="true"></span>
-                                    <span>Génération des miniatures en cours…</span>
+                                    <span x-text="chapterThumbnailsLabel"></span>
+                                </span>
+                                <span x-show="chaptersNotice"
+                                      x-cloak
+                                      class="mt-1.5 flex items-center gap-1.5 text-xs font-medium text-emerald-700 dark:text-emerald-400"
+                                      role="status">
+                                    <span x-text="chaptersNotice"></span>
                                 </span>
                             </span>
                             <span class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white text-gray-500 ring-1 ring-gray-200 transition dark:bg-gray-950 dark:ring-gray-800"
@@ -739,6 +745,9 @@
             chaptersRequesting: false,
             chaptersFailed: false,
             chaptersErrorMessage: null,
+            chaptersNotice: null,
+            chaptersNoticeTimer: null,
+            chapterPollAttempts: 0,
             init() {
                 this.adminToken = localStorage.getItem('narrv_admin_token') || null;
                 const id = window.location.pathname.split('/').pop();
@@ -758,6 +767,14 @@
             },
             get chaptersGenerating() {
                 return this.chaptersRequesting || ['pending', 'processing'].includes(this.video?.chapters_status);
+            },
+            get chapterThumbnailsLabel() {
+                const total = this.chapterCount;
+                const done = this.videoChapters.filter(chapter => chapter.thumbnail_url).length;
+
+                return done > 0 && total > 0
+                    ? `Génération des miniatures en cours… ${done}/${total}`
+                    : 'Génération des miniatures en cours…';
             },
             get hasTranscript() {
                 return Boolean(this.video?.has_transcript || this.video?.transcript?.id);
@@ -1581,25 +1598,70 @@
                     }
                 } catch(e) { console.error(e); }
             },
+            showChaptersNotice(message) {
+                this.chaptersNotice = message;
+
+                if (this.chaptersNoticeTimer) {
+                    clearTimeout(this.chaptersNoticeTimer);
+                }
+
+                this.chaptersNoticeTimer = setTimeout(() => {
+                    this.chaptersNotice = null;
+                    this.chaptersNoticeTimer = null;
+                }, 12000);
+            },
             scheduleChapterRefresh(id) {
                 if (this.chapterRefreshTimer) {
                     clearTimeout(this.chapterRefreshTimer);
                     this.chapterRefreshTimer = null;
                 }
 
-                if (this.chapterThumbnailsLoading || this.transcriptProcessing || this.chaptersGenerating) {
-                    this.chapterRefreshTimer = setTimeout(() => this.refreshChapterThumbnails(id), 2500);
+                const loading = this.chapterThumbnailsLoading || this.transcriptProcessing || this.chaptersGenerating;
+
+                if (!loading) {
+                    this.chapterPollAttempts = 0;
+                    return;
                 }
+
+                // Garde-fou : au bout de 20 minutes on cesse de sonder pour ne pas
+                // laisser un spinner tourner indéfiniment sans rien dire.
+                if (this.chapterPollAttempts >= 480) {
+                    this.chapterPollAttempts = 0;
+                    this.showChaptersNotice('La génération prend plus de temps que prévu, recharge la page dans un moment.');
+                    return;
+                }
+
+                this.chapterPollAttempts++;
+                this.chapterRefreshTimer = setTimeout(() => this.refreshChapterThumbnails(id), 2500);
             },
             async refreshChapterThumbnails(id) {
                 try {
                     const headers = { 'Accept': 'application/json' };
                     if (this.adminToken) headers.Authorization = `Bearer ${this.adminToken}`;
 
+                    // États observés avant la mise à jour : ils permettent de
+                    // détecter la fin d'une génération pour l'annoncer.
+                    const wasGeneratingChapters = this.chaptersGenerating;
+                    const wasGeneratingThumbnails = this.chapterThumbnailsLoading;
+
                     const res = await fetch(`/api/videos/${id}`, { headers });
                     if (!res.ok) return;
 
                     const video = await res.json();
+                    const notices = [];
+
+                    if (video.chapters_status === 'ready' && wasGeneratingChapters) {
+                        const total = (video.chapters_json || []).length;
+                        notices.push(`${total} chapitre${total > 1 ? 's' : ''} généré${total > 1 ? 's' : ''}`);
+                    }
+
+                    if (video.chapter_thumbnails_status === 'ready' && wasGeneratingThumbnails) {
+                        const done = (video.chapters_json || []).filter(chapter => chapter.thumbnail_url).length;
+                        if (done > 0) {
+                            notices.push(`${done} miniature${done > 1 ? 's' : ''} prête${done > 1 ? 's' : ''}`);
+                        }
+                    }
+
                     this.video.chapters_json = video.chapters_json;
                     this.video.chapters_status = video.chapters_status;
                     this.video.chapters_source = video.chapters_source;
@@ -1617,6 +1679,11 @@
                     this.video.has_transcript = video.has_transcript;
                     this.video.transcript_status = video.transcript_status;
                     this.video.transcript_updated_at = video.transcript_updated_at;
+
+                    if (notices.length) {
+                        this.showChaptersNotice('✓ ' + notices.join(' · '));
+                    }
+
                     this.syncTranscriptState();
                     this.scheduleChapterRefresh(id);
                 } catch (e) {
@@ -1626,6 +1693,7 @@
             },
             destroy() {
                 if (this.chapterRefreshTimer) clearTimeout(this.chapterRefreshTimer);
+                if (this.chaptersNoticeTimer) clearTimeout(this.chaptersNoticeTimer);
                 if (this.transcriptObserver) this.transcriptObserver.disconnect();
                 this.stopTranscriptProgress();
                 window.clearTimeout(this.transcriptProgressHideTimer);

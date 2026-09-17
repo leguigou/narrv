@@ -148,7 +148,7 @@ class YoutubeService
         ];
     }
 
-    public function generateChapterThumbnails(Video $video): array
+    public function generateChapterThumbnails(Video $video, ?callable $onChapter = null): array
     {
         $chapters = is_array($video->chapters_json) ? $video->chapters_json : [];
         if ($chapters === []) {
@@ -252,6 +252,12 @@ class YoutubeService
                 $version = filemtime($output) ?: time();
                 $chapter['thumbnail_url'] = "/api/videos/{$video->id}/chapters/{$index}/thumbnail?v={$version}";
                 $generated++;
+
+                if ($onChapter !== null) {
+                    // Sauvegarde progressive : les miniatures apparaissent une par
+                    // une côté front au lieu d'attendre la fin de la vidéo.
+                    $onChapter($chapters);
+                }
             }
             unset($chapter);
 

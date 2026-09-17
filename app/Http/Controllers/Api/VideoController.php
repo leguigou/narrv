@@ -107,6 +107,7 @@ class VideoController extends Controller
         }
 
         $this->ensureChapterThumbnailsQueued($video);
+        $this->ensureChaptersQueued($video);
 
         $freshVideo = Video::withExists(['transcript as has_transcript'])
             ->withMax(['transcript as transcript_updated_at'], 'updated_at')
@@ -169,6 +170,19 @@ class VideoController extends Controller
         ]);
     }
 
+    /**
+     * Relance une génération de chapitres restée bloquée (process tué, service
+     * redémarré…). Ne démarre jamais une génération qui n'a pas été demandée.
+     */
+    private function ensureChaptersQueued(Video $video): void
+    {
+        $status = $video->chapters_status;
+
+        if (empty($video->chapters_json) && in_array($status, ['pending', 'processing'], true)) {
+            app(ChapterGenerationLauncher::class)->launch($video);
+        }
+    }
+
     private function ensureChapterThumbnailsQueued(Video $video): void
     {
         if ($video->status !== 'ready' || empty($video->chapters_json)) {
@@ -177,8 +191,8 @@ class VideoController extends Controller
 
         $status = $video->chapter_thumbnails_status;
         $isNew = $status === null;
-        $isStalePending = $status === 'pending' && $video->updated_at?->lt(now()->subMinutes(2));
-        $isStaleProcessing = $status === 'processing' && $video->updated_at?->lt(now()->subMinutes(25));
+        $isStalePending = $status === 'pending' && $video->updated_at?->lt(now()->subMinutes(1));
+        $isStaleProcessing = $status === 'processing' && $video->updated_at?->lt(now()->subMinutes(5));
 
         if (!$isNew && !$isStalePending && !$isStaleProcessing) {
             return;
