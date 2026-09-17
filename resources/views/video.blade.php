@@ -1590,6 +1590,13 @@
                     }
                     Alpine.store('app').currentVideo = video;
                     this.video = video;
+
+                    // Chapitres deja prets mais miniatures encore en cours : on
+                    // ouvre la liste tout de suite, les vignettes suivront.
+                    if (this.chapterCount > 0 && this.chapterThumbnailsLoading) {
+                        this.chaptersOpen = true;
+                    }
+
                     if (this.video.status === 'pending' || this.video.status === 'processing') {
                         setTimeout(() => this.loadVideo(id), 3000);
                     } else {
@@ -1679,6 +1686,12 @@
                     this.video.has_transcript = video.has_transcript;
                     this.video.transcript_status = video.transcript_status;
                     this.video.transcript_updated_at = video.transcript_updated_at;
+
+                    // Le chapitrage vient de se terminer : on l'affiche tout de
+                    // suite, les miniatures se chargeront au fur et a mesure.
+                    if (video.chapters_status === 'ready' && wasGeneratingChapters && this.chapterCount > 0) {
+                        this.chaptersOpen = true;
+                    }
 
                     if (notices.length) {
                         this.showChaptersNotice('✓ ' + notices.join(' · '));
